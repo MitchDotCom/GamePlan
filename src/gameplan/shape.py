@@ -255,6 +255,17 @@ def _add_game_state(rows: list[PitchRow]) -> list[PitchRow]:
     return out
 
 
+def filter_starts(rows: list[PitchRow]) -> list[PitchRow]:
+    """Keep only pitcher-games that began in the 1st inning (starts). Relief outings are dropped so
+    arsenals, TTO and pitch-count states describe starters only."""
+    first: dict[tuple, tuple] = {}
+    for r in rows:
+        k = (r.pitcher, r.game_pk)
+        if k not in first or (r.at_bat, r.pitch_no) < first[k][0]:
+            first[k] = ((r.at_bat, r.pitch_no), r.inning)
+    return [r for r in rows if first[(r.pitcher, r.game_pk)][1] == 1]
+
+
 @dataclass(frozen=True)
 class ArsenalPitch:
     pitch_type: str

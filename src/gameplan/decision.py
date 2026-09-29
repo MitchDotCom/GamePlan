@@ -178,11 +178,84 @@ class SituationConfig:
     risp_two_outs: SituationPolicy = SituationPolicy.MILD
     runner_first_lt2: SituationPolicy = SituationPolicy.MILD     # double-play spot
     other_states: SituationPolicy = SituationPolicy.OFF
+    score_inning: SituationPolicy = SituationPolicy.MILD   # lead x inning effect on walk / K / contact value
     contact_first_max_whiff: float = CONTACT_FIRST_MAX_WHIFF
 
     def policy_for(self, spot: Spot) -> SituationPolicy:
         return {Spot.RUNNER_THIRD_LT2: self.runner_third_lt2, Spot.RISP_TWO_OUTS: self.risp_two_outs,
                 Spot.DOUBLE_PLAY: self.runner_first_lt2, Spot.OTHER: self.other_states}[spot]
+
+
+_CONFIG_FIELDS = ("runner_third_lt2", "risp_two_outs", "runner_first_lt2", "other_states", "score_inning",
+                  "contact_first_max_whiff")
+
+
+@dataclass(frozen=True)
+class SituationOverride:
+    """Sets only the fields a coach wants to change; None means inherit."""
+    runner_third_lt2: Optional[SituationPolicy] = None
+    risp_two_outs: Optional[SituationPolicy] = None
+    runner_first_lt2: Optional[SituationPolicy] = None
+    other_states: Optional[SituationPolicy] = None
+    score_inning: Optional[SituationPolicy] = None
+    contact_first_max_whiff: Optional[float] = None
+
+    def apply(self, base: SituationConfig) -> SituationConfig:
+        return replace(base, **{f: getattr(self, f) for f in _CONFIG_FIELDS if getattr(self, f) is not None})
+
+
+@dataclass(frozen=True)
+class PolicyBook:
+    """Situation policies at four levels: team default, per opposing starter, per hitter, and per
+    hitter-vs-starter pair. Later levels in `precedence` override earlier ones field by field, so a
+    starter-wide 'contact-first with a runner on third' can be relaxed for one hitter who rarely
+    strikes out, and tightened again for one specific matchup."""
+    default: SituationConfig = SituationConfig()
+    by_starter: dict[str, SituationOverride] = field(default_factory=dict)
+    by_hitter: dict[str, SituationOverride] = field(default_factory=dict)
+    by_pair: dict[str, SituationOverride] = field(default_factory=dict)   # key "hitter_id|starter_id"
+    precedence: tuple[str, ...] = ("starter", "hitter", "pair")            # last wins
+
+    def _layers(self, hitter_id: str, starter_id: str):
+        src = {"starter": self.by_starter.get(starter_id), "hitter": self.by_hitter.get(hitter_id),
+               "pair": self.by_pair.get(f"{hitter_id}|{starter_id}")}
+        return [(name, src[name]) for name in self.precedence if src.get(name) is not None]
+
+    def resolve(self, hitter_id: str, starter_id: str) -> SituationConfig:
+        cfg = self.default
+        for _, ov in self._layers(hitter_id, starter_id):
+            cfg = ov.apply(cfg)
+        return cfg
+
+    def explain(self, hitter_id: str, starter_id: str) -> dict[str, str]:
+        """Which level set each field, for the coach to see why a plan is what it is."""
+        out = {f: "default" for f in _CONFIG_FIELDS}
+        for name, ov in self._layers(hitter_id, starter_id):
+            for f in _CONFIG_FIELDS:
+                if getattr(ov, f) is not None:
+                    out[f] = name
+        return out
+
+    def to_json(self) -> str:
+        enc = lambda o: {f: (getattr(o, f).value if isinstance(getattr(o, f), Enum) else getattr(o, f))
+                         for f in _CONFIG_FIELDS if getattr(o, f) is not None}
+        return json.dumps({"default": enc(self.default),
+                           "by_starter": {k: enc(v) for k, v in self.by_starter.items()},
+                           "by_hitter": {k: enc(v) for k, v in self.by_hitter.items()},
+                           "by_pair": {k: enc(v) for k, v in self.by_pair.items()},
+                           "precedence": list(self.precedence)}, indent=1)
+
+    @classmethod
+    def from_json(cls, text: str) -> "PolicyBook":
+        d = json.loads(text)
+
+        def dec(m, klass):
+            return klass(**{k: (SituationPolicy(v) if k != "contact_first_max_whiff" else v) for k, v in m.items()})
+        return cls(dec(d.get("default", {}), SituationConfig),
+                   {k: dec(v, SituationOverride) for k, v in d.get("by_starter", {}).items()},
+                   {k: dec(v, SituationOverride) for k, v in d.get("by_hitter", {}).items()},
+                   {k: dec(v, SituationOverride) for k, v in d.get("by_pair", {}).items()},
+                   tuple(d.get("precedence", ("starter", "hitter", "pair"))))
 
 
 @dataclass(frozen=True)
@@ -195,29 +268,42 @@ class SituationWeights:
 
 
 _BASEOUT = None
+_SCOREINNING = None
+MIN_LEVERAGE = 0.04     # win probability per run below which a lead x inning bucket is a blowout: no adjustment
 
 
 def situation_weights(outs: int = 0, bases: tuple[bool, bool, bool] = (False, False, False),
                       score_diff: int = 0, inning: int = 1,
-                      config: SituationConfig = SituationConfig(), table: Optional[dict] = None) -> SituationWeights:
-    """bases = (on1B, on2B, on3B). score_diff and inning are accepted but not used yet."""
-    global _BASEOUT
+                      config: SituationConfig = SituationConfig(), table: Optional[dict] = None,
+                      si_table: Optional[dict] = None) -> SituationWeights:
+    """bases = (on1B, on2B, on3B); score_diff = batting team's lead. Two independent effects add:
+    the base-out state (per-spot policy) and the lead x inning context (score_inning policy)."""
+    global _BASEOUT, _SCOREINNING
     spot = spot_of(outs, bases)
     policy = config.policy_for(spot)
     scale = _POLICY_SCALE[policy]
-    if scale == 0.0:
-        return SituationWeights()
-    if table is None:
-        _BASEOUT = _BASEOUT if _BASEOUT is not None else baseout.load()
-        table = _BASEOUT
-    entry = table.get("states", {}).get(baseout.state_key(outs, *bases), {})
-
-    def adj(cls: str) -> float:
-        d, n = entry.get(cls, [0.0, 0])
-        return scale * d * n / (n + SHRINK_N)
-
-    return SituationWeights(adj("K"), adj("BB"), adj("BIP"),
-                            config.contact_first_max_whiff if policy is SituationPolicy.CONTACT_FIRST else None)
+    d = {"K": 0.0, "BB": 0.0, "BIP": 0.0}
+    if scale:
+        if table is None:
+            _BASEOUT = _BASEOUT if _BASEOUT is not None else baseout.load()
+            table = _BASEOUT
+        entry = table.get("states", {}).get(baseout.state_key(outs, *bases), {})
+        for cls in d:
+            v, n = entry.get(cls, [0.0, 0])
+            d[cls] += scale * v * n / (n + SHRINK_N)
+    si_scale = _POLICY_SCALE[config.score_inning]
+    if si_scale:
+        if si_table is None:
+            _SCOREINNING = _SCOREINNING if _SCOREINNING is not None else baseout.load_score_inning()
+            si_table = _SCOREINNING
+        key = baseout.si_key(score_diff, inning)
+        if si_table.get("leverage_wpa_per_run", {}).get(key, 0.0) >= MIN_LEVERAGE:
+            entry = si_table.get("buckets", {}).get(key, {})
+            for cls in d:
+                v, n = entry.get(cls, [0.0, 0])
+                d[cls] += si_scale * v * n / (n + SHRINK_N)
+    contact_first = policy is SituationPolicy.CONTACT_FIRST or config.score_inning is SituationPolicy.CONTACT_FIRST
+    return SituationWeights(d["K"], d["BB"], d["BIP"], config.contact_first_max_whiff if contact_first else None)
 
 
 def apply_situation(cv: CountValues, w: SituationWeights) -> CountValues:

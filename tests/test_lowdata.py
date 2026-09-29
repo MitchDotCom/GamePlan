@@ -93,3 +93,13 @@ def test_usage_depends_on_batter_side_and_strike_count():
     vs_l = build_arsenal(rows, "2025-07-01", stand="L")
     assert two_k["SL"].usage > base["SL"].usage
     assert vs_l["CH"].usage > base["CH"].usage
+
+
+def test_filter_starts_drops_relief_outings():
+    from gameplan.shape import filter_starts
+    start = [PitchRow("p", "d", "FF", 1, 95, 16, 0, -4.5, game_pk="1", at_bat=a, pitch_no=1, inning=1 if a == 1 else 2)
+             for a in (1, 2, 3)]
+    relief = [PitchRow("p", "d", "FF", 1, 95, 16, 0, -4.5, game_pk="2", at_bat=a, pitch_no=1, inning=7)
+              for a in (30, 31)]
+    kept = filter_starts(start + relief)
+    assert {r.game_pk for r in kept} == {"1"} and len(kept) == 3

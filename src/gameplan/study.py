@@ -29,7 +29,7 @@ from .decision import CountValues, DEFAULT, deltas_np, fit_count_values, p_calle
 from .savant import SwingRow, contact_quality, parse_swings
 from . import fatigue
 from .shape import (
-    FASTBALLS, ContactModel, PitchRow, build_arsenal, cap_tto, fit_tto_shifts, parse_pitches, raw_query,
+    FASTBALLS, ContactModel, PitchRow, build_arsenal, cap_tto, filter_starts, fit_tto_shifts, parse_pitches, raw_query,
 )
 
 RNG = np.random.default_rng(7)
@@ -96,7 +96,7 @@ def _predict_all(models, hitter_swings_test):
     return out
 
 
-def test1_and_2(swings_by_hitter, cutoff, league_train, starters):
+def test1_and_2(swings_by_hitter, cutoff, league_train, starters, start_keys):
     print("\n== Test 1: held-out swing prediction skill vs league / location+type model")
     variants = [("type", "league"), ("type", "hitter"), ("shape", "league"), ("shape", "hitter")]
     names = {v: f"{v[0]}-{v[1]}" for v in variants}
@@ -138,7 +138,7 @@ def test1_and_2(swings_by_hitter, cutoff, league_train, starters):
         # keep hitter-shape predictions for TTO calibration vs starters
         p, _ = preds[("shape", "hitter")]
         for k, s in enumerate(test):
-            if s.pitcher in starters and s.tto:
+            if s.pitcher in starters and s.tto and (s.game_pk, s.at_bat, s.pitch_no) in start_keys:
                 tto_rows.append((cap_tto(s.tto), float(s.whiff), float(p["whiff"][k]),
                                  s.xwoba, float(p["xw"][k])))
     base = ("type", "league")
@@ -165,7 +165,7 @@ def test1_and_2(swings_by_hitter, cutoff, league_train, starters):
     return per_h
 
 
-def test3(events_by_hitter, cutoff, league_train, pitch_by_pitcher, cv: CountValues):
+def test3(events_by_hitter, cutoff, league_train, pitch_by_pitcher, cv: CountValues, start_keys):
     print("\n== Test 3: does the call separate swing-beats-take from take-beats-swing? (vs starters)")
     print("   S = [mean value(swing) - mean value(take)] in GO pitches minus the same in NO_GO pitches")
     print("   (wOBA scale, higher is better; selection bias applies, compare variants not levels)")
@@ -176,7 +176,8 @@ def test3(events_by_hitter, cutoff, league_train, pitch_by_pitcher, cv: CountVal
             arsenals[pid][t] = build_arsenal(rows, cutoff, tto=t)
     league_models = {mode: ContactModel([], league_train, mode=mode) for mode in ("type", "shape")}
     vs_starters = [s for rows in events_by_hitter.values() for s in rows
-                   if s.swing and s.date < cutoff and s.pitcher in arsenals]
+                   if s.swing and s.date < cutoff and s.pitcher in arsenals
+                   and (s.game_pk, s.at_bat, s.pitch_no) in start_keys]
     shifts = fit_tto_shifts(league_models["shape"], vs_starters)
     print("  TTO shifts from training swings vs starters (whiff, xwOBAcon): "
           + "  ".join(f"TTO{t}: ({w:+.3f}, {x:+.3f})" for t, (w, x) in shifts.items()))
@@ -195,7 +196,8 @@ def test3(events_by_hitter, cutoff, league_train, pitch_by_pitcher, cv: CountVal
     n_pitches = 0
     for b, rows in events_by_hitter.items():
         train = [s for s in rows if s.swing and s.date < cutoff]
-        test = [s for s in rows if s.date >= cutoff and s.pitcher in arsenals and s.tto]
+        test = [s for s in rows if s.date >= cutoff and s.pitcher in arsenals and s.tto
+                and (s.game_pk, s.at_bat, s.pitch_no) in start_keys]
         if len(train) < 300 or not test:
             continue
         models = {}
@@ -365,18 +367,21 @@ def main(argv=None) -> int:
     pitch_by_pitcher: dict[str, list[PitchRow]] = {}
     starters = set()
     for t in _read(ppaths):
-        rows = parse_pitches(t)
+        rows = filter_starts(parse_pitches(t))
         if rows:
             pitch_by_pitcher[rows[0].pitcher] = rows
             starters.add(rows[0].pitcher)
+    start_keys = {(p.game_pk, p.at_bat, p.pitch_no) for rows in pitch_by_pitcher.values() for p in rows}
+    print(f"starters: {len(pitch_by_pitcher)}, starts pitched: "
+          f"{len({(p.pitcher, p.game_pk) for rows in pitch_by_pitcher.values() for p in rows})}")
 
     if "0" in tests:
         test0({b: [s for s in r if s.date < a.cutoff] for b, r in swings_by_hitter.items()},
               {b: [s for s in r if s.date >= a.cutoff] for b, r in swings_by_hitter.items()})
     if "1" in tests:
-        test1_and_2(swings_by_hitter, a.cutoff, league_train, starters)
+        test1_and_2(swings_by_hitter, a.cutoff, league_train, starters, start_keys)
     if "3" in tests:
-        test3(events_by_hitter, a.cutoff, league_train, pitch_by_pitcher, cv)
+        test3(events_by_hitter, a.cutoff, league_train, pitch_by_pitcher, cv, start_keys)
     if "4" in tests:
         test4(pitch_by_pitcher, a.cutoff)
     if "5" in tests:
