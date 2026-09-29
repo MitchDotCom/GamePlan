@@ -13,6 +13,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Callable, Iterable, Optional
 
+from .constants import value as _const
+
 SEARCH_URL = "https://baseballsavant.mlb.com/statcast_search/csv"
 
 SWING_DESCRIPTIONS = {
@@ -54,7 +56,7 @@ def approach_angle(row: dict) -> Optional[float]:
     vy0, vz0, ay, az = (_f(row.get(k)) for k in ("vy0", "vz0", "ay", "az"))
     if None in (vy0, vz0, ay, az) or ay == 0:
         return None
-    disc = vy0 * vy0 - 2 * ay * (50.0 - 17.0 / 12.0)
+    disc = vy0 * vy0 - 2 * ay * (_const("VAA_RELEASE_Y_FT") - _const("VAA_PLATE_FRONT_Y_FT"))
     if disc <= 0:
         return None
     vy_f = -math.sqrt(disc)
@@ -102,12 +104,13 @@ class SwingRow:
     run_exp: Optional[float] = None    # delta_run_exp of the pitch
 
 
-def parse_swings(csv_text: str, include_takes: bool = False, foul_tip_as_whiff: bool = False,
-                 exclude_bunts: bool = False, strict_xwoba: bool = False) -> list[SwingRow]:
+def parse_swings(csv_text: str, include_takes: bool = False, foul_tip_as_whiff: bool = True,
+                 exclude_bunts: bool = True, strict_xwoba: bool = True) -> list[SwingRow]:
     """Swing-level rows only (plus takes if include_takes). Fouls stay in (they are contact, no
     batted-ball value). Coordinates: plate_x is catcher's view already; plate_z is feet off the ground.
 
-    Data-handling switches (all default off, which reproduces the earlier studies): foul_tip_as_whiff
+    Data-handling switches (all default ON since the methodology audit; pass False to reproduce the
+    pre-audit studies): foul_tip_as_whiff
     treats a foul tip as a swinging strike, as published plate-discipline definitions do; exclude_bunts
     drops bunt attempts and plate appearances that ended in a bunt; strict_xwoba drops balls in play that
     have no Savant xwOBA instead of falling back to actual wOBA."""
@@ -134,7 +137,7 @@ def parse_swings(csv_text: str, include_takes: bool = False, foul_tip_as_whiff: 
         bs, ev = _f(row.get("bat_speed")), _f(row.get("launch_speed"))
         su = None
         if is_swing and desc == "hit_into_play" and bs and ev and velo:
-            su = ev / (1.23 * bs + 0.2116 * velo) >= 0.80
+            su = ev / (_const("SQUARED_UP_BAT_COEF") * bs + _const("SQUARED_UP_PITCH_COEF") * velo) >= _const("SQUARED_UP_THRESHOLD")
         stand = (row.get("stand") or "").strip()
         tto = _f(row.get("n_thruorder_pitcher"))
         out.append(SwingRow(

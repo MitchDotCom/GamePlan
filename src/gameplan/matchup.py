@@ -208,19 +208,20 @@ def review_pitch(snap: PlanSnapshot, hitter: Hitter, pitch: Pitch, action: Actio
 
     One HITTER_BEAT_MODEL is not evidence the model is wrong; aggregate them by cell before acting."""
     sit = snap.situation
-    ev = evaluate_pitch(snap.plan, hitter, pitch, action, result,
-                        GameContext(balls=sit.balls, strikes=sit.strikes), swing)
     step = CELL_IN / 12.0
     i = int((pitch.x - X_RANGE[0]) // step)
     j = int((pitch.z - Z_RANGE[0]) // step)
-    cell = snap.cells.get(f"{pitch.pitch_type}|{i}|{j}")
+    key = f"{pitch.pitch_type}|{i}|{j}"
+    cell = snap.cells.get(key)
+    ev = evaluate_pitch(cell, hitter, pitch, action, result, GameContext(balls=sit.balls, strikes=sit.strikes),
+                        swing, cell_key=key if cell else None)
     delta = cell["delta"] if cell else None
     if ev.umpire_miss:
         label, note = ReviewLabel.UMPIRE, "decision was fine; the call was wrong"
-    elif "no_plan_coverage" in ev.flags or delta is None:
-        label, note = ReviewLabel.NO_COVERAGE, "pitch type or location outside the plan"
-    elif ev.decision_score >= 75:
-        label, note = ReviewLabel.FOLLOWED, "followed the plan"
+    elif ev.process in ("UNSCORED", "NEUTRAL"):
+        label, note = ReviewLabel.NO_COVERAGE, "no strong call for this pitch (outside the plan or too close to call)"
+    elif ev.process == "GOOD":
+        label, note = ReviewLabel.FOLLOWED, "took the action the model valued higher"
     elif ev.quadrant is Quadrant.Q3_LUCKY_RESULT:
         label, note = ReviewLabel.HITTER_BEAT_MODEL, "left the plan and it worked; check the cell over more pitches"
     else:
@@ -233,7 +234,7 @@ HARD_CONTACT_XWOBA = 0.500
 
 def _research_flags(ev: Evaluation, action: Action, result: Result, hitter: Hitter) -> tuple[str, ...]:
     f = []
-    good_dec = ev.decision_score >= 75
+    good_dec = ev.process == "GOOD"
     call = result.call.upper()
     if good_dec and action is Action.TAKE and call == "CALLED_STRIKE":
         f.append("GOOD_TAKE_CALLED_STRIKE_UMP_MISS" if ev.umpire_miss else "GOOD_TAKE_CALLED_STRIKE_IN_ZONE")
@@ -244,6 +245,6 @@ def _research_flags(ev: Evaluation, action: Action, result: Result, hitter: Hitt
             f.append("GOOD_SWING_LUCKY_HIT")
     if good_dec and action is Action.SWING and call in ("SWINGING_STRIKE", "FOUL"):
         f.append("GOOD_SWING_MISS_OR_FOUL")
-    if not good_dec and action is Action.TAKE and call == "BALL":
+    if ev.process == "BAD" and action is Action.TAKE and call == "BALL":
         f.append("BAD_TAKE_BUT_BALL")
     return tuple(f)

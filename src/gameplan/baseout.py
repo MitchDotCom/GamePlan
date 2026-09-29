@@ -18,14 +18,16 @@ import json
 import pathlib
 from collections import defaultdict
 
-WOBA_SCALE = 1.2
+from .constants import value as _const
+
+WOBA_SCALE = _const("WOBA_SCALE_2025")
 K_EVENTS = {"strikeout", "strikeout_double_play"}
 BB_EVENTS = {"walk", "intent_walk", "hit_by_pitch"}
 SKIP_EVENTS = {"truncated_pa", "catcher_interf", "batter_interference"}
 
 
 def outcome_class(event: str) -> str | None:
-    if event in SKIP_EVENTS:
+    if event in SKIP_EVENTS or "bunt" in event:      # bunts are a different decision; excluded everywhere
         return None
     return "K" if event in K_EVENTS else "BB" if event in BB_EVENTS else "BIP"
 

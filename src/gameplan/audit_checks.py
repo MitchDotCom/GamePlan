@@ -136,10 +136,10 @@ def c3_split_dates(sw_by_h):
 def c4_data_handling(b25_dir):
     print("\n== C4: data-handling effects on skill (same model, same cutoff)")
     variants = {
-        "as before (foul tips = fouls, bunts in)": {},
-        "foul tips as whiffs": {"foul_tip_as_whiff": True},
-        "bunts excluded": {"exclude_bunts": True},
-        "BIP without Savant xwOBA dropped": {"strict_xwoba": True},
+        "as before (foul tips = fouls, bunts in)": {"foul_tip_as_whiff": False, "exclude_bunts": False, "strict_xwoba": False},
+        "foul tips as whiffs": {"foul_tip_as_whiff": True, "exclude_bunts": False, "strict_xwoba": False},
+        "bunts excluded": {"foul_tip_as_whiff": False, "exclude_bunts": True, "strict_xwoba": False},
+        "BIP without Savant xwOBA dropped": {"foul_tip_as_whiff": False, "exclude_bunts": False, "strict_xwoba": True},
         "all three fixes": {"foul_tip_as_whiff": True, "exclude_bunts": True, "strict_xwoba": True},
     }
     texts = list(_read(sorted(glob.glob(str(pathlib.Path(b25_dir) / "*.csv")))))

@@ -128,9 +128,10 @@ class Pitch:
 
 @dataclass(frozen=True)
 class Swing:
-    """Only present when the hitter swung. Bat-tracking fields may be missing."""
-    vaa_swing: Optional[float] = None     # attack angle of this swing
-    timing_error_ms: Optional[float] = None   # + late, - early
+    """Only present when the hitter swung. Measured bat-tracking fields (Statcast); any may be missing."""
+    attack_angle: Optional[float] = None    # degrees, of this swing
+    bat_speed: Optional[float] = None       # mph
+    squared_up: Optional[bool] = None       # on balls in play with exit velo and bat speed
 
 
 @dataclass(frozen=True)
@@ -146,12 +147,16 @@ class Result:
 @dataclass(frozen=True)
 class Evaluation:
     pitch_id: str
-    instruction: Instruction           # after count resolution
-    rule_id: Optional[str]
-    decision_score: int
-    execution_score: Optional[int]     # None on a take: nothing to execute
-    quadrant: Quadrant
+    instruction: Instruction           # the plan cell's call for this pitch (GO / NO_GO / CONDITIONAL)
+    rule_id: Optional[str]             # plan cell key, None if the plan did not cover the pitch
+    # Expected value of the action taken minus the alternative, in runs (model's swing vs take EV at the
+    # snapshot's count and situation). None if the plan did not cover the pitch.
+    decision_value_runs: Optional[float]
+    process: str                       # GOOD, BAD, NEUTRAL (|value| under the call threshold) or UNSCORED
+    quadrant: Optional[Quadrant]       # None when process is NEUTRAL or UNSCORED
     dev: Dev
     umpire_miss: bool
     rationale: str
     flags: tuple[str, ...] = field(default_factory=tuple)
+    angle_mismatch_deg: Optional[float] = None   # |attack angle - (-pitch VAA)| when both are measured
+    squared_up: Optional[bool] = None

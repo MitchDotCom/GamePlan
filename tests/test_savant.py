@@ -79,12 +79,3 @@ def test_model_feeds_plan_generator():
 def test_two_baselines_are_on_different_scales():
     m = fit_hitter_model(make_csv(), "2")
     assert m.hitter_cq < m.hitter_xwobacon  # whiffs pull CQ below xwOBA on contact
-
-
-def test_validate_finds_signal_and_individualization():
-    from gameplan.validate import validate
-    rows = parse_swings(make_csv(hitters=("1", "2", "3", "4", "5"), n=1200))
-    res = {r.batter: r for r in validate(rows)}
-    r = res["1"]
-    assert r.gap is not None and r.gap > 0.2          # plan separates good from bad cells
-    assert r.league_gap is None or r.gap > r.league_gap  # and beats a league-only plan

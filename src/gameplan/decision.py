@@ -25,6 +25,7 @@ from enum import Enum
 from typing import Iterable, Optional
 
 from . import baseout
+from .constants import value as _const
 
 # Fallback expected final-PA wOBA by count if no fitted table is packaged.
 DEFAULT_COUNT_VALUES = {
@@ -32,8 +33,8 @@ DEFAULT_COUNT_VALUES = {
     (0, 1): 0.285, (1, 1): 0.310, (2, 1): 0.350, (3, 1): 0.450,
     (0, 2): 0.200, (1, 2): 0.215, (2, 2): 0.245, (3, 2): 0.340,
 }
-WALK_VALUE = 0.69
-HBP_VALUE = 0.72
+WALK_VALUE = _const("WBB_2025")
+HBP_VALUE = _const("WHBP_2025")
 STRIKEOUT_VALUE = 0.0
 
 
@@ -89,7 +90,9 @@ def fit_count_values(csv_texts: Iterable[str]) -> CountValues:
                 b, s = int(r["balls"]), int(r["strikes"])
             except (KeyError, ValueError):
                 continue
-            pa = pas.setdefault(key, {"counts": set(), "woba": None, "ev": None})
+            pa = pas.setdefault(key, {"counts": set(), "woba": None, "ev": None, "bunt": False})
+            if "bunt" in (r.get("description") or "") or "bunt" in (r.get("events") or ""):
+                pa["bunt"] = True
             if b <= 3 and s <= 2:
                 pa["counts"].add((b, s))
             if r.get("events"):
@@ -99,7 +102,7 @@ def fit_count_values(csv_texts: Iterable[str]) -> CountValues:
     sums: dict = defaultdict(lambda: [0.0, 0, 0, 0, 0])   # wOBA sum, n, nK, nBB, nBIP
     walks, ks = [], []
     for pa in pas.values():
-        if pa["woba"] is None:
+        if pa["woba"] is None or pa["bunt"]:
             continue
         cls = baseout.outcome_class(pa["ev"] or "")
         for c in pa["counts"]:

@@ -1,76 +1,22 @@
-"""Pitch evaluation on three separate axes: decision, execution, result.
+"""Pitch evaluation: decision value, measured execution diagnostics, and result, kept separate.
 
-All scoring is deterministic code. Constants below are starting points to calibrate, not facts."""
+Decision value is the published-style measure (Savant swing/take, TJStats batter decision value): the
+model's expected value of the action the hitter took minus the alternative, at the count and situation
+of the plan snapshot. Units are runs. There are no invented 0-100 scores.
+
+Execution is not scored. Only measured Statcast fields are reported (attack angle, bat speed, squared-up)
+plus the angle mismatch |attack angle - (-pitch VAA)|. Across 58k balls in play in 2025 the mismatch is
+weakly related to squared-up rate (top-quintile mismatch of 11 degrees or more: 61.8% squared up vs 69%
+for the best two quintiles; r = -0.06) and to whiffs (r = +0.20), so it is a flag, not a score."""
 from __future__ import annotations
 
-from .models import (
-    Action, Dev, Evaluation, GameContext, Hitter, Instruction, Pitch, Plan, Quadrant,
-    Result, Rule, Swing,
-)
+from typing import Optional
 
-# Decision scores for (instruction, action)
-SCORE_GO_SWING = 100
-SCORE_GO_TAKE = 25
-SCORE_NO_GO_TAKE = 100
-SCORE_NO_GO_SWING = 0
-SCORE_CONDITIONAL_NEUTRAL = 60         # no call in a non-protect count
-PROTECT_SWING, PROTECT_TAKE = 100, 40  # borderline pitch, 2 strikes
-GOOD_DECISION = 75
+from .constants import value as _const
+from .models import Action, Dev, Evaluation, GameContext, Hitter, Instruction, Pitch, Quadrant, Result, Swing
 
-# Execution: penalty per degree of attack-angle error and per ms of timing error
-ANGLE_PENALTY = 4.0
-TIMING_PENALTY = 2.5
-GOOD_EXECUTION = 60
-
-PROTECT_TOLERANCE_FT = 2.5 / 12.0      # NO_GO pitches this close to the called zone flip to protect at 2 strikes
-
-
-def _select_rule(plan: Plan, pitch: Pitch, strikes: int) -> Rule | None:
-    order = {Instruction.NO_GO: 2, Instruction.CONDITIONAL: 1, Instruction.GO: 0}
-    hits = [r for r in plan.rules if r.applies(pitch, strikes)]
-    if not hits:
-        return None
-    return max(hits, key=lambda r: (r.priority, order[r.instruction]))
-
-
-def resolve(plan: Plan, pitch: Pitch, ctx: GameContext) -> tuple[Instruction, Rule | None, bool]:
-    """Returns (instruction, matched rule, protect_mode)."""
-    rule = _select_rule(plan, pitch, ctx.strikes)
-    ins = rule.instruction if rule else plan.default
-    protect = False
-    if ctx.strikes == 2:
-        near = ctx.strike_zone.distance_to(pitch.x, pitch.z) <= PROTECT_TOLERANCE_FT
-        if ins is Instruction.CONDITIONAL or (ins is Instruction.NO_GO and near):
-            protect = True
-            ins = Instruction.CONDITIONAL
-    return ins, rule, protect
-
-
-def decision_score(ins: Instruction, action: Action, protect: bool) -> int:
-    if ins is Instruction.GO:
-        return SCORE_GO_SWING if action is Action.SWING else SCORE_GO_TAKE
-    if ins is Instruction.NO_GO:
-        return SCORE_NO_GO_SWING if action is Action.SWING else SCORE_NO_GO_TAKE
-    if protect:
-        return PROTECT_SWING if action is Action.SWING else PROTECT_TAKE
-    return SCORE_CONDITIONAL_NEUTRAL
-
-
-def execution_score(pitch: Pitch, swing: Swing | None) -> tuple[int | None, str | None]:
-    """Attack angle vs the pitch's plane, plus timing. None when there is nothing to score."""
-    if swing is None:
-        return None, None
-    parts, err = [], 0.0
-    if swing.vaa_swing is not None and pitch.vaa is not None:
-        err += ANGLE_PENALTY * abs(swing.vaa_swing - (-pitch.vaa))
-        parts.append("angle")
-    if swing.timing_error_ms is not None:
-        err += TIMING_PENALTY * abs(swing.timing_error_ms)
-        parts.append("timing")
-    if not parts:
-        return None, "no_bat_tracking"
-    flag = None if len(parts) == 2 else f"partial_execution:{parts[0]}_only"
-    return max(0, round(100 - err)), flag
+DECISION_THRESHOLD = _const("GO_DELTA")      # |swing EV - take EV| under this is "no strong call"
+ANGLE_MISMATCH_FLAG_DEG = 11.1               # top quintile of 2025 balls in play (DERIVED, see docstring)
 
 
 def _result_good(result: Result, hitter: Hitter, strikes: int) -> bool:
@@ -81,81 +27,71 @@ def _result_good(result: Result, hitter: Hitter, strikes: int) -> bool:
         return result.xwoba is not None and result.xwoba >= hitter.baseline_xwobacon
     if c == "FOUL":
         return strikes == 2   # a foul only helps when it keeps the at-bat alive
-    return False              # CALLED_STRIKE, SWINGING_STRIKE, unknown
-
-
-def _quadrant(dec: int, good_result: bool) -> Quadrant:
-    good_process = dec >= GOOD_DECISION
-    if good_process:
-        return Quadrant.Q1_IDEAL_EXECUTION if good_result else Quadrant.Q2_UNFORTUNATE_RESULT
-    return Quadrant.Q3_LUCKY_RESULT if good_result else Quadrant.Q4_PROCESS_FAILURE
-
-
-def _dev(dec: int, exe: int | None, ump_miss: bool) -> Dev:
-    if ump_miss:
-        return Dev.NONE
-    bad_dec = dec < GOOD_DECISION
-    bad_exe = exe is not None and exe < GOOD_EXECUTION
-    if bad_dec and bad_exe:
-        return Dev.BOTH
-    if bad_dec:
-        return Dev.VISION_TRAINING
-    if bad_exe:
-        return Dev.MECHANICAL_WORK
-    return Dev.NONE
+    return False              # CALLED_STRIKE, SWINGING_STRIKE, FOUL_TIP, unknown
 
 
 def evaluate_pitch(
-    plan: Plan,
+    cell: Optional[dict],
     hitter: Hitter,
     pitch: Pitch,
     action: Action,
     result: Result,
     ctx: GameContext = GameContext(),
-    swing: Swing | None = None,
+    swing: Optional[Swing] = None,
+    cell_key: Optional[str] = None,
+    scale: Optional[float] = None,
+    threshold: float = DECISION_THRESHOLD,
 ) -> Evaluation:
-    ins, rule, protect = resolve(plan, pitch, ctx)
-    dec = decision_score(ins, action, protect)
-    exe, exe_flag = execution_score(pitch, swing if action is Action.SWING else None)
-    good = _result_good(result, hitter, ctx.strikes)
-    quad = _quadrant(dec, good)
-
+    """cell: one plan-snapshot cell {"swing": EV, "take": EV, "delta": swing-take, "cls": call}, or None
+    if the plan did not cover the pitch. EVs are on the wOBA scale; scale converts to runs."""
+    scale = scale or _const("WOBA_SCALE_2025")
     call = result.call.upper()
-    ump_miss = (
-        action is Action.TAKE and call == "CALLED_STRIKE" and result.in_zone is False
-    ) or (
-        action is Action.TAKE and call == "BALL" and result.in_zone is True
-    )
+    ump_miss = (action is Action.TAKE and call == "CALLED_STRIKE" and result.in_zone is False) or \
+               (action is Action.TAKE and call == "BALL" and result.in_zone is True)
     flags: list[str] = []
-    if exe_flag:
-        flags.append(exe_flag)
-    if ins is Instruction.CONDITIONAL and not protect:
-        flags.append("no_plan_coverage" if rule is None else "conditional_neutral")
-    if protect:
-        flags.append("protect_mode")
+
+    if cell is None:
+        dv_runs, process, instruction = None, "UNSCORED", Instruction.CONDITIONAL
+        flags.append("no_plan_coverage")
+    else:
+        dv = cell["delta"] if action is Action.SWING else -cell["delta"]
+        dv_runs = dv / scale
+        process = "GOOD" if dv >= threshold else "BAD" if dv <= -threshold else "NEUTRAL"
+        instruction = Instruction(cell["cls"])
+        if process == "NEUTRAL":
+            flags.append("no_strong_call")
+
+    good = _result_good(result, hitter, ctx.strikes)
+    if process == "GOOD":
+        quad = Quadrant.Q1_IDEAL_EXECUTION if good else Quadrant.Q2_UNFORTUNATE_RESULT
+    elif process == "BAD":
+        quad = Quadrant.Q3_LUCKY_RESULT if good else Quadrant.Q4_PROCESS_FAILURE
+    else:
+        quad = None
+
+    mismatch = None
+    su = None
+    if action is Action.SWING and swing is not None:
+        su = swing.squared_up
+        if swing.attack_angle is not None and pitch.vaa is not None:
+            mismatch = abs(swing.attack_angle - (-pitch.vaa))
+            if mismatch >= ANGLE_MISMATCH_FLAG_DEG:
+                flags.append("angle_mismatch")
+        elif swing.attack_angle is None:
+            flags.append("no_bat_tracking")
     if ump_miss:
         flags.append("umpire_miss")
-    if action is Action.SWING and exe is None and "no_bat_tracking" not in flags:
-        flags.append("no_bat_tracking")
 
-    label = "PROTECT" if protect else ins.value
+    # Development flags only from decisions the model was confident about, never from one pitch's
+    # execution. Angle mismatch is recorded for aggregation, not assigned here.
+    dev = Dev.NONE if (ump_miss or process != "BAD") else Dev.VISION_TRAINING
+
     verb = "swung" if action is Action.SWING else "took"
-    rationale = (
-        f"{label} pitch, hitter {verb}: decision {dec}"
-        + (f", execution {exe}" if exe is not None else "")
-        + f". Result {'good' if good else 'bad'} ({call})"
-        + (", umpire miss" if ump_miss else "")
-        + "."
-    )
+    rationale = (f"{instruction.value} cell, hitter {verb}: "
+                 + (f"decision value {dv_runs:+.3f} runs ({process})" if dv_runs is not None else "plan silent")
+                 + f". Result {'good' if good else 'bad'} ({call})" + (", umpire miss" if ump_miss else "") + ".")
     return Evaluation(
-        pitch_id=pitch.pitch_id,
-        instruction=ins,
-        rule_id=rule.rule_id if rule else None,
-        decision_score=dec,
-        execution_score=exe,
-        quadrant=quad,
-        dev=_dev(dec, exe, ump_miss),
-        umpire_miss=ump_miss,
-        rationale=rationale,
-        flags=tuple(flags),
+        pitch_id=pitch.pitch_id, instruction=instruction, rule_id=cell_key, decision_value_runs=dv_runs,
+        process=process, quadrant=quad, dev=dev, umpire_miss=ump_miss, rationale=rationale,
+        flags=tuple(flags), angle_mismatch_deg=mismatch, squared_up=su,
     )
