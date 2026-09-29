@@ -3,7 +3,7 @@ name = "gameplan"
 version = "0.1.0"
 description = "Hitter-specific Go / No-Go game plans and pitch-level decision vs execution scoring"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["numpy", "scipy"]
 
 [project.optional-dependencies]
 dev = ["pytest"]

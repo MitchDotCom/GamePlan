@@ -14,6 +14,16 @@ NO_GO_REL = 0.20
 XwobaModel = Callable[[float, float, str, float], float]
 
 
+def grid_centers(x_range=(-1.25, 1.25), z_range=(1.0, 4.0), cell_in: float = 4.0):
+    """(i, j, center_x, center_z) for every grid cell. Shared so callers can precompute
+    predictions at exactly the centers generate_grid_plan will ask for."""
+    step = cell_in / 12.0
+    n_x = round((x_range[1] - x_range[0]) / step)
+    n_z = round((z_range[1] - z_range[0]) / step)
+    return [(i, j, x_range[0] + i * step + step / 2, z_range[0] + j * step + step / 2)
+            for i in range(n_x) for j in range(n_z)]
+
+
 def generate_grid_plan(
     hitter: Hitter,
     pitcher: Pitcher,
@@ -34,26 +44,23 @@ def generate_grid_plan(
     ivb_by_type = ivb_by_type or {}
     step = cell_in / 12.0
     rules: list[Rule] = []
-    n_x = round((x_range[1] - x_range[0]) / step)
-    n_z = round((z_range[1] - z_range[0]) / step)
+    cells = grid_centers(x_range, z_range, cell_in)
     for pt in pitch_types:
         ivb = ivb_by_type.get(pt, 0.0)
-        for i in range(n_x):
-            for j in range(n_z):
-                x0 = x_range[0] + i * step
-                z0 = z_range[0] + j * step
-                cx, cz = x0 + step / 2, z0 + step / 2
-                pred = xwoba_model(cx, cz, pt, ivb)
-                if pred >= hitter.baseline_cq * (1 + go_rel):
-                    ins = Instruction.GO
-                elif pred <= hitter.baseline_cq * (1 - no_go_rel):
-                    ins = Instruction.NO_GO
-                else:
-                    continue
-                rules.append(Rule(
-                    rule_id=f"{pt}_{i}_{j}_{ins.value}",
-                    instruction=ins,
-                    zone=Zone(x0, x0 + step, z0, z0 + step),
-                    pitch_types=frozenset({pt}),
-                ))
+        for i, j, cx, cz in cells:
+            x0 = x_range[0] + i * step
+            z0 = z_range[0] + j * step
+            pred = xwoba_model(cx, cz, pt, ivb)
+            if pred >= hitter.baseline_cq * (1 + go_rel):
+                ins = Instruction.GO
+            elif pred <= hitter.baseline_cq * (1 - no_go_rel):
+                ins = Instruction.NO_GO
+            else:
+                continue
+            rules.append(Rule(
+                rule_id=f"{pt}_{i}_{j}_{ins.value}",
+                instruction=ins,
+                zone=Zone(x0, x0 + step, z0, z0 + step),
+                pitch_types=frozenset({pt}),
+            ))
     return Plan(hitter.player_id, pitcher.player_id, tuple(rules))

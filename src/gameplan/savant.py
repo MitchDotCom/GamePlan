@@ -74,6 +74,18 @@ class SwingRow:
     velo: Optional[float]
     xwoba: Optional[float]   # xwOBA (speed/angle) on balls in play only; None on whiff / foul
     whiff: bool
+    # Appended with defaults so older positional construction still works.
+    pitcher: str = ""
+    tto: Optional[int] = None        # times through the order for the pitcher (n_thruorder_pitcher)
+    stand: str = ""
+    x_away: Optional[float] = None   # plate_x flipped so + = away from the batter, whatever his side
+    hb: Optional[float] = None       # horizontal break in inches, batter-relative (api_break_x_batter_in)
+    bat_speed: Optional[float] = None
+    swing_length: Optional[float] = None
+    attack_angle: Optional[float] = None
+    squared_up: Optional[bool] = None   # on balls in play with EV and bat speed
+    balls: int = 0
+    strikes: int = 0
 
 
 def parse_swings(csv_text: str) -> list[SwingRow]:
@@ -95,12 +107,24 @@ def parse_swings(csv_text: str) -> list[SwingRow]:
             if xw is None:
                 continue
         pfx_z = _f(row.get("pfx_z"))
+        velo = _f(row.get("release_speed"))
+        bs, ev = _f(row.get("bat_speed")), _f(row.get("launch_speed"))
+        su = None
+        if desc == "hit_into_play" and bs and ev and velo:
+            su = ev / (1.23 * bs + 0.2116 * velo) >= 0.80
+        stand = (row.get("stand") or "").strip()
+        tto = _f(row.get("n_thruorder_pitcher"))
         out.append(SwingRow(
             batter=str(row.get("batter") or ""), date=row.get("game_date") or "",
             pitch_type=pt, x=x, z=z,
             ivb=pfx_z * 12.0 if pfx_z is not None else None,
-            vaa=approach_angle(row), velo=_f(row.get("release_speed")),
+            vaa=approach_angle(row), velo=velo,
             xwoba=xw, whiff=desc in WHIFF_DESCRIPTIONS,
+            pitcher=str(row.get("pitcher") or ""), tto=int(tto) if tto else None,
+            stand=stand, x_away=(x if stand == "R" else -x) if stand in ("R", "L") else None,
+            hb=_f(row.get("api_break_x_batter_in")), bat_speed=bs,
+            swing_length=_f(row.get("swing_length")), attack_angle=_f(row.get("attack_angle")),
+            squared_up=su, balls=int(_f(row.get("balls")) or 0), strikes=int(_f(row.get("strikes")) or 0),
         ))
     return out
 
