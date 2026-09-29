@@ -94,12 +94,12 @@ class ContactModel:
     def __init__(self, hitter: Iterable[SwingRow], league: Iterable[SwingRow], mode: str = "shape",
                  k_whiff: float = 25.0, k_xw: float = 12.0, k_su: float = 12.0,
                  K_hitter: int = 80, K_league: int = 400, prior_m: float = 3.0,
-                 xw_attr: str = "xwoba"):
+                 xw_attr: str = "xwoba", bw_scale: float = 1.0):
         """xw_attr: which per-swing value the quality target uses. "xwoba" needs exit velo and launch
         angle; "woba" (actual outcome value) is the fallback for parks with no batted-ball tracking."""
         self.mode = mode
         self.xw_attr = xw_attr
-        self.bw = MODE_BW[mode]
+        self.bw = MODE_BW[mode] * bw_scale
         self.k = {"whiff": k_whiff, "foul": k_whiff, "xw": k_xw, "su": k_su}
         self.m = prior_m
         self._h = self._build(list(hitter), K_hitter)

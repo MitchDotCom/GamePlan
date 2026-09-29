@@ -102,12 +102,20 @@ class SwingRow:
     run_exp: Optional[float] = None    # delta_run_exp of the pitch
 
 
-def parse_swings(csv_text: str, include_takes: bool = False) -> list[SwingRow]:
+def parse_swings(csv_text: str, include_takes: bool = False, foul_tip_as_whiff: bool = False,
+                 exclude_bunts: bool = False, strict_xwoba: bool = False) -> list[SwingRow]:
     """Swing-level rows only (plus takes if include_takes). Fouls stay in (they are contact, no
-    batted-ball value). Coordinates: plate_x is catcher's view already; plate_z is feet off the ground."""
+    batted-ball value). Coordinates: plate_x is catcher's view already; plate_z is feet off the ground.
+
+    Data-handling switches (all default off, which reproduces the earlier studies): foul_tip_as_whiff
+    treats a foul tip as a swinging strike, as published plate-discipline definitions do; exclude_bunts
+    drops bunt attempts and plate appearances that ended in a bunt; strict_xwoba drops balls in play that
+    have no Savant xwOBA instead of falling back to actual wOBA."""
     out = []
     for row in csv.DictReader(io.StringIO(csv_text)):
         desc = (row.get("description") or "").strip()
+        if exclude_bunts and ("bunt" in desc or "bunt" in (row.get("events") or "")):
+            continue
         is_swing = desc in SWING_DESCRIPTIONS
         if not is_swing and not (include_takes and desc in TAKE_CALLS):
             continue
@@ -117,7 +125,7 @@ def parse_swings(csv_text: str, include_takes: bool = False) -> list[SwingRow]:
         xw = None
         if is_swing and desc == "hit_into_play":
             xw = _f(row.get("estimated_woba_using_speedangle"))
-            if xw is None:
+            if xw is None and not strict_xwoba:
                 xw = _f(row.get("woba_value"))
             if xw is None:
                 continue
@@ -134,7 +142,7 @@ def parse_swings(csv_text: str, include_takes: bool = False) -> list[SwingRow]:
             pitch_type=pt, x=x, z=z,
             ivb=pfx_z * 12.0 if pfx_z is not None else None,
             vaa=approach_angle(row), velo=velo,
-            xwoba=xw, whiff=desc in WHIFF_DESCRIPTIONS,
+            xwoba=xw, whiff=desc in WHIFF_DESCRIPTIONS or (foul_tip_as_whiff and desc == "foul_tip"),
             swing=is_swing, take_call="" if is_swing else TAKE_CALLS[desc],
             sz_bot=_f(row.get("sz_bot")), sz_top=_f(row.get("sz_top")),
             game_pk=str(row.get("game_pk") or ""), at_bat=int(_f(row.get("at_bat_number")) or 0),
