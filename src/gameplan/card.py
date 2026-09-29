@@ -18,6 +18,7 @@ from .matchup import (
 from .grid import grid_shape
 from .models import Hitter
 from .savant import parse_swings
+from .zone import CalledStrikeModel
 from .shape import ArsenalBasis, ContactModel, PitcherState, filter_starts, parse_pitches
 
 SYMBOL = {"GO": "G", "NO_GO": "x", "CONDITIONAL": "."}
@@ -61,10 +62,11 @@ def main(argv=None) -> int:
                     help="runner-on-third policy; omit to use the model's recommendation")
     a = ap.parse_args(argv)
 
-    league = [s for f in sorted(glob.glob(str(pathlib.Path(a.batters) / "*.csv")))
-              for s in parse_swings(open(f, encoding="utf-8-sig").read())]
-    mine = [s for s in league if s.batter == a.hitter and s.date < a.cutoff]
-    league = [s for s in league if s.date < a.cutoff]
+    events = [s for f in sorted(glob.glob(str(pathlib.Path(a.batters) / "*.csv")))
+              for s in parse_swings(open(f, encoding="utf-8-sig").read(), include_takes=True) if s.date < a.cutoff]
+    zone = CalledStrikeModel([s for s in events if not s.swing])
+    league = [s for s in events if s.swing]
+    mine = [s for s in league if s.batter == a.hitter]
     model = ContactModel(mine, league, mode="shape")
     pitches = filter_starts(parse_pitches(open(pathlib.Path(a.pitchers) / f"{a.starter}_2025.csv", encoding="utf-8-sig").read()))
     stand = max(("R", "L"), key=lambda k: sum(s.stand == k for s in mine)) if mine else "R"
@@ -77,7 +79,7 @@ def main(argv=None) -> int:
     pol = SituationPolicy(a.policy) if a.policy else rec[0]
     cfg = SituationConfig(runner_third_lt2=pol)
     snap = build_plan(model, Hitter(a.hitter), a.starter, ars, sit, game_id="demo", level="PA", config=cfg,
-                      pitcher_state=state)
+                      pitcher_state=state, zone_model=zone)
     print(render_card(snap))
     return 0
 
