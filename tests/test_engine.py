@@ -3,7 +3,7 @@ from gameplan import (
     Rule, Swing, Zone, adjust_plan, evaluate_pitch, generate_grid_plan,
 )
 
-H = Hitter("h1", vba_avg=-42, baseline_xwoba=0.320)
+H = Hitter("h1", vba_avg=-42, baseline_cq=0.320, baseline_xwobacon=0.320)
 HIGH_HEAT = Rule("hi_fb", Instruction.NO_GO, Zone(-0.9, 0.9, 2.8, 4.0), frozenset({"FF"}), min_ivb=18)
 PLAN = Plan("h1", "p1", (HIGH_HEAT,))
 
@@ -87,7 +87,7 @@ def test_velocity_drop_extends_fastball_go_zone_only():
 
 def test_grid_plan_thresholds():
     def model(x, z, pt, ivb):
-        return 0.400 if z < 2.0 else (0.280 if z > 3.2 else 0.320)
+        return 0.400 if z < 2.0 else (0.240 if z > 3.2 else 0.320)
     plan = generate_grid_plan(H, Pitcher("p1"), model, ["FF"])
     kinds = {r.instruction for r in plan.rules}
     assert kinds == {Instruction.GO, Instruction.NO_GO}

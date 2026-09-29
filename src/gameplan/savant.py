@@ -65,19 +65,20 @@ def approach_angle(row: dict) -> Optional[float]:
 @dataclass(frozen=True)
 class SwingRow:
     batter: str
+    date: str             # game_date, ISO so it sorts chronologically
     pitch_type: str
     x: float
     z: float
     ivb: Optional[float]
     vaa: Optional[float]
     velo: Optional[float]
-    value: float          # xwOBA on contact; 0 on whiff / foul
+    xwoba: Optional[float]   # xwOBA (speed/angle) on balls in play only; None on whiff / foul
     whiff: bool
 
 
 def parse_swings(csv_text: str) -> list[SwingRow]:
-    """Swing-level rows only. Value per swing: xwOBA (speed/angle) on balls in play, 0 on whiffs
-    and fouls. Coordinates: plate_x is catcher's view already; plate_z is feet off the ground."""
+    """Swing-level rows only. Fouls stay in (they are contact, no batted-ball value).
+    Coordinates: plate_x is catcher's view already; plate_z is feet off the ground."""
     out = []
     for row in csv.DictReader(io.StringIO(csv_text)):
         desc = (row.get("description") or "").strip()
@@ -86,82 +87,120 @@ def parse_swings(csv_text: str) -> list[SwingRow]:
         x, z, pt = _f(row.get("plate_x")), _f(row.get("plate_z")), row.get("pitch_type")
         if x is None or z is None or not pt:
             continue
+        xw = None
         if desc == "hit_into_play":
-            v = _f(row.get("estimated_woba_using_speedangle"))
-            if v is None:
-                v = _f(row.get("woba_value"))
-            if v is None:
+            xw = _f(row.get("estimated_woba_using_speedangle"))
+            if xw is None:
+                xw = _f(row.get("woba_value"))
+            if xw is None:
                 continue
-        else:
-            v = 0.0
         pfx_z = _f(row.get("pfx_z"))
         out.append(SwingRow(
-            batter=str(row.get("batter") or ""), pitch_type=pt, x=x, z=z,
+            batter=str(row.get("batter") or ""), date=row.get("game_date") or "",
+            pitch_type=pt, x=x, z=z,
             ivb=pfx_z * 12.0 if pfx_z is not None else None,
             vaa=approach_angle(row), velo=_f(row.get("release_speed")),
-            value=v, whiff=desc in WHIFF_DESCRIPTIONS,
+            xwoba=xw, whiff=desc in WHIFF_DESCRIPTIONS,
         ))
     return out
 
 
-class ShrunkXwoba:
-    """Cell value = (hitter_sum + k * league_mean) / (hitter_n + k), per pitch type and grid cell.
+def contact_quality(swings: Iterable[SwingRow]) -> Optional[float]:
+    """Whiff-adjusted contact quality: (1 - whiff rate) * mean xwOBA on balls in play.
+    Raw (unshrunk). None if there are no swings or no batted balls."""
+    n = w = bip = 0
+    xs = 0.0
+    for s in swings:
+        n += 1
+        w += s.whiff
+        if s.xwoba is not None:
+            bip += 1
+            xs += s.xwoba
+    if n == 0 or bip == 0:
+        return None
+    return (1 - w / n) * (xs / bip)
 
-    League prior comes from all swings in the data you pass, so pass more than one hitter.
-    k is the number of pseudo-swings of league evidence. Cells with no league data fall back to the
-    pitch type's overall mean, then to the global mean."""
+
+class ContactQualityModel:
+    """Per pitch type and grid cell: CQ = (1 - whiff rate) * xwOBA on balls in play, where each
+    component is shrunk separately toward the league value for that cell:
+
+        whiff  = (hitter_whiffs + k_swing * league_whiff) / (hitter_swings + k_swing)
+        xwOBAcon = (hitter_xw   + k_bip   * league_xw)    / (hitter_bip    + k_bip)
+
+    Cells with under MIN_LEAGUE league swings fall back to the pitch type's average, then global.
+    Pass many hitters as league_swings. Callable as (x, z, pitch_type, ivb) so it drops into
+    plan.generate_grid_plan."""
+
+    MIN_LEAGUE = 10
 
     def __init__(self, hitter_swings: list[SwingRow], league_swings: list[SwingRow],
-                 k: float = 30.0, cell_ft: float = 4.0 / 12.0):
-        self.k, self.cell = k, cell_ft
-        self._h = self._agg(hitter_swings)
-        self._l = self._agg(league_swings)
-        self._lt = self._agg_type(league_swings)
-        allv = [s.value for s in league_swings]
-        self._global = sum(allv) / len(allv) if allv else 0.0
-        hv = [s.value for s in hitter_swings]
-        self.hitter_baseline = sum(hv) / len(hv) if hv else self._global
+                 k_swing: float = 30.0, k_bip: float = 15.0, cell_ft: float = 4.0 / 12.0):
+        self.k_swing, self.k_bip, self.cell = k_swing, k_bip, cell_ft
+        self._h = self._agg(hitter_swings, cell=True)
+        self._l = self._agg(league_swings, cell=True)
+        self._lt = self._agg(league_swings, cell=False)
+        self._g = self._sum(league_swings)
+        hv = self._sum(hitter_swings)
+        cq = contact_quality(hitter_swings)
+        self.hitter_cq = cq if cq is not None else self._rate(self._g)[2]
+        self.hitter_xwobacon = hv[3] / hv[2] if hv[2] else self._rate(self._g)[1]
+
+    # accumulators: [swings, whiffs, bip, xwoba_sum]
+    @staticmethod
+    def _sum(rows):
+        a = [0, 0, 0, 0.0]
+        for s in rows:
+            a[0] += 1
+            a[1] += s.whiff
+            if s.xwoba is not None:
+                a[2] += 1
+                a[3] += s.xwoba
+        return a
 
     def _key(self, x: float, z: float) -> tuple[int, int]:
         return math.floor(x / self.cell), math.floor(z / self.cell)
 
-    def _agg(self, rows):
-        d: dict = defaultdict(lambda: [0.0, 0])
+    def _agg(self, rows, cell: bool):
+        d: dict = defaultdict(lambda: [0, 0, 0, 0.0])
         for s in rows:
-            a = d[(s.pitch_type,) + self._key(s.x, s.z)]
-            a[0] += s.value
-            a[1] += 1
+            key = (s.pitch_type,) + self._key(s.x, s.z) if cell else s.pitch_type
+            a = d[key]
+            a[0] += 1
+            a[1] += s.whiff
+            if s.xwoba is not None:
+                a[2] += 1
+                a[3] += s.xwoba
         return d
 
     @staticmethod
-    def _agg_type(rows):
-        d: dict = defaultdict(lambda: [0.0, 0])
-        for s in rows:
-            a = d[s.pitch_type]
-            a[0] += s.value
-            a[1] += 1
-        return d
+    def _rate(a):
+        """(whiff rate, xwOBAcon, CQ) from an accumulator; safe on empties."""
+        w = a[1] / a[0] if a[0] else 0.25
+        xc = a[3] / a[2] if a[2] else 0.35
+        return w, xc, (1 - w) * xc
 
     def samples(self, x: float, z: float, pt: str) -> int:
-        return self._h.get((pt,) + self._key(x, z), [0.0, 0])[1]
+        return self._h.get((pt,) + self._key(x, z), [0])[0]
+
+    def _prior(self, key, pt):
+        a = self._l.get(key)
+        if a is None or a[0] < self.MIN_LEAGUE:
+            a = self._lt.get(pt, self._g)
+        return self._rate(a)
 
     def __call__(self, x: float, z: float, pt: str, ivb: float = 0.0) -> float:
         key = (pt,) + self._key(x, z)
-        ls, ln = self._l.get(key, [0.0, 0])
-        if ln >= 10:
-            prior = ls / ln
-        elif pt in self._lt:
-            ts, tn = self._lt[pt]
-            prior = ts / tn
-        else:
-            prior = self._global
-        hs, hn = self._h.get(key, [0.0, 0])
-        return (hs + self.k * prior) / (hn + self.k)
+        lw, lx, _ = self._prior(key, pt)
+        h = self._h.get(key, [0, 0, 0, 0.0])
+        whiff = (h[1] + self.k_swing * lw) / (h[0] + self.k_swing)
+        xc = (h[3] + self.k_bip * lx) / (h[2] + self.k_bip)
+        return (1 - whiff) * xc
 
 
-def fit_hitter_model(csv_text: str, batter_id: str, k: float = 30.0) -> ShrunkXwoba:
+def fit_hitter_model(csv_text: str, batter_id: str, **kw) -> ContactQualityModel:
     rows = parse_swings(csv_text)
-    return ShrunkXwoba([r for r in rows if r.batter == str(batter_id)], rows, k=k)
+    return ContactQualityModel([r for r in rows if r.batter == str(batter_id)], rows, **kw)
 
 
 def main(argv: list[str] | None = None) -> int:

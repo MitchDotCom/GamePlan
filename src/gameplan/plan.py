@@ -5,10 +5,12 @@ from typing import Callable, Iterable
 
 from .models import Hitter, Instruction, Pitcher, Plan, Rule, Zone
 
-GO_MARGIN = 0.040
-NO_GO_MARGIN = 0.030
+# Margins are relative to the hitter's own whiff-adjusted contact-quality baseline
+# (hitter.baseline_cq), not absolute xwOBA points. Starting values; calibrate with gameplan.validate.
+GO_REL = 0.15
+NO_GO_REL = 0.20
 
-# (x_ft, z_ft, pitch_type, ivb_in) -> predicted xwOBA for this hitter on a swing.
+# (x_ft, z_ft, pitch_type, ivb_in) -> predicted contact quality (whiff-adjusted) for this hitter.
 XwobaModel = Callable[[float, float, str, float], float]
 
 
@@ -21,6 +23,8 @@ def generate_grid_plan(
     x_range: tuple[float, float] = (-1.25, 1.25),
     z_range: tuple[float, float] = (1.0, 4.0),
     cell_in: float = 4.0,
+    go_rel: float = GO_REL,
+    no_go_rel: float = NO_GO_REL,
 ) -> Plan:
     """One rule per grid cell per pitch type where the model is clearly good (GO) or clearly
     bad (NO_GO) for this hitter. Cells in between get no rule and fall to Plan.default.
@@ -40,9 +44,9 @@ def generate_grid_plan(
                 z0 = z_range[0] + j * step
                 cx, cz = x0 + step / 2, z0 + step / 2
                 pred = xwoba_model(cx, cz, pt, ivb)
-                if pred >= hitter.baseline_xwoba + GO_MARGIN:
+                if pred >= hitter.baseline_cq * (1 + go_rel):
                     ins = Instruction.GO
-                elif pred <= hitter.baseline_xwoba - NO_GO_MARGIN:
+                elif pred <= hitter.baseline_cq * (1 - no_go_rel):
                     ins = Instruction.NO_GO
                 else:
                     continue

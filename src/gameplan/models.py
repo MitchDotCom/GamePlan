@@ -40,8 +40,12 @@ class Hitter:
     vaa_swing: float = 12.0         # attack angle
     ttc_ms: int = 155               # swing time to contact
     bat_speed_90: float = 72.0
-    # Baseline xwOBA and a model of predicted xwOBA by (x, z, pitch) live with the plan generator.
-    baseline_xwoba: float = 0.320
+    # Two baselines on purpose, they are different scales:
+    #   baseline_cq: whiff-adjusted contact quality per swing, (1 - whiff rate) * xwOBAcon.
+    #                Used by the plan generator to set GO / NO_GO thresholds.
+    #   baseline_xwobacon: mean xwOBA on balls in play. Used by the evaluator to judge a batted ball.
+    baseline_cq: float = 0.250
+    baseline_xwobacon: float = 0.350
 
 
 @dataclass(frozen=True)

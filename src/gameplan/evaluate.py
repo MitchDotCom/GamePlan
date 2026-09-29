@@ -78,7 +78,7 @@ def _result_good(result: Result, hitter: Hitter, strikes: int) -> bool:
     if c in {"BALL", "HBP", "WALK"}:
         return True
     if c == "IN_PLAY":
-        return result.xwoba is not None and result.xwoba >= hitter.baseline_xwoba
+        return result.xwoba is not None and result.xwoba >= hitter.baseline_xwobacon
     if c == "FOUL":
         return strikes == 2   # a foul only helps when it keeps the at-bat alive
     return False              # CALLED_STRIKE, SWINGING_STRIKE, unknown

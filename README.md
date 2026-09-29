@@ -38,6 +38,21 @@ pip install -e '.[dev]' && pytest
 ## Savant (`savant.py`)
 
 - `build_url(batter_id, season, pitch_types)` + `fetch_csv(url)`: pitch-level Statcast search CSV. Needs `baseballsavant.mlb.com` allowed in the environment's network policy; without it, download the CSV by hand and pass the text in.
-- `parse_swings(csv_text)`: swing rows only. Value per swing is xwOBA on balls in play, 0 on whiffs and fouls. IVB is `pfx_z * 12` (proxy); VAA is computed from `vy0, vz0, ay, az`.
-- `fit_hitter_model(csv_text, batter_id, k=30)`: per-cell xwOBA shrunk toward the league mean for that pitch type and cell. The league prior is only as good as the CSV you pass, so include many hitters. Use `model.hitter_baseline` as `Hitter.baseline_xwoba` so the GO/NO_GO margins compare like with like.
-- Caveat: baseline here is value per swing (whiffs count as 0), not batted-ball xwOBA. `evaluate._result_good` compares batted-ball xwOBA to `baseline_xwoba`, so with a swing-based baseline it will be too strict. Split these into two fields before using real data.
+- `parse_swings(csv_text)`: swing rows only. Fouls are kept as contact with no batted-ball value; xwOBA is set on balls in play only. IVB is `pfx_z * 12` (proxy); VAA is computed from `vy0, vz0, ay, az`.
+- **Whiff-adjusted contact quality (CQ)** = (1 - whiff rate) * mean xwOBA on balls in play. `ContactQualityModel` / `fit_hitter_model(csv_text, batter_id)` shrinks the whiff rate (`k_swing`, default 30) and xwOBA on contact (`k_bip`, default 15) separately toward the league value for that pitch type and cell. The league prior is only as good as the CSV you pass, so include many hitters.
+- **Two baselines** on `Hitter`, because they are different scales: `baseline_cq` (from `model.hitter_cq`) drives GO/NO_GO thresholds in `generate_grid_plan`, and `baseline_xwobacon` (from `model.hitter_xwobacon`) is what `evaluate_pitch` compares a batted ball against.
+- Plan thresholds are relative to `baseline_cq`: GO at +15%, NO_GO at -20% (`plan.GO_REL`, `plan.NO_GO_REL`). Starting values.
+
+## Validation (`validate.py`)
+
+```
+python -m gameplan.validate data/*_2025.csv
+```
+
+Per hitter: fit on the first 60% of swings (by date), score the last 40%. League prior comes from other hitters' training swings only. Reports whether held-out swings in GO cells out-produce NO_GO cells, and whether a hitter-specific plan separates them better than a league-only plan.
+
+### Result on 15 hitters, 2025 (Soto, Judge, Arraez, Witt, Ohtani, Freeman, Betts, Ramirez, Henderson, Tucker, Carroll, Marte, Turner, Guerrero Jr., Rodriguez)
+
+- GO cells beat NO_GO cells on held-out swings for 8/8 hitters with enough swings in both groups (mean gap +0.61 of baseline CQ). 7 hitters lacked 30 held-out swings in NO_GO cells; hitters rarely swing at pitches they should not.
+- A league-only plan separates almost as well: the hitter-specific plan beat it for 5/8 hitters, mean improvement +0.02. Most of the separation is shared location effect (everyone whiffs on chase pitches).
+- Split-half correlation of each hitter's deviation from league: median r = +0.31, positive for 11/15 hitters, range -0.55 to +0.55 on about 12 cells each. Suggestive, not confirmed.
