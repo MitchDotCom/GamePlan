@@ -40,8 +40,7 @@ def run(sw, lm, n, kgs, cut=CUT, min_train=400, min_test=150):
         y_x = np.array([s.xwoba if s.xwoba is not None else 0.0 for s in test], float)
         Qtr, mtr = lm.query_swings(train)
         tr = [s for s, k in zip(train, mtr) if k]
-        m = ContactModel(tr, [], mode="shape")
-        m._l, m._g = lm._l, lm._g
+        m = ContactModel.for_hitter(tr, lm, k_global_whiff=1e12, k_global_xw=1e12)   # term off = the pre-audit model
         acc = {}
         lg, hit = m.predict_pair(Qt)
         acc["base"] = _err(lg, y_w, bip, y_x)

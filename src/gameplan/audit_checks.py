@@ -102,8 +102,7 @@ def _skill(sw_by_h, cutoff, bw_scale=1.0, K_hitter=80, K_league=400, k_scale=1.0
             return (float(((p["whiff"] - y_w) ** 2).sum()), float(len(y_w)),
                     float(((p["xw"] - y_x)[bip] ** 2).sum()), float(bip.sum()))
         Qt, _ = lm_type.query_swings(test)
-        m = ContactModel(train, [], mode="shape", **kw)
-        m._l, m._g = lm_shape._l, lm_shape._g
+        m = ContactModel.for_hitter(train, lm_shape, **{k: v for k, v in kw.items() if k in ("bw_scale", "K_hitter", "k_whiff", "k_xw", "k_su")})
         per[b] = {"base": err(lm_type.predict(Qt, use_hitter=False)), "hit": err(m.predict(Q, use_hitter=True))}
     out = []
     for ti in (0, 1):

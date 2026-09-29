@@ -119,6 +119,15 @@ class ContactModel:
         if lg and self._rows:
             self.fit_offsets()
 
+    @classmethod
+    def for_hitter(cls, hitter_rows: Iterable[SwingRow], league_model: "ContactModel", **kw) -> "ContactModel":
+        """One hitter's model that reuses an already-built league model's trees (building the league
+        trees is the expensive part) and computes his hitter-level offsets against them."""
+        m = cls(hitter_rows, [], mode=league_model.mode, xw_attr=league_model.xw_attr, **kw)
+        m._l, m._g = league_model._l, league_model._g
+        m.fit_offsets()
+        return m
+
     def fit_offsets(self, hitter_rows: Iterable[SwingRow] | None = None) -> None:
         """Hitter-level term: how far the hitter runs from the league prior across all his swings, shrunk
         toward zero with k_global (empirical-Bayes two-level model). Call again if the league trees were

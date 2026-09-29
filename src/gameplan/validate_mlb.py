@@ -87,8 +87,7 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
                 and s.x_away is not None and None not in (s.velo, s.ivb, s.hb, s.vaa)]
         if len(train) < min_train or not test:
             continue
-        m = ContactModel(train, [], mode="shape")
-        m._l, m._g = league._l, league._g
+        m = ContactModel.for_hitter(train, league)
         Q = np.array([(s.x_away, s.z, s.velo, s.ivb, s.hb, s.vaa) for s in test], float)
         _, hit = m.predict_pair(Q)
         sb = np.array([s.sz_bot or 1.5 for s in test])
@@ -284,8 +283,7 @@ def v4_year_over_year(b24, b25, cutoff):
         acc[variants[0]] = err(lm["type"].predict(Qt, use_hitter=False))
         acc[variants[1]] = err(lm["shape"].predict(Q[mask.nonzero()[0] * 0 + np.arange(len(Q))] if False else lm["shape"].query_swings(test)[0], use_hitter=False))
         for name, data in ((variants[2], h24), (variants[3], h25), (variants[4], h24 + h25)):
-            m = ContactModel(data, [], mode="shape")
-            m._l, m._g = lm["shape"]._l, lm["shape"]._g
+            m = ContactModel.for_hitter(data, lm["shape"])
             acc[name] = err(m.predict(m.query_swings(test)[0], use_hitter=True))
         per_h[b] = acc
     print(f"  hitters with 2024 and 2025 data: {len(per_h)}")

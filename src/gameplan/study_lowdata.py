@@ -70,9 +70,8 @@ def test6(swings_by_hitter, cutoff, league_train):
         acc = {}
 
         def run(name, mode, hitter, xw_attr="xwoba", league=None):
-            m = ContactModel(train if hitter else [], [], mode=mode, xw_attr=xw_attr)
             src = league or lm[mode]
-            m._l, m._g = src._l, src._g
+            m = ContactModel.for_hitter(train if hitter else [], src)
             Q, _ = m.query_swings(test)
             lg, hit = m.predict_pair(Q)
             acc[name] = _sse(hit if hitter else lg, y_w, bip, y_x)
@@ -105,8 +104,7 @@ def test7(swings_by_hitter, cutoff, league_train, ns=(50, 100, 200, 400)):
             acc = {}
             for name, mode, scale in (("type, k x1", "type", 1.0), ("type, k x2 (stiffer)", "type", 2.0),
                                       ("type, k x0.5 (looser)", "type", 0.5), ("shape, k x1", "shape", 1.0)):
-                m = ContactModel(train, [], mode=mode, k_whiff=25 * scale, k_xw=12 * scale, k_su=12 * scale)
-                m._l, m._g = lm[mode]._l, lm[mode]._g
+                m = ContactModel.for_hitter(train, lm[mode], k_whiff=25 * scale, k_xw=12 * scale, k_su=12 * scale)
                 Q, _ = m.query_swings(t2)
                 lg, hit = m.predict_pair(Q)
                 acc[name] = _sse(hit, y_w, bip, y_x)
@@ -166,8 +164,7 @@ def test8(swings_by_hitter, cutoff, league_train, ns=(50, 100, 200), rhos=(0.0, 
             y_w, bip, y_x = _truth(test)
             acc = {}
             for rho in [None] + list(rhos):
-                m = ContactModel(train, [], mode="type")
-                m._l, m._g = lm._l, lm._g
+                m = ContactModel.for_hitter(train, lm)
                 Q, _ = m.query_swings(test)
                 coach = None
                 if rho is not None:

@@ -111,10 +111,7 @@ def test1_and_2(swings_by_hitter, cutoff, league_train, starters, start_keys):
             continue
         models = {}
         for mode in ("type", "shape"):
-            m = ContactModel(train, [], mode=mode)
-            m._l = league_models[mode]._l
-            m._g = league_models[mode]._g
-            models[mode] = m
+            models[mode] = ContactModel.for_hitter(train, league_models[mode])
         # keep only swings with all shape features so every variant scores the same rows
         Qs, mask = models["shape"].query_swings(test)
         test = [s for s, k in zip(test, mask) if k]
@@ -202,9 +199,7 @@ def test3(events_by_hitter, cutoff, league_train, pitch_by_pitcher, cv: CountVal
             continue
         models = {}
         for mode in ("type", "shape"):
-            m = ContactModel(train, [], mode=mode)
-            m._l, m._g = league_models[mode]._l, league_models[mode]._g
-            models[mode] = m
+            models[mode] = ContactModel.for_hitter(train, league_models[mode])
         # build query rows: the pitch's own location, arsenal shape for its type
         keep, q_type, q_shape_all, q_shape_tto = [], [], [], []
         for s in test:
@@ -367,10 +362,9 @@ def main(argv=None) -> int:
     pitch_by_pitcher: dict[str, list[PitchRow]] = {}
     starters = set()
     for t in _read(ppaths):
-        rows = filter_starts(parse_pitches(t))
-        if rows:
-            pitch_by_pitcher[rows[0].pitcher] = rows
-            starters.add(rows[0].pitcher)
+        for r in filter_starts(parse_pitches(t)):      # a file may hold one pitcher (per-player pull) or a whole day
+            pitch_by_pitcher.setdefault(r.pitcher, []).append(r)
+            starters.add(r.pitcher)
     start_keys = {(p.game_pk, p.at_bat, p.pitch_no) for rows in pitch_by_pitcher.values() for p in rows}
     print(f"starters: {len(pitch_by_pitcher)}, starts pitched: "
           f"{len({(p.pitcher, p.game_pk) for rows in pitch_by_pitcher.values() for p in rows})}")
