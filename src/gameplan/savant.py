@@ -20,6 +20,7 @@ SWING_DESCRIPTIONS = {
     "hit_into_play", "missed_bunt", "bunt_foul_tip",
 }
 WHIFF_DESCRIPTIONS = {"swinging_strike", "swinging_strike_blocked", "missed_bunt"}
+TAKE_CALLS = {"called_strike": "strike", "ball": "ball", "blocked_ball": "ball", "hit_by_pitch": "hbp"}
 
 
 def build_url(batter_id: int, season: int, pitch_types: Optional[Iterable[str]] = None) -> str:
@@ -86,21 +87,26 @@ class SwingRow:
     squared_up: Optional[bool] = None   # on balls in play with EV and bat speed
     balls: int = 0
     strikes: int = 0
+    swing: bool = True                 # False only for rows from parse_swings(include_takes=True)
+    take_call: str = ""                # for takes: "strike", "ball" or "hbp"
+    sz_bot: Optional[float] = None
+    sz_top: Optional[float] = None
 
 
-def parse_swings(csv_text: str) -> list[SwingRow]:
-    """Swing-level rows only. Fouls stay in (they are contact, no batted-ball value).
-    Coordinates: plate_x is catcher's view already; plate_z is feet off the ground."""
+def parse_swings(csv_text: str, include_takes: bool = False) -> list[SwingRow]:
+    """Swing-level rows only (plus takes if include_takes). Fouls stay in (they are contact, no
+    batted-ball value). Coordinates: plate_x is catcher's view already; plate_z is feet off the ground."""
     out = []
     for row in csv.DictReader(io.StringIO(csv_text)):
         desc = (row.get("description") or "").strip()
-        if desc not in SWING_DESCRIPTIONS:
+        is_swing = desc in SWING_DESCRIPTIONS
+        if not is_swing and not (include_takes and desc in TAKE_CALLS):
             continue
         x, z, pt = _f(row.get("plate_x")), _f(row.get("plate_z")), row.get("pitch_type")
         if x is None or z is None or not pt:
             continue
         xw = None
-        if desc == "hit_into_play":
+        if is_swing and desc == "hit_into_play":
             xw = _f(row.get("estimated_woba_using_speedangle"))
             if xw is None:
                 xw = _f(row.get("woba_value"))
@@ -110,7 +116,7 @@ def parse_swings(csv_text: str) -> list[SwingRow]:
         velo = _f(row.get("release_speed"))
         bs, ev = _f(row.get("bat_speed")), _f(row.get("launch_speed"))
         su = None
-        if desc == "hit_into_play" and bs and ev and velo:
+        if is_swing and desc == "hit_into_play" and bs and ev and velo:
             su = ev / (1.23 * bs + 0.2116 * velo) >= 0.80
         stand = (row.get("stand") or "").strip()
         tto = _f(row.get("n_thruorder_pitcher"))
@@ -120,6 +126,8 @@ def parse_swings(csv_text: str) -> list[SwingRow]:
             ivb=pfx_z * 12.0 if pfx_z is not None else None,
             vaa=approach_angle(row), velo=velo,
             xwoba=xw, whiff=desc in WHIFF_DESCRIPTIONS,
+            swing=is_swing, take_call="" if is_swing else TAKE_CALLS[desc],
+            sz_bot=_f(row.get("sz_bot")), sz_top=_f(row.get("sz_top")),
             pitcher=str(row.get("pitcher") or ""), tto=int(tto) if tto else None,
             stand=stand, x_away=(x if stand == "R" else -x) if stand in ("R", "L") else None,
             hb=_f(row.get("api_break_x_batter_in")), bat_speed=bs,

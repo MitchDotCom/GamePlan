@@ -171,3 +171,38 @@ NO_GO_DELTA = -0.020
 
 def classify(delta: float, go: float = GO_DELTA, no_go: float = NO_GO_DELTA) -> str:
     return "GO" if delta >= go else ("NO_GO" if delta <= no_go else "CONDITIONAL")
+
+
+def realized_value(swing: bool, whiff: bool, xwoba: Optional[float], take_call: str, balls: int,
+                   strikes: int, cv: CountValues = DEFAULT) -> Optional[float]:
+    """wOBA-scale value of the state a pitch actually led to. None when it cannot be valued (a foul
+    is valued as the count it leaves; a ball in play needs its xwOBA)."""
+    if swing:
+        if whiff:
+            return cv.after_strike(balls, strikes)
+        if xwoba is None:
+            return cv.after_foul(balls, strikes)
+        return xwoba
+    if take_call == "strike":
+        return cv.after_strike(balls, strikes)
+    if take_call == "ball":
+        return cv.after_ball(balls, strikes)
+    if take_call == "hbp":
+        return HBP_VALUE
+    return None
+
+
+def deltas_np(whiff, foul, xw, p_cs, balls, strikes, cv: CountValues = DEFAULT):
+    """Vectorised swing-minus-take, count-only (no situation weights). Arrays of equal length."""
+    import numpy as np
+    tab = np.zeros((5, 4))
+    for (b, s), v in cv.table.items():
+        tab[b, s] = v
+    b, s = np.asarray(balls, int), np.asarray(strikes, int)
+    after_strike = np.where(s + 1 >= 3, cv.strikeout, tab[b, np.minimum(s + 1, 3)])
+    after_ball = np.where(b + 1 >= 4, cv.walk, tab[np.minimum(b + 1, 4), s])
+    after_foul = np.where(s >= 2, tab[b, s], tab[b, np.minimum(s + 1, 3)])
+    p_bip = np.maximum(1.0 - whiff - foul, 0.0)
+    swing = whiff * after_strike + foul * after_foul + p_bip * xw
+    take = p_cs * after_strike + (1.0 - p_cs) * after_ball
+    return swing - take

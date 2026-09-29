@@ -124,6 +124,22 @@ class ContactModel:
             out["whiff"], out["foul"] = out["whiff"] * scale, out["foul"] * scale
         return out
 
+    def predict_pair(self, Q):
+        """(league-only prediction, hitter-shrunk prediction), sharing the league prior work."""
+        Qs = np.asarray(Q, float).reshape(-1, len(self.bw)) / self.bw
+        lg, hit = {}, {}
+        for t in ("whiff", "foul", "xw", "su"):
+            ls, lw = self._l[t].sums(Qs)
+            prior = (ls + self.m * self._g[t]) / (lw + self.m)
+            hs, hw = self._h[t].sums(Qs)
+            lg[t], hit[t] = prior, (hs + self.k[t] * prior) / (hw + self.k[t])
+        for d in (lg, hit):
+            over = np.maximum(d["whiff"] + d["foul"] - 0.98, 0.0)
+            if over.any():
+                sc = 1.0 - over / (d["whiff"] + d["foul"])
+                d["whiff"], d["foul"] = d["whiff"] * sc, d["foul"] * sc
+        return lg, hit
+
     def predict_cq(self, Q, use_hitter: bool = True) -> np.ndarray:
         p = self.predict(Q, use_hitter)
         return (1.0 - p["whiff"]) * p["xw"]
@@ -221,4 +237,27 @@ def build_arsenal(pitches: Iterable[PitchRow], before: str, tto: Optional[int] =
             usage = u_all
         if usage >= min_usage:
             out[pt] = ArsenalPitch(pt, usage, shape["velo"], shape["ivb"], shape["hb"], shape["vaa"], len(ps))
+    return out
+
+
+def fit_tto_shifts(model: "ContactModel", swings: list[SwingRow]) -> dict[int, tuple[float, float]]:
+    """Residual of the (league) model by time through the order, relative to the all-TTO mean:
+    {tto: (whiff_shift, xwOBAcon_shift)}. Swings should be against starters, before any cutoff.
+    Captures familiarity effects that pitch shape and location do not."""
+    rows = [s for s in swings if s.tto]
+    Q, mask = model.query_swings(rows)
+    rows = [s for s, k in zip(rows, mask) if k]
+    if not rows:
+        return {1: (0.0, 0.0), 2: (0.0, 0.0), 3: (0.0, 0.0)}
+    p = model.predict(Q, use_hitter=False)
+    rw = np.array([float(s.whiff) for s in rows]) - p["whiff"]
+    bip = np.array([s.xwoba is not None for s in rows])
+    rx = np.array([s.xwoba if s.xwoba is not None else 0.0 for s in rows]) - p["xw"]
+    t = np.array([cap_tto(s.tto) for s in rows])
+    mw, mx = rw.mean(), rx[bip].mean()
+    out = {}
+    for k in (1, 2, 3):
+        m = t == k
+        out[k] = (float(rw[m].mean() - mw) if m.any() else 0.0,
+                  float(rx[m & bip].mean() - mx) if (m & bip).any() else 0.0)
     return out

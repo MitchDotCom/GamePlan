@@ -56,3 +56,19 @@ Per hitter: fit on the first 60% of swings (by date), score the last 40%. League
 - GO cells beat NO_GO cells on held-out swings for 8/8 hitters with enough swings in both groups (mean gap +0.61 of baseline CQ). 7 hitters lacked 30 held-out swings in NO_GO cells; hitters rarely swing at pitches they should not.
 - A league-only plan separates almost as well: the hitter-specific plan beat it for 5/8 hitters, mean improvement +0.02. Most of the separation is shared location effect (everyone whiffs on chase pitches).
 - Split-half correlation of each hitter's deviation from league: median r = +0.31, positive for 11/15 hitters, range -0.55 to +0.55 on about 12 cells each. Suggestive, not confirmed.
+
+## Architecture (v0.3)
+
+1. **Capability x arsenal** (`shape.py`): kernel model of whiff, foul, xwOBA on contact and squared-up over (location, velo, IVB, HB, VAA), fit on the hitter's own swings and shrunk to a league prior. Starter arsenals (`build_arsenal`) by time through the order, shrunk toward his all-innings shape.
+2. **Decision layer** (`decision.py`): swing EV minus take EV in the current count, wOBA scale, using count values fit from data. GO / NO_GO falls out of the count. Base-out / score / inning enter through `SituationWeights` (unvalidated heuristics).
+3. **Plans and snapshots** (`matchup.py`): `build_plan` for one situation, `level` = GAME (pregame card, one per hitter per TTO) or PA / PITCH (live). Each build is an immutable, hashed `PlanSnapshot` with its inputs. `review_pitch` scores a pitch against the plan in force and labels it: followed, hitter beat model, deviation cost, umpire miss, or plan silent. `PlanMode.DEVELOP` holds a hitter's own damage zone fixed against a reference arsenal, situation-blind.
+4. **Study** (`study.py`, output in `docs/study_2025.txt`): out-of-sample tests on 145 qualified 2025 hitters and 52 qualified starters, fit before 2025-07-01, scored after.
+
+## Study results (2025, MLB Savant)
+
+- Hitter ability is stable enough to plan on: split-half r = .89 whiff, .76 xwOBAcon, .55 squared-up, .52 CQ.
+- Held-out swing prediction: hitter data adds real skill for whiff (+1.7% Brier, CI +1.4 to +1.9) and squared-up (+0.9%), a small amount for xwOBAcon (+0.8%). Pitch shape without hitter data adds almost nothing (+0.5% whiff, xwOBAcon and squared-up CIs include 0).
+- Count-aware GO / NO_GO is validated: removing count awareness costs S = -0.008 (CI -0.014 to -0.002).
+- Hitter individualization shows up only where it should. On pitches where the hitter model disagrees with the league model, swinging beats taking by 0.065 wOBA points more in hitter-GO than hitter-NO_GO pitches (CI +0.015 to +0.106; n about 200 pitches each). Overall S does not move (+/-0.003) because the location and count structure dominates it.
+- TTO: starters lose only 0.36 mph and 0.07 fastball share from TTO1 to TTO3+, and a TTO-specific arsenal did not improve separation over the all-innings arsenal. A residual TTO effect on contact quality appeared in one held-out cut (+.027 xwOBAcon TTO1 to 3+) but not in training data, so it is not in the plan. Treat TTO as unproven here, not disproven: 52 starters, one season.
+- Not tested: base-out and score weights, DEVELOP mode value, and any Single-A data.

@@ -1,0 +1,64 @@
+batters: 145 files, pitchers: 52 files, cutoff 2025-07-01
+count values (expected final wOBA), fit on batters:
+  0-0:0.341  1-0:0.376  2-0:0.445  3-0:0.548  0-1:0.293  1-1:0.319  2-1:0.374  3-1:0.487  0-2:0.227  1-2:0.245  2-2:0.288  3-2:0.394
+league training swings: 84858
+
+== Test 0: is hitter ability stable? (train vs held-out, across hitters)
+  whiff rate               r = +0.89  (n=145 hitters)
+  xwOBAcon                 r = +0.76  (n=145 hitters)
+  squared-up rate on BIP   r = +0.55  (n=145 hitters)
+  CQ                       r = +0.52  (n=145 hitters)
+
+== Test 1: held-out swing prediction skill vs league / location+type model
+  whiff Brier: skill vs type-league (1 - err/err_base, higher is better; 95% CI by hitter)
+    type-hitter    +0.0153 [+0.0124, +0.0188]
+    shape-league   +0.0052 [+0.0029, +0.0076]
+    shape-hitter   +0.0167 [+0.0136, +0.0194]
+  xwOBAcon MSE: skill vs type-league (1 - err/err_base, higher is better; 95% CI by hitter)
+    type-hitter    +0.0038 [-0.0007, +0.0097]
+    shape-league   +0.0008 [-0.0010, +0.0028]
+    shape-hitter   +0.0078 [+0.0033, +0.0118]
+  squared-up Brier: skill vs type-league (1 - err/err_base, higher is better; 95% CI by hitter)
+    type-hitter    +0.0073 [+0.0042, +0.0106]
+    shape-league   +0.0019 [-0.0001, +0.0040]
+    shape-hitter   +0.0088 [+0.0059, +0.0120]
+  hitters scored: 145
+
+== Test 2: shape-hitter model calibration by time through the order (vs starters, held out)
+  TTO   n_swings  whiff actual  whiff pred  | n_bip  xwOBAcon actual  pred
+  1        5932         0.227       0.210  |  2191            0.364  0.394
+  2        5817         0.216       0.208  |  2201            0.375  0.389
+  3+       4370         0.213       0.210  |  1714            0.389  0.392
+
+== Test 3: does the call separate swing-beats-take from take-beats-swing? (vs starters)
+   S = [mean value(swing) - mean value(take)] in GO pitches minus the same in NO_GO pitches
+   (wOBA scale, higher is better; selection bias applies, compare variants not levels)
+  TTO shifts from training swings vs starters (whiff, xwOBAcon): TTO1: (+0.009, -0.001)  TTO2: (-0.001, +0.000)  TTO3: (-0.010, +0.001)
+  pitches scored: 32493, hitters: 145
+  V1 league, type, count               S +0.2008 [+0.1897, +0.2115]   n(GO sw/tk, NO_GO sw/tk) = 8643/3348, 5185/12056
+  V2 hitter, type, count               S +0.2016 [+0.1912, +0.2109]   n(GO sw/tk, NO_GO sw/tk) = 8567/3280, 5199/12063
+  V3 hitter, shape, all-TTO arsenal    S +0.1997 [+0.1892, +0.2099]   n(GO sw/tk, NO_GO sw/tk) = 8818/3503, 5067/11857
+  V4 hitter, shape, TTO arsenal        S +0.1993 [+0.1887, +0.2108]   n(GO sw/tk, NO_GO sw/tk) = 8822/3512, 5066/11858
+  V5 hitter, shape, TTO, count-blind   S +0.1929 [+0.1830, +0.2032]   n(GO sw/tk, NO_GO sw/tk) = 7984/3602, 5203/11624
+  V6 league, shape, TTO arsenal        S +0.1978 [+0.1877, +0.2084]   n(GO sw/tk, NO_GO sw/tk) = 8820/3530, 5079/11858
+  V7 hitter, shape, TTO arsenal + TTO shift S +0.1992 [+0.1887, +0.2080]   n(GO sw/tk, NO_GO sw/tk) = 8809/3495, 5076/11857
+  V8 league, shape, TTO arsenal + TTO shift S +0.1986 [+0.1890, +0.2088]   n(GO sw/tk, NO_GO sw/tk) = 8805/3515, 5089/11857
+  Only pitches where the hitter model disagrees with the league model (hitter says GO / NO_GO,
+  league says otherwise). If hitter data helps, swing-take gap should be higher in hitter-GO than in hitter-NO_GO:
+    V7 hitter, shape, TTO arsenal + TTO shift    gap(hitter-GO) - gap(hitter-NO_GO) = +0.0648 [+0.0146, +0.1056]  n GO sw/tk (202, 126), NO_GO sw/tk (114, 96)
+    V2 hitter, type, count                       gap(hitter-GO) - gap(hitter-NO_GO) = +0.0665 [+0.0255, +0.1039]  n GO sw/tk (320, 214), NO_GO sw/tk (193, 167)
+  paired difference in S vs V1 (same hitters, bootstrap):
+    V2 hitter, type, count               +0.0008 [-0.0016, +0.0032]
+    V3 hitter, shape, all-TTO arsenal    -0.0011 [-0.0032, +0.0012]
+    V4 hitter, shape, TTO arsenal        -0.0015 [-0.0038, +0.0008]
+    V5 hitter, shape, TTO, count-blind   -0.0079 [-0.0141, -0.0023]
+    V6 league, shape, TTO arsenal        -0.0030 [-0.0053, -0.0005]
+    V7 hitter, shape, TTO arsenal + TTO shift -0.0016 [-0.0040, +0.0007]
+    V8 league, shape, TTO arsenal + TTO shift -0.0022 [-0.0047, +0.0002]
+
+== Test 4: starters by time through the order (all starters pulled, full season)
+  TTO  pitches  FB velo  FB usage  mean IVB(FB)
+  1     57936    93.77     0.597      12.37
+  2     55662    93.52     0.532      12.08
+  3+    34676    93.50     0.527      11.72
+  within-starter FB velo, TTO3+ minus TTO1: mean -0.36 mph over 52 starters
