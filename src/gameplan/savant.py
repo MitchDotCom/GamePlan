@@ -50,6 +50,14 @@ def _f(v: str | None) -> Optional[float]:
         return None
 
 
+def _hb_in(row: dict) -> Optional[float]:
+    """Horizontal break in INCHES, batter-relative. Savant's api_break_x_batter_in is in feet despite the
+    name ('in' = toward the batter); treating it as inches switched the horizontal-break dimension of the
+    shape model off (values near +/-1 against a 4-unit bandwidth) until the audit found it."""
+    v = _f(row.get("api_break_x_batter_in"))
+    return v * 12.0 if v is not None else None
+
+
 def approach_angle(row: dict) -> Optional[float]:
     """Vertical approach angle (deg, negative = descending) at the front of the plate from
     Statcast release kinematics. Uses vy0, vz0, ay, az, y0=50 ft, plate front at y=17/12 ft."""
@@ -159,7 +167,7 @@ def parse_swings(csv_text: str, include_takes: bool = False, foul_tip_as_whiff: 
             run_exp=_f(row.get("delta_run_exp")),
             pitcher=str(row.get("pitcher") or ""), tto=int(tto) if tto else None,
             stand=stand, x_away=(x if stand == "R" else -x) if stand in ("R", "L") else None,
-            hb=_f(row.get("api_break_x_batter_in")), bat_speed=bs,
+            hb=_hb_in(row), bat_speed=bs,
             swing_length=_f(row.get("swing_length")), attack_angle=_f(row.get("attack_angle")),
             squared_up=su, balls=int(_f(row.get("balls")) or 0), strikes=int(_f(row.get("strikes")) or 0),
         ))

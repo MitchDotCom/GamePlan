@@ -267,7 +267,7 @@ def parse_pitches(csv_text: str) -> list[PitchRow]:
         out.append(PitchRow(
             pitcher=str(row.get("pitcher") or ""), date=row.get("game_date") or "", pitch_type=pt,
             tto=int(tto) if tto else None, velo=_f(row.get("release_speed")),
-            ivb=pfx_z * 12.0 if pfx_z is not None else None, hb=_f(row.get("api_break_x_batter_in")),
+            ivb=pfx_z * 12.0 if pfx_z is not None else None, hb=(_f(row.get("api_break_x_batter_in")) * 12.0 if _f(row.get("api_break_x_batter_in")) is not None else None),
             vaa=approach_angle(row), stand=(row.get("stand") or "").strip(),
             game_pk=str(row.get("game_pk") or ""), at_bat=int(_f(row.get("at_bat_number")) or 0),
             pitch_no=int(_f(row.get("pitch_number")) or 0),

@@ -79,3 +79,11 @@ def test_model_feeds_plan_generator():
 def test_two_baselines_are_on_different_scales():
     m = fit_hitter_model(make_csv(), "2")
     assert m.hitter_cq < m.hitter_xwobacon  # whiffs pull CQ below xwOBA on contact
+
+
+def test_horizontal_break_is_converted_from_feet_to_inches():
+    from gameplan.shape import parse_pitches
+    hdr = "description,plate_x,plate_z,pitch_type,stand,api_break_x_batter_in,pfx_z,game_pk,at_bat_number,pitch_number,inning,pitcher\n"
+    row = "foul,0,2.5,SL,R,-1.0,0.1,1,1,1,1,9\n"
+    assert abs(parse_swings(hdr + row)[0].hb - (-12.0)) < 1e-9           # 1 foot of break = 12 inches
+    assert abs(parse_pitches(hdr + row)[0].hb - (-12.0)) < 1e-9
