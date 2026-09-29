@@ -18,22 +18,33 @@ Fields (match `examples/coach_reports_template.csv`):
 | confidence | 1, 2, 3 | 1 = a hunch, 2 = seen it repeatedly, 3 = consistent and obvious |
 | notes | text | what you saw; not used by the model |
 
-## Sizing the two numbers
+## Sizing the two numbers (measured, not guessed)
 
-Typical hitter: misses on about 23 of 100 swings (0.23) and averages about .370 xwOBA on balls in play.
+Typical MLB hitter: misses on about 23 of 100 swings (0.23) and averages about .370 xwOBA on balls in play.
+
+How much real hitters differ from the league, measured on 255 MLB hitters with 600+ swings in 2025 (spread of the true hitter-to-hitter difference after removing noise with a split-half check; one "SD" is a typical amount by which a hitter differs, about two in three hitters are within +/-1 SD):
+
+| Cell (pitch family, height) | 1 SD on whiff (probability points) | 1 SD on damage on contact (xwOBA points) |
+|---|---|---|
+| Breaking, low | 0.10 | 0.04 |
+| Offspeed, low | 0.10 | 0.03 |
+| Fastball, high | 0.085 | 0.05 |
+| Fastball, low / middle | 0.04 | 0.04 to 0.06 |
+| Breaking, middle | 0.04 | 0.06 |
+
+So a `whiff_delta` of 0.10 means an ordinary difference in the three cells where hitters vary most (low breaking, low offspeed, high fastball) but a rare one (about 2.5 SD) in the other cells; 0.04 is an ordinary difference in those other cells. For contact, +/-0.05 is an ordinary difference and +/-0.10 is rare in every cell.
 
 | whiff_delta | reads as |
 |---|---|
-| 0.03 | slightly more or fewer misses |
-| 0.06 | clearly a weakness (or strength) |
-| 0.10 | major hole (or elite there) |
-| 0.15+ | almost can't touch it (or almost never misses it) |
+| 0.04 | ordinary difference in fastball low/middle and breaking middle |
+| 0.08 to 0.10 | ordinary difference in low breaking, low offspeed, high fastball; rare elsewhere |
+| 0.15 or more | rare anywhere; only write it if you have seen it repeatedly |
 
 | contact_delta | reads as |
 |---|---|
-| 0.02 | a bit better or worse contact |
-| 0.05 | clearly hits it harder or weaker |
-| 0.08+ | damage zone (or he only produces weak contact there) |
+| 0.03 | small |
+| 0.05 | an ordinary difference (about 1 SD) |
+| 0.10 or more | rare; write it only for a clear damage zone or a clear dead zone |
 
 Same direction for both means different things: a hitter who chases a pitch (whiff +0.10) but does damage when he connects (contact +0.05) is a real profile; write both.
 
