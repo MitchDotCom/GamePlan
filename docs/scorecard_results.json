@@ -1,0 +1,26 @@
+{
+ "bench.count_run_values_max_rel_err": {
+  "note": "",
+  "value": 0.10127855946016406
+ },
+ "bench.ivb_cu_in": {
+  "note": "",
+  "value": -10.251351921373434
+ },
+ "bench.ivb_ff_in": {
+  "note": "",
+  "value": 15.822392254895899
+ },
+ "bench.league_woba_abs_err": {
+  "note": "",
+  "value": 0.001742961854240499
+ },
+ "bench.tto_1_to_2_pts": {
+  "note": "",
+  "value": 6.932151644272855
+ },
+ "bench.woba_scale_used": {
+  "note": "",
+  "value": 1.257
+ }
+}

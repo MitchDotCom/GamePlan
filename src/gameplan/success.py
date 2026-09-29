@@ -53,7 +53,7 @@ CRITERIA: list[Criterion] = [
     Criterion("bench.woba_scale_used", 1, "wOBA scale in code equals FanGraphs 2025", "between", (1.257, 1.257), "FanGraphs Guts"),
     Criterion("bench.count_run_values_max_rel_err", 1, "count run values vs published (0-0 strike, 0-1 ball, 1-1 strike): max relative error",
               "<=", (0.15,), "choice; published values from Savant/Tango count tables"),
-    Criterion("bench.league_woba_abs_err", 1, "league-wide wOBA of the pulled season vs FanGraphs .314", "<=", (0.006,), "choice"),
+    Criterion("bench.league_woba_abs_err", 1, "league-wide wOBA (published weights, proper denominator) vs FanGraphs .314", "<=", (0.004,), "choice"),
     Criterion("bench.tto_1_to_2_pts", 1, "league-wide wOBA increase TTO1 to TTO2 vs starters, points", "between", (5.0, 16.0),
               "published +8 to +13 (Tango/Lichtman; Brill et al. 13.4) widened by 3 each side"),
     Criterion("bench.ivb_ff_in", 1, "league mean four-seam IVB, inches", "between", (14.0, 18.0), "MLB glossary: about +16 in 2024, +/-2"),
@@ -127,7 +127,7 @@ PUBLISHED_COUNT_RV = {"0-0 strike": -0.037, "0-1 ball": 0.024, "1-1 strike": -0.
 def league_benchmarks(league_dir: str, write: bool = True) -> dict:
     """Checks that need every pitch of the season: league wOBA, TTO penalty vs starters, IVB by pitch type."""
     from .constants import value
-    from .decision import DEFAULT
+    from .decision import DEFAULT, event_woba
     from .shape import filter_starts, parse_pitches
 
     pa_w = []
@@ -148,8 +148,8 @@ def league_benchmarks(league_dir: str, write: bool = True) -> dict:
     for gp, ab, pn, pt, ev, wv, nt, pz in rows_all:
         if pt in ("FF", "CU") and pz not in ("", None):
             ivb[pt].append(float(pz) * 12)
-        if ev and wv not in ("", None) and "bunt" not in ev:
-            w = float(wv)
+        w = event_woba(ev)
+        if w is not None:
             pa_w.append(w)
             if nt and (gp, int(float(ab)), int(float(pn))) in starts_keys:
                 tto[min(int(float(nt)), 3)].append(w)

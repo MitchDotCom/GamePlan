@@ -151,6 +151,13 @@ class ContactModel:
             out["whiff"], out["foul"] = out["whiff"] * scale, out["foul"] * scale
         return out
 
+    def support(self, Q) -> dict[str, np.ndarray]:
+        """Kernel-weighted count of the hitter's own swings near each query (whiff target: all swings;
+        xw target: balls in play). The information behind a hitter-specific estimate is this plus the
+        pseudo-count of the league prior."""
+        Qs = np.asarray(Q, float).reshape(-1, len(self.bw)) / self.bw
+        return {"whiff": self._h["whiff"].sums(Qs)[1], "xw": self._h["xw"].sums(Qs)[1]}
+
     def predict_pair(self, Q, coach=None):
         """(league-only prediction, hitter-shrunk prediction), sharing the league prior work."""
         raw = np.asarray(Q, float).reshape(-1, len(self.bw))
@@ -206,6 +213,8 @@ class PitchRow:
     prior_pa: Optional[int] = None       # this batter's earlier PAs vs this pitcher today
     fb_delta: Optional[float] = None     # rolling fastball velo minus his first-15 fastballs today
     inning: Optional[int] = None
+    x_away: Optional[float] = None       # plate_x, + = away from the batter
+    z: Optional[float] = None
 
 
 def parse_pitches(csv_text: str) -> list[PitchRow]:
@@ -228,6 +237,9 @@ def parse_pitches(csv_text: str) -> list[PitchRow]:
             days_rest=_f(row.get("pitcher_days_since_prev_game")),
             prior_pa=int(_f(row.get("n_priorpa_thisgame_player_at_bat"))) if _f(row.get("n_priorpa_thisgame_player_at_bat")) is not None else None,
             inning=int(_f(row.get("inning"))) if _f(row.get("inning")) is not None else None,
+            x_away=(_f(row.get("plate_x")) if (row.get("stand") or "").strip() == "R" else
+                    (-_f(row.get("plate_x")) if _f(row.get("plate_x")) is not None else None)),
+            z=_f(row.get("plate_z")),
         ))
     return _add_game_state(out)
 

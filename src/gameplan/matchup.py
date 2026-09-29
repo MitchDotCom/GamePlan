@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+
+import numpy as np
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Optional
 
+from .constants import value as _const
 from .decision import (
     DEFAULT, CountValues, SituationConfig, SituationPolicy, SituationWeights, apply_situation, classify,
     p_called_strike, pitch_value, situation_weights, GO_DELTA, NO_GO_DELTA,
@@ -71,6 +74,20 @@ class PlanSnapshot:
         return d
 
 
+def _swing_se(p: dict, cv: CountValues, sit: "Situation", n_h: float, n_bip_h: float, model: ContactModel) -> float:
+    """Standard error of the swing EV from the hitter-specific evidence behind it: outcome-value variance
+    over (whiff, foul, contact) divided by the hitter's local sample plus the prior's pseudo-count, plus
+    the spread of xwOBA on contact over the ball-in-play sample."""
+    a_s, a_f = cv.after_strike(sit.balls, sit.strikes), cv.after_foul(sit.balls, sit.strikes)
+    p_bip = max(1.0 - p["whiff"] - p["foul"], 0.0)
+    vals = (a_s, a_f, p["xw"] + cv.bip_bonus)
+    probs = (p["whiff"], p["foul"], p_bip)
+    m = sum(pr * v for pr, v in zip(probs, vals))
+    var_outcome = sum(pr * (v - m) ** 2 for pr, v in zip(probs, vals))
+    var = var_outcome / (n_h + model.k["whiff"]) + (p_bip ** 2) * _const("XWOBA_CONTACT_SD") ** 2 / (n_bip_h + model.k["xw"])
+    return var ** 0.5
+
+
 def _plan_id(*parts) -> str:
     return hashlib.sha1(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
@@ -93,9 +110,15 @@ def build_plan(
     pitcher_state: Optional[PitcherState] = None,
     apply_tto_effect: bool = False,
     zone_model=None,
+    z_conf: float = _const("CONFIDENCE_Z"),
 ) -> PlanSnapshot:
     """DEVELOP mode ignores count / base-out / score: it is the hitter's fixed damage zone against
-    the reference arsenal you pass, evaluated at a 0-0 count."""
+    the reference arsenal you pass, evaluated at a 0-0 count.
+
+    A cell is called only when the estimate clears the threshold AND its z_conf-sigma bound stays on the
+    same side of zero (swing vs take), so thin evidence yields no call (marked low_support). z_conf=0
+    reproduces the point-estimate rule. The standard error uses the kernel-weighted count of the
+    hitter's own swings near the cell plus the league prior's pseudo-count."""
     if mode is PlanMode.DEVELOP:
         sit = Situation(tto=situation.tto)
         w = SituationWeights()
@@ -110,6 +133,7 @@ def build_plan(
     for pt, a in arsenal.items():
         Q = [raw_query(model.mode, cx, cz, pt, a.velo, a.ivb, a.hb, a.vaa) for _, _, cx, cz in cells]
         pred = model.predict(Q, use_hitter=use_hitter)
+        sup = model.support(Q) if use_hitter else {"whiff": np.full(len(Q), 1e4), "xw": np.full(len(Q), 1e4)}
         if apply_tto_effect and pitcher_state is not None and mode is PlanMode.COMPETE:
             dw, dx = TTO_EFFECT_2025[cap_tto(pitcher_state.tto) or 1]
             pred = dict(pred, whiff=pred["whiff"] + dw, xw=pred["xw"] + dx)
@@ -118,10 +142,17 @@ def build_plan(
             p_cs = zone_model(cx, cz, sz[0], sz[1], sit.strikes) if zone_model is not None else p_called_strike(cx, cz, *sz)
             v = pitch_value(p, p_cs, sit.balls, sit.strikes, cv)
             cls = classify(v.delta, go, no_go)
+            se = _swing_se(p, cv, sit, float(sup["whiff"][n]), float(sup["xw"][n]), model)
+            low_support = False
+            if cls == "GO" and v.delta - z_conf * se < 0:
+                cls, low_support = "CONDITIONAL", True
+            elif cls == "NO_GO" and v.delta + z_conf * se > 0:
+                cls, low_support = "CONDITIONAL", True
             if cls == "GO" and w.max_whiff is not None and p["whiff"] > w.max_whiff:
                 cls = "CONDITIONAL"   # contact-first: not worth a swing that likely misses
             cell_out[f"{pt}|{i}|{j}"] = {"swing": round(v.swing_ev, 4), "take": round(v.take_ev, 4),
-                                         "delta": round(v.delta, 4), "cls": cls}
+                                         "delta": round(v.delta, 4), "cls": cls, "se": round(se, 4),
+                                         "n_h": round(float(sup["whiff"][n]), 1), "low_support": low_support}
             if cls == "CONDITIONAL":
                 continue
             x0, z0 = X_RANGE[0] + i * step, Z_RANGE[0] + j * step
@@ -130,7 +161,7 @@ def build_plan(
     plan = Plan(hitter.player_id, pitcher_id, tuple(rules))
     ars = {pt: asdict(a) for pt, a in arsenal.items()}
     pid = _plan_id(level, game_id, hitter.player_id, pitcher_id, mode.value, asdict(sit), ars,
-                   MODEL_VERSION, go, no_go, use_hitter, asdict(config),
+                   MODEL_VERSION, go, no_go, use_hitter, asdict(config), z_conf,
                    asdict(pitcher_state) if pitcher_state else None, apply_tto_effect, zone_model is not None)
     notes = (f"situation weights: {asdict(w)}",) if mode is PlanMode.COMPETE else ("develop: situation-blind",)
     if pitcher_state:

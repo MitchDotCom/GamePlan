@@ -27,6 +27,21 @@ from typing import Iterable, Optional
 from . import baseout
 from .constants import value as _const
 
+# PA-ending events that are not in the wOBA denominator (FanGraphs: AB + BB - IBB + SF + HBP), plus bunts,
+# which are a different decision and are excluded everywhere.
+WOBA_EXCLUDED = {"intent_walk", "catcher_interf", "batter_interference", "truncated_pa"}
+
+
+def event_woba(event: str) -> Optional[float]:
+    """wOBA value of a plate-appearance-ending event using the published FanGraphs 2025 weights, or None
+    if the event is outside the wOBA denominator or a bunt. Outs (including strikeouts) are 0. This
+    replaces Savant's woba_value, which uses rounded legacy weights (walk .7, single .9, HR 2.0)."""
+    if not event or event in WOBA_EXCLUDED or "bunt" in event:
+        return None
+    return {"walk": _const("WBB_2025"), "hit_by_pitch": _const("WHBP_2025"), "single": _const("W1B_2025"),
+            "double": _const("W2B_2025"), "triple": _const("W3B_2025"), "home_run": _const("WHR_2025")}.get(event, 0.0)
+
+
 # Fallback expected final-PA wOBA by count if no fitted table is packaged.
 DEFAULT_COUNT_VALUES = {
     (0, 0): 0.315, (1, 0): 0.345, (2, 0): 0.395, (3, 0): 0.500,
@@ -81,7 +96,8 @@ DEFAULT = _load_default()
 def fit_count_values(csv_texts: Iterable[str]) -> CountValues:
     """Expected final PA wOBA for each count reached, plus how plate appearances passing through it
     end, from pitch-level rows (needs game_pk, at_bat_number, balls, strikes, events, woba_value).
-    Plate appearances with no wOBA (e.g. sacrifices) are skipped. Pass many hitters."""
+    Values come from the event and the published weights (event_woba). Plate appearances outside the wOBA
+    denominator and bunts are skipped. Pass every plate appearance you have, not a selected group."""
     pas: dict[tuple, dict] = {}
     for text in csv_texts:
         for r in csv.DictReader(io.StringIO(text)):
@@ -97,8 +113,7 @@ def fit_count_values(csv_texts: Iterable[str]) -> CountValues:
                 pa["counts"].add((b, s))
             if r.get("events"):
                 pa["ev"] = r["events"]
-                if r.get("woba_value") not in (None, ""):
-                    pa["woba"] = float(r["woba_value"])
+                pa["woba"] = event_woba(r["events"])
     sums: dict = defaultdict(lambda: [0.0, 0, 0, 0, 0])   # wOBA sum, n, nK, nBB, nBIP
     walks, ks = [], []
     for pa in pas.values():
