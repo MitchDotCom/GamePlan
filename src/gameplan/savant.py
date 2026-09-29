@@ -162,3 +162,25 @@ class ShrunkXwoba:
 def fit_hitter_model(csv_text: str, batter_id: str, k: float = 30.0) -> ShrunkXwoba:
     rows = parse_swings(csv_text)
     return ShrunkXwoba([r for r in rows if r.batter == str(batter_id)], rows, k=k)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """python -m gameplan.savant --batter 665742 --season 2025 --out data/665742_2025.csv"""
+    import argparse
+    import pathlib
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--batter", type=int, required=True, help="MLBAM player id")
+    ap.add_argument("--season", type=int, required=True)
+    ap.add_argument("--pitch-types", nargs="*")
+    ap.add_argument("--out", required=True)
+    a = ap.parse_args(argv)
+    text = fetch_csv(build_url(a.batter, a.season, a.pitch_types))
+    path = pathlib.Path(a.out)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    print(f"wrote {len(text.splitlines()) - 1} pitches to {path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
