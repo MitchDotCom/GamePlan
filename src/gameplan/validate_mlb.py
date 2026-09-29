@@ -26,6 +26,8 @@ from .decision import (
 from .savant import SwingRow, parse_swings
 from .shape import ContactModel, filter_starts, parse_pitches
 from .study import _boot, _fmt, _read
+from .stats import benjamini_hochberg, holm, interval, report_family, two_sided_p, two_way_draws
+from .success import record
 from .zone import CalledStrikeModel
 
 CUTOFF = "2025-07-01"
@@ -89,7 +91,7 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
             continue
         m = ContactModel.for_hitter(train, league)
         Q = np.array([(s.x_away, s.z, s.velo, s.ivb, s.hb, s.vaa) for s in test], float)
-        _, hit = m.predict_pair(Q)
+        lg, hit = m.predict_pair(Q)
         sb = np.array([s.sz_bot or 1.5 for s in test])
         st = np.array([s.sz_top or 3.5 for s in test])
         f = {
@@ -103,6 +105,7 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
             "lead": np.array([s.score_diff if s.score_diff is not None else 0 for s in test]),
             "inning": np.array([s.inning or 1 for s in test]),
             "rv": np.array([s.run_exp if s.run_exp is not None else np.nan for s in test]),
+            "pitcher": np.array([s.pitcher for s in test]), "p_lg": lg,
             "p": hit, "p_cs": zm.p(np.array([s.x_away for s in test]), np.array([s.z for s in test]), sb, st,
                                    strikes=np.array([s.strikes for s in test])),
         }
@@ -118,30 +121,39 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
 
 def v2_calibration(frames):
     print("\n== V2: is each half of the decision layer calibrated? (held out, vs starters, count-aware, no situation)")
-    for name, want_swing in (("swing EV (realized: whiff/foul/xwOBA value of the state reached)", True),
-                             ("take EV (realized: value of the count after the call)", False)):
-        pred, real, hid = [], [], []
+    print("   Slope intervals: two-way cluster bootstrap over hitters AND pitchers.")
+    pvals, max_gap = {}, 0.0
+    for name, want_swing, key in (("swing EV (realized: whiff/foul/xwOBA value of the state reached)", True, "swing"),
+                                  ("take EV (realized: value of the count after the call)", False, "take")):
+        pred, real, hid, pit = [], [], [], []
         for k, f in enumerate(frames):
             sw, tk = evs_np(f["p"]["whiff"], f["p"]["foul"], f["p"]["xw"], f["p_cs"], f["balls"], f["strikes"])
             sel = (f["swing"] == want_swing) & ~np.isnan(f["value"])
             pred.append((sw if want_swing else tk)[sel])
             real.append(f["value"][sel])
             hid.append(np.full(sel.sum(), k))
-        pred, real, hid = np.concatenate(pred), np.concatenate(real), np.concatenate(hid)
+            pit.append(f["pitcher"][sel])
+        pred, real, hid, pit = np.concatenate(pred), np.concatenate(real), np.concatenate(hid), np.concatenate(pit)
         edges = np.percentile(pred, np.linspace(0, 100, 11))
         print(f"  {name}: {len(pred)} pitches")
         print("    decile  mean predicted  mean realized  (gap)")
         for d in range(10):
             m = (pred >= edges[d]) & (pred <= edges[d + 1] if d == 9 else pred < edges[d + 1])
-            print(f"    {d + 1:>5}  {pred[m].mean():>14.3f}  {real[m].mean():>13.3f}  ({real[m].mean() - pred[m].mean():+.3f})")
-        per_h = {k: (pred[hid == k], real[hid == k]) for k in np.unique(hid)}
+            gap = real[m].mean() - pred[m].mean()
+            max_gap = max(max_gap, abs(gap))
+            print(f"    {d + 1:>5}  {pred[m].mean():>14.3f}  {real[m].mean():>13.3f}  ({gap:+.3f})")
+        _, pidx = np.unique(pit, return_inverse=True)
 
-        def slope(vals):
-            p = np.concatenate([v[0] for v in vals])
-            r = np.concatenate([v[1] for v in vals])
-            return np.cov(p, r)[0, 1] / np.var(p, ddof=1)
-        print(f"    calibration slope (1.0 = perfect): {_fmt(_boot(per_h, slope, 200))}")
+        def wslope(w):
+            pm, rm = (w * pred).sum() / w.sum(), (w * real).sum() / w.sum()
+            return float((w * (pred - pm) * (real - rm)).sum() / (w * (pred - pm) ** 2).sum())
+        point, draws = two_way_draws(hid, pidx, wslope, 300)
+        print(f"    calibration slope (1.0 = perfect): {_fmt(interval(point, draws))}")
         print(f"    mean error (realized - predicted): {np.mean(real - pred):+.4f}")
+        record(f"cal.{key}_slope", point)
+        pvals[f"{key} EV calibration slope = 1"] = two_sided_p(draws, 1.0)
+    record("cal.max_decile_gap", max_gap)
+    return pvals
 
 
 # ------------------------------------------------------------------ V3
@@ -248,6 +260,58 @@ def v3_situation(frames, go=0.02):
             print(f"    {v:<25} {_fmt(_boot(per, gapdiff, 200))}   n = {int(tot[0, :, 1].sum())} / {int(tot[1, :, 1].sum())}")
 
 
+# ------------------------------------------------------------------ V5
+
+def v5_separation(frames, go=0.02, n_boot=300):
+    """Separation against real run value (delta_run_exp, independent of every table in the model), with the
+    two-way bootstrap. Tests: (a) hitter model vs league model where they disagree, (b) removing count
+    awareness."""
+    print("\n== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)")
+    cat = lambda k: np.concatenate([f[k] for f in frames])
+    hid = np.concatenate([np.full(f["n"], k) for k, f in enumerate(frames)])
+    _, pidx = np.unique(cat("pitcher"), return_inverse=True)
+    swing, rv = cat("swing"), cat("rv")
+    ok = ~np.isnan(rv)
+
+    def deltas(pkey, blind):
+        out = []
+        for f in frames:
+            b = np.zeros(f["n"], int) if blind else f["balls"]
+            s_ = np.zeros(f["n"], int) if blind else f["strikes"]
+            out.append(deltas_np(f[pkey]["whiff"], f[pkey]["foul"], f[pkey]["xw"], f["p_cs"], b, s_))
+        return np.concatenate(out)
+    dA, dB, dC = deltas("p", False), deltas("p_lg", False), deltas("p", True)
+
+    def gap(mask, w):
+        a, b = mask & swing & ok, mask & ~swing & ok
+        wa, wb = (w * a).sum(), (w * b).sum()
+        if wa == 0 or wb == 0:
+            return 0.0
+        return float((w * a * np.nan_to_num(rv)).sum() / wa - (w * b * np.nan_to_num(rv)).sum() / wb)
+
+    def S(d, w):
+        return gap(d >= go, w) - gap(d <= -go, w)
+    dis_go, dis_no = (dA >= go) & ~(dB >= go), (dA <= -go) & ~(dB <= -go)
+    stats = {
+        "S, hitter model, count aware (runs)": lambda w: S(dA, w),
+        "S lost when count awareness is removed (runs; negative = count helps)": lambda w: S(dC, w) - S(dA, w),
+        "disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)": lambda w: gap(dis_go, w) - gap(dis_no, w),
+    }
+    pv = {}
+    for name, fn in stats.items():
+        point, draws = two_way_draws(hid, pidx, fn, n_boot)
+        pt, lo, hi = interval(point, draws)
+        print(f"  {name:<72} {pt:+.4f} [{lo:+.4f}, {hi:+.4f}]")
+        if name.startswith("S lost"):
+            record("sep.count_removal_hurts", hi)
+            pv["removing count awareness changes S"] = two_sided_p(draws, 0.0)
+        elif name.startswith("disagreement"):
+            record("sep.disagree_ci_low", lo)
+            pv["hitter-vs-league disagreement gap > 0"] = two_sided_p(draws, 0.0)
+    print(f"  pitches in hitter-GO-only / hitter-NO_GO-only sets: {int(dis_go.sum())} / {int(dis_no.sum())}")
+    return pv
+
+
 # ------------------------------------------------------------------ V4
 
 def v4_year_over_year(b24, b25, cutoff):
@@ -292,7 +356,10 @@ def v4_year_over_year(b24, b25, cutoff):
         for v in variants[1:]:
             def stat(vals, v=v, ti=ti):
                 return 1.0 - sum(x[v][2 * ti] for x in vals) / sum(x[variants[0]][2 * ti] for x in vals)
-            print(f"    {v:<44} {_fmt(_boot(per_h, stat, 300))}")
+            res = _boot(per_h, stat, 300)
+            print(f"    {v:<44} {_fmt(res)}")
+            if v == variants[2] and ti in (0, 1):
+                record("skill.whiff_yoy_ci_low" if ti == 0 else "skill.xw_yoy_ci_low", res[1])
 
 
 def main(argv=None) -> int:
@@ -300,22 +367,28 @@ def main(argv=None) -> int:
     ap.add_argument("--b25", required=True)
     ap.add_argument("--b24", default=None)
     ap.add_argument("--pitchers", required=True)
-    ap.add_argument("--tests", default="1,2,3,4")
+    ap.add_argument("--tests", default="1,2,3,4,5")
     ap.add_argument("--cutoff", default=CUTOFF)
     a = ap.parse_args(argv)
     tests = set(a.tests.split(","))
     b25 = load_batters(a.b25)
     print(f"2025 hitters: {len(b25)}")
-    zm = v1_zone(b25, a.cutoff) if "1" in tests or "2" in tests or "3" in tests else None
-    if tests & {"2", "3"}:
+    zm = v1_zone(b25, a.cutoff) if tests & {"1", "2", "3", "5"} else None
+    if tests & {"2", "3", "5"}:
         start_keys = load_start_keys(a.pitchers)
         league_train = [s for r in b25.values() for s in r if s.swing and s.date < a.cutoff]
         frames = _frames(b25, a.cutoff, start_keys, league_train, zm)
         print(f"hitters framed: {len(frames)}, pitches: {sum(f['n'] for f in frames)}")
+        family = {}
         if "2" in tests:
-            v2_calibration(frames)
+            family.update(v2_calibration(frames))
         if "3" in tests:
             v3_situation(frames)
+        if "5" in tests:
+            family.update(v5_separation(frames))
+        if family:
+            print("\n== Headline tests, multiplicity-adjusted (Holm controls any false positive; BH controls false discovery)")
+            print(report_family(family))
     if "4" in tests and a.b24:
         v4_year_over_year(load_batters(a.b24, takes=False), {b: [s for s in r if s.swing] for b, r in b25.items()}, a.cutoff)
     return 0
