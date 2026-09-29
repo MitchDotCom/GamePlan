@@ -133,3 +133,15 @@ def test_research_flags_and_pitcher_state_are_recorded():
     hard_out = Result("IN_PLAY", xwoba=0.9, is_hit=False)
     r = review_pitch(snap, h, Pitch("1", "FF", 0.0, 1.6, 93, ivb=14), Action.SWING, hard_out)
     assert isinstance(r.research_flags, tuple)
+
+
+def test_recommend_policy_tracks_strikeout_exposure():
+    from gameplan.decision import SituationPolicy
+    from gameplan.matchup import matchup_k_risk, recommend_policy
+    ars = {"FF": ArsenalPitch("FF", 1.0, 93, 14, 0, -5, 500)}
+    league = _rows(3000, 2)
+    contact = ContactModel([], league, mode="shape")                       # league-average hitter, whiff .30
+    swing_miss = ContactModel(_rows(800, 5, hero=False), league, mode="shape")
+    assert matchup_k_risk(contact, ars, use_hitter=False) > 0.2
+    pol, k, why = recommend_policy(swing_miss, ars)
+    assert pol in (SituationPolicy.CONTACT_FIRST, SituationPolicy.STRONG) and "whiff" in why

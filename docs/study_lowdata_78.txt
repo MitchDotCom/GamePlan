@@ -12,3 +12,57 @@ hitters: 145, league training swings: 84858, cutoff 2025-07-01
     type, k x2 (stiffer)                   +0.0003 [-0.0005, +0.0012]
     type, k x0.5 (looser)                  -0.0032 [-0.0062, -0.0001]
     shape, k x1                            +0.0017 [-0.0009, +0.0042]
+ N = 100 swings (143 hitters with at least 400 training swings)
+  whiff Brier: skill vs base (1 - err/err_base; 95% CI by hitter)
+    type, k x1                             +0.0039 [+0.0026, +0.0054]
+    type, k x2 (stiffer)                   +0.0025 [+0.0019, +0.0032]
+    type, k x0.5 (looser)                  +0.0047 [+0.0027, +0.0066]
+    shape, k x1                            +0.0077 [+0.0052, +0.0102]
+  xwOBAcon MSE: skill vs base (1 - err/err_base; 95% CI by hitter)
+    type, k x1                             +0.0012 [-0.0008, +0.0034]
+    type, k x2 (stiffer)                   +0.0016 [+0.0004, +0.0028]
+    type, k x0.5 (looser)                  -0.0025 [-0.0063, +0.0009]
+    shape, k x1                            +0.0029 [+0.0007, +0.0053]
+ N = 200 swings (143 hitters with at least 400 training swings)
+  whiff Brier: skill vs base (1 - err/err_base; 95% CI by hitter)
+    type, k x1                             +0.0070 [+0.0053, +0.0089]
+    type, k x2 (stiffer)                   +0.0047 [+0.0037, +0.0058]
+    type, k x0.5 (looser)                  +0.0084 [+0.0058, +0.0108]
+    shape, k x1                            +0.0100 [+0.0073, +0.0127]
+  xwOBAcon MSE: skill vs base (1 - err/err_base; 95% CI by hitter)
+    type, k x1                             +0.0008 [-0.0019, +0.0036]
+    type, k x2 (stiffer)                   +0.0019 [+0.0003, +0.0035]
+    type, k x0.5 (looser)                  -0.0051 [-0.0091, +0.0002]
+    shape, k x1                            +0.0038 [+0.0013, +0.0067]
+ N = 400 swings (143 hitters with at least 400 training swings)
+  whiff Brier: skill vs base (1 - err/err_base; 95% CI by hitter)
+    type, k x1                             +0.0117 [+0.0094, +0.0148]
+    type, k x2 (stiffer)                   +0.0082 [+0.0067, +0.0100]
+    type, k x0.5 (looser)                  +0.0141 [+0.0104, +0.0173]
+    shape, k x1                            +0.0138 [+0.0110, +0.0162]
+  xwOBAcon MSE: skill vs base (1 - err/err_base; 95% CI by hitter)
+    type, k x1                             +0.0023 [-0.0014, +0.0059]
+    type, k x2 (stiffer)                   +0.0039 [+0.0016, +0.0064]
+    type, k x0.5 (looser)                  -0.0048 [-0.0110, +0.0013]
+    shape, k x1                            +0.0060 [+0.0024, +0.0091]
+
+== Test 8: coach-report priors, mechanism by simulation (rho = correlation of report with true tendency)
+ N = 50 swings of his own data (145 hitters); 'base' = league-only, no hitter data
+  whiff Brier: skill vs base (1 - err/err_base; 95% CI by hitter)
+    no report                              +0.0023 [+0.0015, +0.0033]
+    report rho=0.0                         -0.0377 [-0.0448, -0.0318]
+    report rho=0.3                         -0.0130 [-0.0188, -0.0070]
+    report rho=0.5                         -0.0004 [-0.0074, +0.0065]
+    report rho=0.7                         +0.0165 [+0.0106, +0.0224]
+    report rho=0.3, trust=0.3              +0.0059 [+0.0037, +0.0081]
+    report rho=0.5, trust=0.5              +0.0112 [+0.0071, +0.0150]
+    report rho=0.7, trust=0.7              +0.0209 [+0.0161, +0.0257]
+  xwOBAcon MSE: skill vs base (1 - err/err_base; 95% CI by hitter)
+    no report                              -0.0002 [-0.0020, +0.0013]
+    report rho=0.0                         -0.0416 [-0.0489, -0.0355]
+    report rho=0.3                         -0.0206 [-0.0276, -0.0139]
+    report rho=0.5                         -0.0037 [-0.0104, +0.0024]
+    report rho=0.7                         +0.0061 [-0.0010, +0.0129]
+    report rho=0.3, trust=0.3              +0.0018 [-0.0009, +0.0045]
+    report rho=0.5, trust=0.5              +0.0067 [+0.0031, +0.0105]
+    report rho=0.7, trust=0.7              +0.0117 [+0.0068, +0.0168]
