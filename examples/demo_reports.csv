@@ -1,0 +1,5 @@
+report_id,coach_id,hitter_id,date,family,vert,horiz,whiff_delta,contact_delta,confidence,notes
+d1,demoA,665742,2025-05-01,FB,HIGH,,-0.05,0.03,2,
+d1,demoA,665742,2025-05-01,BRK,LOW,,0.05,-0.02,2,
+d2,demoA,592450,2025-05-01,FB,HIGH,,0.08,0.0,2,
+d2,demoA,592450,2025-05-01,BRK,LOW,,0.10,0.0,2,

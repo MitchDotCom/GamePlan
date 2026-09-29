@@ -158,3 +158,38 @@ def merge_reports(reports: Iterable[CoachReport], ledger: CoachLedger, source: s
         tags += [CoachTag(t.family, t.vert, t.horiz, t.whiff_delta * tw, t.contact_delta * tc, t.confidence)
                  for t in r.tags]
     return CoachProfile(tuple(tags), source=source or "merged reports, trust-weighted", trust=1.0)
+
+
+def main(argv=None) -> int:
+    """python -m gameplan.coach_reports --reports reports.csv --swings data/b3 [--min-days 30]
+
+    Scores every report against the hitter's tracked swings dated after the report, over all
+    hitters' swings as the league baseline, and prints trust per coach."""
+    import argparse
+    import glob
+    import pathlib
+    from .savant import parse_swings
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--reports", required=True)
+    ap.add_argument("--swings", required=True, help="dir of per-batter Savant-style CSVs (or your export)")
+    a = ap.parse_args(argv)
+    reports = load_reports_csv(open(a.reports, encoding="utf-8-sig").read())
+    by_h: dict[str, list[SwingRow]] = defaultdict(list)
+    for f in sorted(glob.glob(str(pathlib.Path(a.swings) / "*.csv"))):
+        for s in parse_swings(open(f, encoding="utf-8-sig").read()):
+            by_h[s.batter].append(s)
+    ledger = CoachLedger()
+    for r in reports:
+        after = [s for s in by_h.get(r.hitter_id, []) if s.date > r.date]
+        league = [s for h, rows in by_h.items() if h != r.hitter_id for s in rows if s.date > r.date][::5]
+        n = ledger.score(r, tracked_deviation(after, league))
+        print(f"report {r.report_id} ({r.coach_id}, hitter {r.hitter_id}): {n} cells scored from {len(after)} later swings")
+    print("\ncoach        cells  trust_whiff  trust_contact")
+    for c in sorted(ledger.pairs):
+        tw, tc = ledger.trust(c)
+        print(f"  {c:<10} {len(ledger.pairs[c]):>5}  {tw:>10.2f}  {tc:>12.2f}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
