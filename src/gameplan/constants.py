@@ -44,6 +44,9 @@ REGISTRY: dict[str, Constant] = {
     "K_SU": Constant(12.0, "CHOICE", "none"),
     "CONFIDENCE_Z": Constant(1.28, "CHOICE", "none", "one-sided 90% bound: a call requires swing-minus-take to stay on its side of zero"),
     "XWOBA_CONTACT_SD": Constant(0.377, "DERIVED", "SD of Savant xwOBA on 123,890 non-bunt balls in play, all 2025 regular-season pitches (data/league)"),
+    "K_GLOBAL_WHIFF": Constant(150.0, "DERIVED", "docs/study_hier.txt: hitter-level term, k_global in {50,150,400} at N=50..400; 150 is within the best interval at every N; published stabilization for contact% is about 100 PA (about 250 swings)",
+                               "swings"),
+    "K_GLOBAL_XW": Constant(60.0, "DERIVED", "docs/study_hier.txt (k_global 150 x 0.4 balls-in-play per swing)", "balls in play"),
     "SITUATION_SHRINK_N": Constant(100.0, "CHOICE", "none"),
     "MIN_LEVERAGE": Constant(0.04, "CHOICE", "none"),
     # --- blueprint numbers with no support

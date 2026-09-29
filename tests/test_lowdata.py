@@ -117,3 +117,15 @@ def test_called_strike_model_learns_count_dependence():
                              take_call=call, strikes=strikes, sz_bot=1.5, sz_top=3.5))
     m = CalledStrikeModel(rows)
     assert m(0.85, 2.5, 1.5, 3.5, 0) > m(0.85, 2.5, 1.5, 3.5, 2) + 0.3
+
+
+def test_hitter_level_term_moves_a_sparse_region_toward_the_hitters_overall_tendency():
+    league = _swings(4000, 1, 0.25)
+    high_whiff_hitter = [SwingRow("h", "d", "FF", rnd_x, 2.0, 14, -5, 93, None if w else 0.3, w, x_away=rnd_x, hb=0.0)
+                         for rnd_x, w in [(-1.0 + i * 0.01, (i % 10) < 5) for i in range(300)]]   # whiffs 50%, only on the inside
+    m = ContactModel(high_whiff_hitter, league, mode="shape")
+    assert m.offset["whiff"] > 0.05                                     # overall he whiffs far more than league
+    far = [[1.2, 3.8, 93, 14, 0, -5]]                                     # nowhere near any of his swings
+    with_term = m.predict(far)["whiff"][0]
+    m.offset = {k: 0.0 for k in m.offset}
+    assert with_term > m.predict(far)["whiff"][0] + 0.03                 # sparse region still reflects him

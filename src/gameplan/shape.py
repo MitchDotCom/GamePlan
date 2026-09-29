@@ -22,6 +22,7 @@ from typing import Iterable, Optional
 import numpy as np
 from scipy.spatial import cKDTree
 
+from .constants import value as _const
 from .savant import SwingRow, _f, approach_angle
 
 # Feature ladders, from what a low-tier park with only basic tracking could provide up to full shape:
@@ -94,7 +95,8 @@ class ContactModel:
     def __init__(self, hitter: Iterable[SwingRow], league: Iterable[SwingRow], mode: str = "shape",
                  k_whiff: float = 25.0, k_xw: float = 12.0, k_su: float = 12.0,
                  K_hitter: int = 80, K_league: int = 400, prior_m: float = 3.0,
-                 xw_attr: str = "xwoba", bw_scale: float = 1.0):
+                 xw_attr: str = "xwoba", bw_scale: float = 1.0,
+                 k_global_whiff: float = _const("K_GLOBAL_WHIFF"), k_global_xw: float = _const("K_GLOBAL_XW")):
         """xw_attr: which per-swing value the quality target uses. "xwoba" needs exit velo and launch
         angle; "woba" (actual outcome value) is the fallback for parks with no batted-ball tracking."""
         self.mode = mode
@@ -102,15 +104,41 @@ class ContactModel:
         self.bw = MODE_BW[mode] * bw_scale
         self.k = {"whiff": k_whiff, "foul": k_whiff, "xw": k_xw, "su": k_su}
         self.m = prior_m
-        self._h = self._build(list(hitter), K_hitter)
+        self._rows = list(hitter)
+        self._h = self._build(self._rows, K_hitter)
         self._l = self._build(list(league), K_league)
         lg = list(league)
+        self.k_global = {"whiff": k_global_whiff, "xw": k_global_xw}
+        self.offset = {"whiff": 0.0, "xw": 0.0, "foul": 0.0, "su": 0.0}
         self._g = {
             "whiff": float(np.mean([s.whiff for s in lg])) if lg else 0.25,
             "foul": float(np.mean([(not s.whiff and s.xwoba is None) for s in lg])) if lg else 0.35,
             "xw": float(np.mean([getattr(s, xw_attr) for s in lg if getattr(s, xw_attr) is not None] or [0.35])),
             "su": float(np.mean([s.squared_up for s in lg if s.squared_up is not None] or [0.3])),
         }
+        if lg and self._rows:
+            self.fit_offsets()
+
+    def fit_offsets(self, hitter_rows: Iterable[SwingRow] | None = None) -> None:
+        """Hitter-level term: how far the hitter runs from the league prior across all his swings, shrunk
+        toward zero with k_global (empirical-Bayes two-level model). Call again if the league trees were
+        swapped in after construction. Adds to the league prior before local shrinkage."""
+        rows = list(hitter_rows if hitter_rows is not None else getattr(self, "_rows", []))
+        self.offset = {"whiff": 0.0, "xw": 0.0, "foul": 0.0, "su": 0.0}
+        rows = [r for r in rows if raw_swing(r, self.mode) is not None]
+        if not rows:
+            return
+        Q = np.array([raw_swing(r, self.mode) for r in rows], float).reshape(-1, len(self.bw)) / self.bw
+        ls, lw = self._l["whiff"].sums(Q)
+        prior_w = (ls + self.m * self._g["whiff"]) / (lw + self.m)
+        y_w = np.array([float(r.whiff) for r in rows])
+        self.offset["whiff"] = float((y_w - prior_w).sum() / (len(rows) + self.k_global["whiff"]))
+        bip = [k for k, r in enumerate(rows) if getattr(r, self.xw_attr) is not None]
+        if bip:
+            ls, lw = self._l["xw"].sums(Q[bip])
+            prior_x = (ls + self.m * self._g["xw"]) / (lw + self.m)
+            y_x = np.array([getattr(rows[k], self.xw_attr) for k in bip])
+            self.offset["xw"] = float((y_x - prior_x).sum() / (len(bip) + self.k_global["xw"]))
 
     def _build(self, rows: list[SwingRow], K: int) -> dict:
         feats = [(s, raw_swing(s, self.mode)) for s in rows]
@@ -142,7 +170,8 @@ class ContactModel:
                 prior = prior + adj[t]
             if use_hitter:
                 hs, hw = self._h[t].sums(Q)
-                out[t] = (hs + self.k[t] * prior) / (hw + self.k[t])
+                prior_h = prior + self.offset.get(t, 0.0)
+                out[t] = (hs + self.k[t] * prior_h) / (hw + self.k[t])
             else:
                 out[t] = prior
         over = np.maximum(out["whiff"] + out["foul"] - 0.98, 0.0)  # keep p_bip positive
@@ -170,7 +199,7 @@ class ContactModel:
             if adj is not None and t in adj:
                 prior = prior + adj[t]
             hs, hw = self._h[t].sums(Qs)
-            lg[t], hit[t] = prior, (hs + self.k[t] * prior) / (hw + self.k[t])
+            lg[t], hit[t] = prior, (hs + self.k[t] * (prior + self.offset.get(t, 0.0))) / (hw + self.k[t])
         for d in (lg, hit):
             over = np.maximum(d["whiff"] + d["foul"] - 0.98, 0.0)
             if over.any():
