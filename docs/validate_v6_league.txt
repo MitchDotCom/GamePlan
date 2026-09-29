@@ -1,0 +1,14 @@
+2025 hitters: 673
+
+== V1: called-strike surface, held-out taken pitches (called strike vs ball)
+  train takes 192470, test takes 176375, borderline 59162
+  logistic stand-in  Brier all 0.0523   borderline 0.1455   mean pred 0.465 vs actual 0.511 (borderline)
+  kernel, pooled     Brier all 0.0475   borderline 0.1313   mean pred 0.512 vs actual 0.511 (borderline)
+  kernel, by strike count Brier all 0.0470   borderline 0.1298   mean pred 0.511 vs actual 0.511 (borderline)
+  borderline strike rate, actual vs fitted, by strikes: 0: 0.581 vs 0.581  1: 0.444 vs 0.444  2: 0.350 vs 0.352
+hitters framed: 263, pitches: 138076
+
+== V6: do confidence bounds separate solid calls from thin ones? (two-way bootstrap, real run value)
+  pitches: confident GO 34901, thin GO 19407, confident NO_GO 59679, thin NO_GO 10487
+  GO: gap(confident) - gap(thin), runs (positive = bounds help)            +0.0541 [+0.0380, +0.0684]
+  NO_GO: -gap(confident) + gap(thin), runs (positive = bounds help)        +0.0664 [+0.0531, +0.0802]
