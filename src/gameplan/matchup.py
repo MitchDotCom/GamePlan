@@ -92,6 +92,7 @@ def build_plan(
     config: SituationConfig = SituationConfig(),
     pitcher_state: Optional[PitcherState] = None,
     apply_tto_effect: bool = False,
+    zone_model=None,
 ) -> PlanSnapshot:
     """DEVELOP mode ignores count / base-out / score: it is the hitter's fixed damage zone against
     the reference arsenal you pass, evaluated at a 0-0 count."""
@@ -114,7 +115,8 @@ def build_plan(
             pred = dict(pred, whiff=pred["whiff"] + dw, xw=pred["xw"] + dx)
         for n, (i, j, cx, cz) in enumerate(cells):
             p = {k: float(v[n]) for k, v in pred.items()}
-            v = pitch_value(p, p_called_strike(cx, cz, *sz), sit.balls, sit.strikes, cv)
+            p_cs = zone_model(cx, cz, sz[0], sz[1], sit.strikes) if zone_model is not None else p_called_strike(cx, cz, *sz)
+            v = pitch_value(p, p_cs, sit.balls, sit.strikes, cv)
             cls = classify(v.delta, go, no_go)
             if cls == "GO" and w.max_whiff is not None and p["whiff"] > w.max_whiff:
                 cls = "CONDITIONAL"   # contact-first: not worth a swing that likely misses
@@ -129,7 +131,7 @@ def build_plan(
     ars = {pt: asdict(a) for pt, a in arsenal.items()}
     pid = _plan_id(level, game_id, hitter.player_id, pitcher_id, mode.value, asdict(sit), ars,
                    MODEL_VERSION, go, no_go, use_hitter, asdict(config),
-                   asdict(pitcher_state) if pitcher_state else None, apply_tto_effect)
+                   asdict(pitcher_state) if pitcher_state else None, apply_tto_effect, zone_model is not None)
     notes = (f"situation weights: {asdict(w)}",) if mode is PlanMode.COMPETE else ("develop: situation-blind",)
     if pitcher_state:
         notes += (f"pitcher state: {asdict(pitcher_state)}, tto effect applied: {apply_tto_effect}",)

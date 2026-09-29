@@ -103,3 +103,17 @@ def test_filter_starts_drops_relief_outings():
               for a in (30, 31)]
     kept = filter_starts(start + relief)
     assert {r.game_pk for r in kept} == {"1"} and len(kept) == 3
+
+
+def test_called_strike_model_learns_count_dependence():
+    from gameplan.zone import CalledStrikeModel
+    rnd = random.Random(0)
+    rows = []
+    for _ in range(3000):
+        strikes = rnd.choice([0, 2])
+        p = 0.8 if strikes == 0 else 0.3            # borderline pitch, called strike far more often at 0 strikes
+        call = "strike" if rnd.random() < p else "ball"
+        rows.append(SwingRow("h", "d", "FF", 0.85, 2.5, 14, -5, 93, None, False, x_away=0.85, swing=False,
+                             take_call=call, strikes=strikes, sz_bot=1.5, sz_top=3.5))
+    m = CalledStrikeModel(rows)
+    assert m(0.85, 2.5, 1.5, 3.5, 0) > m(0.85, 2.5, 1.5, 3.5, 2) + 0.3

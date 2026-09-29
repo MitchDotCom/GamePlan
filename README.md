@@ -103,3 +103,20 @@ Per hitter: fit on the first 60% of swings (by date), score the last 40%. League
 - Count awareness still earns its place (S -0.005, CI -0.009 to -0.0005, when removed).
 - Hitter individualization still shows up only where the hitter model disagrees with the league model: swinging beats taking by 0.058 to 0.064 wOBA points more in hitter-GO than hitter-NO_GO pitches (CIs +0.016 to +0.095 and +0.034 to +0.094; about 200 to 400 pitches per cell). Overall separation does not move (+/-0.001).
 - Shape-aware arsenals, TTO-specific arsenals and a TTO shift still do not improve plan separation. The held-out TTO calibration is flat (xwOBAcon actual minus predicted: -0.015, -0.007, -0.012 at TTO 1, 2, 3+), so the earlier hint of a familiarity gain in contact quality is not there at this sample size. TTO enters the plan only as the small whiff effect above, behind a switch (`apply_tto_effect`, default off).
+
+## v0.6: MLB validation on real outcomes (`validate_mlb.py`, output in docs/validate_mlb.txt)
+
+Held-out 2025 (after 2025-07-01), 145 hitters, vs starters only, cluster bootstrap by hitter.
+
+| Component | Test | Result | Status |
+|---|---|---|---|
+| Called-strike surface | Brier on 84k taken pitches | fitted by strike count 0.0476 vs stand-in 0.0530 (borderline 0.132 vs 0.147); borderline strike rate by strikes fitted .578 / .443 / .330 vs actual .584 / .436 / .333 | validated, now the default via `zone.CalledStrikeModel` |
+| Swing EV | calibration by decile, 32k swings | slope 1.009 (CI .957 to 1.068), every decile within .017 | validated |
+| Take EV | calibration by decile, 35k takes | slope 0.993 (CI .984 to 1.001), every decile within .004 | validated |
+| Hitter data | year over year, fit on 2024, score 2025 (135 hitters) | whiff +1.8%, xwOBAcon +0.65%, squared-up +0.8% vs a league model; 2024 plus early 2025 is best (+2.4%, +1.0%, +1.2%) | validated |
+| Count awareness | S, run value | see v0.5; removing it costs S | validated |
+| Base-out weights | S_RV vs real delta_run_exp | paired difference vs count only within +/-0.003 in every spot (runner on 3rd < 2 outs: -0.002 MILD, -0.003 STRONG, CIs include 0). On the few pitches whose call changed (50 to 350 of 61k) the gain is not distinguishable from 0 | not validated; no evidence of harm. Kept as coach options, default MILD |
+| Score / inning weights | same | -0.098 [-0.180, -0.008] on the pitches it changed (MILD), STRONG not distinguishable from 0 | not validated; **default set to OFF** |
+| Hitter compliance | GO / NO_GO pitches | hitters swing at 71% of GO pitches and take 70% of NO_GO pitches; swinging beats taking by +0.069 runs on GO pitches and -0.118 runs on NO_GO pitches (selection-biased, a ceiling not a forecast) | descriptive |
+
+What this means: the count-aware decision layer is calibrated and adds real value; hitter-specific data helps, including when it comes from the previous season. The base-out and score/inning adjustments come from real run values but do not show up as better calls in outcomes, so treat them as a coach's strategic preference, not a model improvement.

@@ -178,7 +178,7 @@ class SituationConfig:
     risp_two_outs: SituationPolicy = SituationPolicy.MILD
     runner_first_lt2: SituationPolicy = SituationPolicy.MILD     # double-play spot
     other_states: SituationPolicy = SituationPolicy.OFF
-    score_inning: SituationPolicy = SituationPolicy.MILD   # lead x inning effect on walk / K / contact value
+    score_inning: SituationPolicy = SituationPolicy.OFF    # lead x inning effect; did not validate (V3), off by default
     contact_first_max_whiff: float = CONTACT_FIRST_MAX_WHIFF
 
     def policy_for(self, spot: Spot) -> SituationPolicy:
@@ -370,8 +370,8 @@ def realized_value(swing: bool, whiff: bool, xwoba: Optional[float], take_call: 
     return None
 
 
-def deltas_np(whiff, foul, xw, p_cs, balls, strikes, cv: CountValues = DEFAULT):
-    """Vectorised swing-minus-take. Arrays of equal length. Pass cv through apply_situation for a spot."""
+def evs_np(whiff, foul, xw, p_cs, balls, strikes, cv: CountValues = DEFAULT):
+    """Vectorised (swing EV, take EV). Arrays of equal length. Pass cv through apply_situation for a spot."""
     import numpy as np
     tab = np.zeros((5, 4))
     for (b, s), v in cv.table.items():
@@ -383,4 +383,10 @@ def deltas_np(whiff, foul, xw, p_cs, balls, strikes, cv: CountValues = DEFAULT):
     p_bip = np.maximum(1.0 - whiff - foul, 0.0)
     swing = whiff * after_strike + foul * after_foul + p_bip * (xw + cv.bip_bonus)
     take = p_cs * after_strike + (1.0 - p_cs) * after_ball
+    return swing, take
+
+
+def deltas_np(whiff, foul, xw, p_cs, balls, strikes, cv: CountValues = DEFAULT):
+    """Vectorised swing-minus-take."""
+    swing, take = evs_np(whiff, foul, xw, p_cs, balls, strikes, cv)
     return swing - take
