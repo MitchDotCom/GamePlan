@@ -1,6 +1,9 @@
 import random
 
-from gameplan.decision import classify, p_called_strike, pitch_value, situation_weights
+from gameplan.decision import DEFAULT
+from gameplan.decision import (
+    SituationConfig, SituationPolicy, apply_situation, classify, p_called_strike, pitch_value, situation_weights,
+)
 from gameplan.matchup import PlanMode, ReviewLabel, Situation, build_plan, review_pitch
 from gameplan.models import Action, Hitter, Pitch, Result
 from gameplan.savant import SwingRow
@@ -23,10 +26,23 @@ def test_far_off_pitch_is_no_go_borderline_pitch_protects_at_two_strikes():
     assert far < 0 and edge > far
 
 
-def test_runner_on_third_raises_the_cost_of_a_strikeout():
-    base = pitch_value(CHASE, 0.0, 0, 2).delta
-    rw = pitch_value(CHASE, 0.0, 0, 2, w=situation_weights(outs=1, bases=(False, False, True))).delta
-    assert rw != base
+def test_runner_on_third_makes_strikeouts_costlier_and_contact_worth_more():
+    r3 = (False, False, True)
+    w = situation_weights(outs=1, bases=r3)
+    assert w.d_k < 0 and w.d_bip > 0
+    base = pitch_value(MID, 0.0, 0, 2).delta
+    assert pitch_value(MID, 0.0, 0, 2, apply_situation(DEFAULT, w)).delta != base
+
+
+def test_policy_scales_the_adjustment_and_contact_first_caps_whiff():
+    r3 = (False, False, True)
+    off = situation_weights(1, r3, config=SituationConfig(runner_third_lt2=SituationPolicy.OFF))
+    mild = situation_weights(1, r3, config=SituationConfig(runner_third_lt2=SituationPolicy.MILD))
+    strong = situation_weights(1, r3, config=SituationConfig(runner_third_lt2=SituationPolicy.STRONG))
+    cf = situation_weights(1, r3, config=SituationConfig(runner_third_lt2=SituationPolicy.CONTACT_FIRST))
+    assert off.d_k == 0 and abs(strong.d_k) > abs(mild.d_k) > 0
+    assert abs(strong.d_k - 2 * mild.d_k) < 1e-9
+    assert cf.max_whiff is not None and strong.max_whiff is None
 
 
 def _rows(n=1500, seed=1, hero=False):
@@ -86,3 +102,34 @@ def test_arsenal_by_tto_shrinks_toward_all_innings():
     assert t3["FF"].velo < all_t["FF"].velo          # lower velo third time through
     assert t3["FF"].velo > 92                          # but shrunk toward the pooled mean
     assert t3["SL"].usage > all_t["SL"].usage          # more breaking balls the third time
+
+
+def test_contact_first_demotes_high_whiff_go_cells():
+    from gameplan.decision import SituationConfig, SituationPolicy
+    league, hero = _rows(3000, 2), _rows(600, 3, hero=True)
+    m = ContactModel(hero, league, mode="shape")
+    ars = {"FF": ArsenalPitch("FF", 1.0, 93, 14, 0, -5, 500)}
+    h = Hitter("h")
+    sit = Situation(0, 0, outs=1, bases=(False, False, True))
+    strong = build_plan(m, h, "p", ars, sit, config=SituationConfig(runner_third_lt2=SituationPolicy.STRONG))
+    cf = build_plan(m, h, "p", ars, sit,
+                    config=SituationConfig(runner_third_lt2=SituationPolicy.CONTACT_FIRST,
+                                           contact_first_max_whiff=0.15))
+    go = lambda snap: sum(1 for c in snap.cells.values() if c["cls"] == "GO")
+    assert go(cf) < go(strong)
+
+
+def test_research_flags_and_pitcher_state_are_recorded():
+    from gameplan.shape import PitcherState
+    league, hero = _rows(3000, 2), _rows(600, 3, hero=True)
+    m = ContactModel(hero, league, mode="shape")
+    ars = {"FF": ArsenalPitch("FF", 1.0, 93, 14, 0, -5, 500)}
+    h = Hitter("h")
+    st = PitcherState(tto=3, pitch_count=88, fb_drift=-1.2)
+    snap = build_plan(m, h, "p", ars, Situation(tto=3), pitcher_state=st, apply_tto_effect=True)
+    assert any("pitcher state" in n for n in snap.notes)
+    a = build_plan(m, h, "p", ars, Situation(tto=3), pitcher_state=st, apply_tto_effect=False)
+    assert a.plan_id != snap.plan_id
+    hard_out = Result("IN_PLAY", xwoba=0.9, is_hit=False)
+    r = review_pitch(snap, h, Pitch("1", "FF", 0.0, 1.6, 93, ivb=14), Action.SWING, hard_out)
+    assert isinstance(r.research_flags, tuple)

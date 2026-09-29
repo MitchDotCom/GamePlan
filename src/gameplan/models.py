@@ -140,6 +140,7 @@ class Result:
     ev: Optional[float] = None
     la: Optional[float] = None
     in_zone: Optional[bool] = None   # true rulebook location, used to spot umpire misses
+    is_hit: Optional[bool] = None    # for balls in play: did it fall for a hit (vs an out)
 
 
 @dataclass(frozen=True)

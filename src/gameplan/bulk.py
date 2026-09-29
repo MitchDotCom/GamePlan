@@ -16,12 +16,14 @@ from .savant import SEARCH_URL, fetch_csv
 
 KEEP = [
     "pitch_type", "game_date", "game_pk", "at_bat_number", "pitch_number", "batter", "pitcher",
-    "player_name", "stand", "p_throws", "description", "events", "balls", "strikes", "inning",
+    "player_name", "stand", "p_throws", "description", "balls", "strikes", "inning",
     "inning_topbot", "n_thruorder_pitcher", "release_speed", "release_spin_rate", "release_extension",
     "release_pos_x", "release_pos_z", "arm_angle", "pfx_x", "pfx_z", "api_break_x_batter_in",
     "plate_x", "plate_z", "sz_top", "sz_bot", "vx0", "vy0", "vz0", "ax", "ay", "az",
     "launch_speed", "launch_angle", "estimated_woba_using_speedangle", "woba_value",
     "bat_speed", "swing_length", "attack_angle", "attack_direction", "swing_path_tilt",
+    "pitcher_days_since_prev_game", "n_priorpa_thisgame_player_at_bat", "bat_score", "fld_score",
+    "on_1b", "on_2b", "on_3b", "outs_when_up", "delta_run_exp", "events",
 ]
 
 

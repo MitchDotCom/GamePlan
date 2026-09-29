@@ -1,0 +1,14 @@
+hitters: 145, league training swings: 84858, cutoff 2025-07-01
+
+== Test 7: learning curve, hitter-specific skill vs number of his swings (earliest N of the season)
+ N = 50 swings (143 hitters with at least 400 training swings)
+  whiff Brier: skill vs base (1 - err/err_base; 95% CI by hitter)
+    type, k x1                             +0.0022 [+0.0014, +0.0033]
+    type, k x2 (stiffer)                   +0.0014 [+0.0010, +0.0020]
+    type, k x0.5 (looser)                  +0.0027 [+0.0010, +0.0042]
+    shape, k x1                            +0.0066 [+0.0043, +0.0091]
+  xwOBAcon MSE: skill vs base (1 - err/err_base; 95% CI by hitter)
+    type, k x1                             -0.0003 [-0.0019, +0.0015]
+    type, k x2 (stiffer)                   +0.0003 [-0.0005, +0.0012]
+    type, k x0.5 (looser)                  -0.0032 [-0.0062, -0.0001]
+    shape, k x1                            +0.0017 [-0.0009, +0.0042]

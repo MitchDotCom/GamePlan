@@ -7,9 +7,10 @@ than at 2 strikes, without hand-edited zone rules.
     swing = P(whiff) * V(after strike) + P(foul) * V(after foul) + P(bip) * xwOBAcon
     take  = P(called strike) * V(after strike) + (1 - P(called strike)) * V(after ball)
 
-V(balls, strikes) is the expected final PA wOBA from that count, fit from data (or the default table).
-Base-out, score and inning enter through SituationWeights, which reweights terminal outcomes. Those
-weights are documented heuristics, not fitted; treat them as knobs to review with coaches.
+V(balls, strikes) is the expected final PA wOBA from that count, fit from data. Base-out state
+changes what a strikeout, a walk and a ball in play are worth; those changes are fit from Statcast
+run expectancy (baseout.py) and scaled by a coach-chosen SituationPolicy per spot. Score and inning
+are not modelled yet: that needs a win-expectancy version of the same fit.
 """
 from __future__ import annotations
 
@@ -19,10 +20,13 @@ import json
 import math
 import pathlib
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from enum import Enum
 from typing import Iterable, Optional
 
-# Rough expected final-PA wOBA by count (MLB, recent seasons). Replace with fit_count_values output.
+from . import baseout
+
+# Fallback expected final-PA wOBA by count if no fitted table is packaged.
 DEFAULT_COUNT_VALUES = {
     (0, 0): 0.315, (1, 0): 0.345, (2, 0): 0.395, (3, 0): 0.500,
     (0, 1): 0.285, (1, 1): 0.310, (2, 1): 0.350, (3, 1): 0.450,
@@ -38,6 +42,9 @@ class CountValues:
     table: dict[tuple[int, int], float]
     walk: float = WALK_VALUE
     strikeout: float = STRIKEOUT_VALUE
+    bip_bonus: float = 0.0     # added to a ball in play's value (set by situation)
+    # P(final outcome is K, BB/HBP, ball in play | count reached); lets a situation shift the whole table.
+    outcome_probs: dict[tuple[int, int], tuple[float, float, float]] = field(default_factory=dict)
 
     def after_ball(self, b: int, s: int) -> float:
         return self.walk if b + 1 >= 4 else self.table[(b + 1, s)]
@@ -50,21 +57,30 @@ class CountValues:
 
     def to_json(self) -> str:
         return json.dumps({"table": {f"{b}-{s}": v for (b, s), v in self.table.items()},
-                           "walk": self.walk, "strikeout": self.strikeout}, indent=1)
+                           "walk": self.walk, "strikeout": self.strikeout,
+                           "outcome_probs": {f"{b}-{s}": list(v) for (b, s), v in self.outcome_probs.items()}},
+                          indent=1)
 
     @classmethod
     def from_json(cls, text: str) -> "CountValues":
         d = json.loads(text)
-        return cls({tuple(map(int, k.split("-"))): v for k, v in d["table"].items()}, d["walk"], d["strikeout"])
+        parse = lambda k: tuple(map(int, k.split("-")))
+        return cls({parse(k): v for k, v in d["table"].items()}, d["walk"], d["strikeout"],
+                   0.0, {parse(k): tuple(v) for k, v in d.get("outcome_probs", {}).items()})
 
 
-DEFAULT = CountValues(dict(DEFAULT_COUNT_VALUES))
+def _load_default() -> CountValues:
+    p = pathlib.Path(__file__).with_name("count_values_2025.json")
+    return CountValues.from_json(p.read_text()) if p.exists() else CountValues(dict(DEFAULT_COUNT_VALUES))
+
+
+DEFAULT = _load_default()
 
 
 def fit_count_values(csv_texts: Iterable[str]) -> CountValues:
-    """Expected final PA wOBA for each count reached, from pitch-level rows (needs game_pk,
-    at_bat_number, balls, strikes, events, woba_value). Plate appearances with no wOBA (e.g.
-    sacrifices) are skipped. Pass many hitters or the table is noisy."""
+    """Expected final PA wOBA for each count reached, plus how plate appearances passing through it
+    end, from pitch-level rows (needs game_pk, at_bat_number, balls, strikes, events, woba_value).
+    Plate appearances with no wOBA (e.g. sacrifices) are skipped. Pass many hitters."""
     pas: dict[tuple, dict] = {}
     for text in csv_texts:
         for r in csv.DictReader(io.StringIO(text)):
@@ -80,24 +96,31 @@ def fit_count_values(csv_texts: Iterable[str]) -> CountValues:
                 pa["ev"] = r["events"]
                 if r.get("woba_value") not in (None, ""):
                     pa["woba"] = float(r["woba_value"])
-    sums: dict = defaultdict(lambda: [0.0, 0])
+    sums: dict = defaultdict(lambda: [0.0, 0, 0, 0, 0])   # wOBA sum, n, nK, nBB, nBIP
     walks, ks = [], []
     for pa in pas.values():
         if pa["woba"] is None:
             continue
+        cls = baseout.outcome_class(pa["ev"] or "")
         for c in pa["counts"]:
-            sums[c][0] += pa["woba"]
-            sums[c][1] += 1
+            a = sums[c]
+            a[0] += pa["woba"]
+            a[1] += 1
+            if cls:
+                a[2 + ("K", "BB", "BIP").index(cls)] += 1
         if pa["ev"] == "walk":
             walks.append(pa["woba"])
-        if pa["ev"] in ("strikeout", "strikeout_double_play"):
+        if pa["ev"] in baseout.K_EVENTS:
             ks.append(pa["woba"])
     table = dict(DEFAULT_COUNT_VALUES)
-    for c, (t, n) in sums.items():
-        if n >= 200:
-            table[c] = t / n
+    probs = {}
+    for c, a in sums.items():
+        if a[1] >= 200:
+            table[c] = a[0] / a[1]
+            tot = max(a[2] + a[3] + a[4], 1)
+            probs[c] = (a[2] / tot, a[3] / tot, a[4] / tot)
     return CountValues(table, sum(walks) / len(walks) if walks else WALK_VALUE,
-                       sum(ks) / len(ks) if ks else STRIKEOUT_VALUE)
+                       sum(ks) / len(ks) if ks else STRIKEOUT_VALUE, 0.0, probs)
 
 
 def p_called_strike(x_away: float, z: float, sz_bot: float = 1.5, sz_top: float = 3.5,
@@ -112,33 +135,104 @@ def p_called_strike(x_away: float, z: float, sz_bot: float = 1.5, sz_top: float 
     return 1.0 / (1.0 + math.exp(signed / scale_in))
 
 
+# ------------------------------------------------------------------ situation
+
+class SituationPolicy(str, Enum):
+    """How hard a coach wants a base-out spot to bend the plan away from the hitter's damage zone.
+    Scale is a fraction of the empirical run-value change for that state."""
+    OFF = "OFF"                      # count-only decision
+    MILD = "MILD"                    # half of the fitted change
+    STRONG = "STRONG"                # the full fitted change
+    CONTACT_FIRST = "CONTACT_FIRST"  # full change, and a GO also needs a low predicted whiff rate
+
+
+_POLICY_SCALE = {SituationPolicy.OFF: 0.0, SituationPolicy.MILD: 0.5,
+                 SituationPolicy.STRONG: 1.0, SituationPolicy.CONTACT_FIRST: 1.0}
+CONTACT_FIRST_MAX_WHIFF = 0.22
+SHRINK_N = 100.0                     # states with few PAs are pulled toward no adjustment: n / (n + 100)
+
+
+class Spot(str, Enum):
+    RUNNER_THIRD_LT2 = "RUNNER_THIRD_LT2"
+    RISP_TWO_OUTS = "RISP_TWO_OUTS"
+    DOUBLE_PLAY = "DOUBLE_PLAY"      # runner on first only, fewer than two outs
+    OTHER = "OTHER"
+
+
+def spot_of(outs: int, bases: tuple[bool, bool, bool]) -> Spot:
+    on1, on2, on3 = bases
+    if on3 and outs < 2:
+        return Spot.RUNNER_THIRD_LT2
+    if (on2 or on3) and outs == 2:
+        return Spot.RISP_TWO_OUTS
+    if on1 and not (on2 or on3) and outs < 2:
+        return Spot.DOUBLE_PLAY
+    return Spot.OTHER
+
+
+@dataclass(frozen=True)
+class SituationConfig:
+    """Coach-switchable policy per spot. Set per hitter and per opposing starter, or take the model
+    recommendation from matchup.recommend_policy."""
+    runner_third_lt2: SituationPolicy = SituationPolicy.MILD
+    risp_two_outs: SituationPolicy = SituationPolicy.MILD
+    runner_first_lt2: SituationPolicy = SituationPolicy.MILD     # double-play spot
+    other_states: SituationPolicy = SituationPolicy.OFF
+    contact_first_max_whiff: float = CONTACT_FIRST_MAX_WHIFF
+
+    def policy_for(self, spot: Spot) -> SituationPolicy:
+        return {Spot.RUNNER_THIRD_LT2: self.runner_third_lt2, Spot.RISP_TWO_OUTS: self.risp_two_outs,
+                Spot.DOUBLE_PLAY: self.runner_first_lt2, Spot.OTHER: self.other_states}[spot]
+
+
 @dataclass(frozen=True)
 class SituationWeights:
-    """Reweights terminal outcomes for base-out / score / inning. Values are added to the outcome's
-    wOBA-scale value. All zero = count-only decision. These are heuristics for coach review."""
-    strikeout_extra: float = 0.0      # extra cost of a K (e.g. runner on 3rd, < 2 outs)
-    contact_bonus: float = 0.0        # extra value of putting the ball in play
-    walk_scale: float = 1.0           # walk value multiplier (1B open with a runner in scoring position, etc.)
+    """Additive changes to terminal outcome values (wOBA scale) for one base-out state."""
+    d_k: float = 0.0
+    d_bb: float = 0.0
+    d_bip: float = 0.0
+    max_whiff: Optional[float] = None  # CONTACT_FIRST: a GO needs predicted whiff <= this
+
+
+_BASEOUT = None
 
 
 def situation_weights(outs: int = 0, bases: tuple[bool, bool, bool] = (False, False, False),
-                      score_diff: int = 0, inning: int = 1) -> SituationWeights:
-    """bases = (on1B, on2B, on3B); score_diff = own score minus opponent."""
-    on1, on2, on3 = bases
-    k_extra = c_bonus = 0.0
-    if on3 and outs < 2:
-        k_extra += 0.10       # a run scores on many balls in play, a K wastes the chance
-        c_bonus += 0.03
-    if (on2 or on3) and outs == 2:
-        c_bonus += 0.02       # any hit scores; walk-or-K equally unhelpful
-    if on1 and not (on2 or on3) and outs < 2:
-        k_extra += 0.02       # double-play risk makes contact less valuable, K modestly worse than an out
-        c_bonus -= 0.02
-    walk_scale = 1.0
-    if inning >= 7 and abs(score_diff) <= 1:
-        walk_scale = 0.9      # late and close: extra bases matter more than a free base, small effect
-    return SituationWeights(k_extra, c_bonus, walk_scale)
+                      score_diff: int = 0, inning: int = 1,
+                      config: SituationConfig = SituationConfig(), table: Optional[dict] = None) -> SituationWeights:
+    """bases = (on1B, on2B, on3B). score_diff and inning are accepted but not used yet."""
+    global _BASEOUT
+    spot = spot_of(outs, bases)
+    policy = config.policy_for(spot)
+    scale = _POLICY_SCALE[policy]
+    if scale == 0.0:
+        return SituationWeights()
+    if table is None:
+        _BASEOUT = _BASEOUT if _BASEOUT is not None else baseout.load()
+        table = _BASEOUT
+    entry = table.get("states", {}).get(baseout.state_key(outs, *bases), {})
 
+    def adj(cls: str) -> float:
+        d, n = entry.get(cls, [0.0, 0])
+        return scale * d * n / (n + SHRINK_N)
+
+    return SituationWeights(adj("K"), adj("BB"), adj("BIP"),
+                            config.contact_first_max_whiff if policy is SituationPolicy.CONTACT_FIRST else None)
+
+
+def apply_situation(cv: CountValues, w: SituationWeights) -> CountValues:
+    """Shift terminal values, and every count's expected value by how its plate appearances end."""
+    if not (w.d_k or w.d_bb or w.d_bip):
+        return cv
+    table = {}
+    for c, v in cv.table.items():
+        pk, pbb, pbip = cv.outcome_probs.get(c, (0.0, 0.0, 0.0))
+        table[c] = v + pk * w.d_k + pbb * w.d_bb + pbip * w.d_bip
+    return replace(cv, table=table, walk=cv.walk + w.d_bb, strikeout=cv.strikeout + w.d_k,
+                   bip_bonus=cv.bip_bonus + w.d_bip)
+
+
+# ------------------------------------------------------------------ pitch value
 
 @dataclass(frozen=True)
 class PitchValue:
@@ -151,16 +245,14 @@ class PitchValue:
 
 
 def pitch_value(p: dict[str, float], p_cs: float, balls: int, strikes: int,
-                cv: CountValues = DEFAULT, w: SituationWeights = SituationWeights()) -> PitchValue:
-    """p has predicted 'whiff', 'foul', 'xw' (xwOBA on contact) for this pitch and hitter."""
-    k_val = cv.strikeout - w.strikeout_extra
-    walk = cv.walk * w.walk_scale
-    after_strike = k_val if strikes + 1 >= 3 else cv.table[(balls, strikes + 1)]
-    after_ball = walk if balls + 1 >= 4 else cv.table[(balls + 1, strikes)]
-    after_foul = cv.table[(balls, strikes)] if strikes >= 2 else cv.table[(balls, strikes + 1)]
+                cv: CountValues = DEFAULT) -> PitchValue:
+    """p has predicted 'whiff', 'foul', 'xw' (xwOBA on contact) for this pitch and hitter. For a
+    situation, pass cv through apply_situation first."""
+    after_strike = cv.after_strike(balls, strikes)
+    after_ball = cv.after_ball(balls, strikes)
+    after_foul = cv.after_foul(balls, strikes)
     p_bip = max(1.0 - p["whiff"] - p["foul"], 0.0)
-    swing = (p["whiff"] * after_strike + p["foul"] * after_foul
-             + p_bip * (p["xw"] + w.contact_bonus))
+    swing = p["whiff"] * after_strike + p["foul"] * after_foul + p_bip * (p["xw"] + cv.bip_bonus)
     take = p_cs * after_strike + (1.0 - p_cs) * after_ball
     return PitchValue(swing, take)
 
@@ -193,7 +285,7 @@ def realized_value(swing: bool, whiff: bool, xwoba: Optional[float], take_call: 
 
 
 def deltas_np(whiff, foul, xw, p_cs, balls, strikes, cv: CountValues = DEFAULT):
-    """Vectorised swing-minus-take, count-only (no situation weights). Arrays of equal length."""
+    """Vectorised swing-minus-take. Arrays of equal length. Pass cv through apply_situation for a spot."""
     import numpy as np
     tab = np.zeros((5, 4))
     for (b, s), v in cv.table.items():
@@ -203,6 +295,6 @@ def deltas_np(whiff, foul, xw, p_cs, balls, strikes, cv: CountValues = DEFAULT):
     after_ball = np.where(b + 1 >= 4, cv.walk, tab[np.minimum(b + 1, 4), s])
     after_foul = np.where(s >= 2, tab[b, s], tab[b, np.minimum(s + 1, 3)])
     p_bip = np.maximum(1.0 - whiff - foul, 0.0)
-    swing = whiff * after_strike + foul * after_foul + p_bip * xw
+    swing = whiff * after_strike + foul * after_foul + p_bip * (xw + cv.bip_bonus)
     take = p_cs * after_strike + (1.0 - p_cs) * after_ball
     return swing - take

@@ -91,6 +91,15 @@ class SwingRow:
     take_call: str = ""                # for takes: "strike", "ball" or "hbp"
     sz_bot: Optional[float] = None
     sz_top: Optional[float] = None
+    game_pk: str = ""
+    at_bat: int = 0
+    pitch_no: int = 0
+    outs: Optional[int] = None
+    bases: tuple[bool, bool, bool] = (False, False, False)   # runners on 1B, 2B, 3B
+    score_diff: Optional[int] = None                          # batting team minus fielding team
+    inning: Optional[int] = None
+    woba: Optional[float] = None       # actual wOBA value on balls in play (no EV/LA needed)
+    run_exp: Optional[float] = None    # delta_run_exp of the pitch
 
 
 def parse_swings(csv_text: str, include_takes: bool = False) -> list[SwingRow]:
@@ -128,6 +137,15 @@ def parse_swings(csv_text: str, include_takes: bool = False) -> list[SwingRow]:
             xwoba=xw, whiff=desc in WHIFF_DESCRIPTIONS,
             swing=is_swing, take_call="" if is_swing else TAKE_CALLS[desc],
             sz_bot=_f(row.get("sz_bot")), sz_top=_f(row.get("sz_top")),
+            game_pk=str(row.get("game_pk") or ""), at_bat=int(_f(row.get("at_bat_number")) or 0),
+            pitch_no=int(_f(row.get("pitch_number")) or 0),
+            outs=int(_f(row.get("outs_when_up"))) if _f(row.get("outs_when_up")) is not None else None,
+            bases=tuple(bool(_f(row.get(k))) for k in ("on_1b", "on_2b", "on_3b")),
+            score_diff=(int(_f(row.get("bat_score")) - _f(row.get("fld_score")))
+                        if _f(row.get("bat_score")) is not None and _f(row.get("fld_score")) is not None else None),
+            inning=int(_f(row.get("inning"))) if _f(row.get("inning")) is not None else None,
+            woba=_f(row.get("woba_value")) if is_swing and desc == "hit_into_play" else None,
+            run_exp=_f(row.get("delta_run_exp")),
             pitcher=str(row.get("pitcher") or ""), tto=int(tto) if tto else None,
             stand=stand, x_away=(x if stand == "R" else -x) if stand in ("R", "L") else None,
             hb=_f(row.get("api_break_x_batter_in")), bat_speed=bs,

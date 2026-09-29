@@ -27,6 +27,7 @@ import numpy as np
 
 from .decision import CountValues, DEFAULT, deltas_np, fit_count_values, p_called_strike, realized_value
 from .savant import SwingRow, contact_quality, parse_swings
+from . import fatigue
 from .shape import (
     FASTBALLS, ContactModel, PitchRow, build_arsenal, cap_tto, fit_tto_shifts, parse_pitches, raw_query,
 )
@@ -315,6 +316,15 @@ def test4(pitch_by_pitcher, cutoff):
         if r and fb:
             print(f"  {t}{'+' if t == 3 else ' '} {len(r):>8}  {np.mean([p.velo for p in fb]):>7.2f}  "
                   f"{len(fb) / len(r):>8.3f}  {np.mean([p.ivb for p in fb if p.ivb is not None]):>9.2f}")
+    from .coach import FAMILY_OF
+    print("  pitch mix by strike count and batter side (share of pitches: fastball / breaking / offspeed)")
+    for label, pick in (("0 strikes", lambda p: p.strikes == 0), ("1 strike", lambda p: p.strikes == 1),
+                        ("2 strikes", lambda p: p.strikes == 2), ("vs RHB", lambda p: p.stand == "R"),
+                        ("vs LHB", lambda p: p.stand == "L")):
+        rs = [p for rows in pitch_by_pitcher.values() for p in rows if pick(p)]
+        if rs:
+            f = [FAMILY_OF.get(p.pitch_type, "") for p in rs]
+            print(f"    {label:<10} n={len(rs):>6}  " + "  ".join(f"{k} {f.count(k) / len(rs):.3f}" for k in ("FB", "BRK", "OFF")))
     # within-pitcher change in FB velo from TTO1 to TTO3
     diffs = []
     for rows in pitch_by_pitcher.values():
@@ -331,7 +341,7 @@ def main(argv=None) -> int:
     ap.add_argument("--batters", required=True)
     ap.add_argument("--pitchers", required=True)
     ap.add_argument("--cutoff", default="2025-07-01")
-    ap.add_argument("--tests", default="0,1,3,4")
+    ap.add_argument("--tests", default="0,1,3,4,5")
     a = ap.parse_args(argv)
     tests = set(a.tests.split(","))
 
@@ -369,6 +379,8 @@ def main(argv=None) -> int:
         test3(events_by_hitter, a.cutoff, league_train, pitch_by_pitcher, cv)
     if "4" in tests:
         test4(pitch_by_pitcher, a.cutoff)
+    if "5" in tests:
+        print(fatigue.run(pitch_by_pitcher, events_by_hitter))
     return 0
 
 
