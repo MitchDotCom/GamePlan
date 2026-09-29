@@ -105,7 +105,7 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
             "lead": np.array([s.score_diff if s.score_diff is not None else 0 for s in test]),
             "inning": np.array([s.inning or 1 for s in test]),
             "rv": np.array([s.run_exp if s.run_exp is not None else np.nan for s in test]),
-            "pitcher": np.array([s.pitcher for s in test]), "p_lg": lg,
+            "pitcher": np.array([s.pitcher for s in test]), "game": np.array([s.game_pk for s in test]), "p_lg": lg,
             "p": hit, "p_cs": zm.p(np.array([s.x_away for s in test]), np.array([s.z for s in test]), sb, st,
                                    strikes=np.array([s.strikes for s in test])),
         }
