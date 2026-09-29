@@ -22,6 +22,7 @@ from .zone import CalledStrikeModel
 from .shape import ArsenalBasis, ContactModel, PitcherState, filter_starts, parse_pitches
 
 SYMBOL = {"GO": "G", "NO_GO": "x", "CONDITIONAL": "."}
+LOW_SUPPORT = "?"      # the estimate cleared the threshold but not the confidence bound: no call
 
 
 def render_card(snap: PlanSnapshot) -> str:
@@ -31,13 +32,21 @@ def render_card(snap: PlanSnapshot) -> str:
              f"count {sit.balls}-{sit.strikes}, {sit.outs} out, bases {''.join(str(int(b)) for b in sit.bases)}, "
              f"lead {sit.score_diff:+d}, inning {sit.inning}, TTO {sit.tto}"]
     lines += list(snap.notes)
+    lines.append(f"Symbols: G swing, x take, . no call, {LOW_SUPPORT} thin evidence (would be a call on the point estimate, withheld). "
+                 "Each pitch type shows the hitter's own swings behind it.")
     for pt, a in sorted(snap.arsenal.items(), key=lambda kv: -kv[1]["usage"]):
         lines.append("")
-        lines.append(f"{pt}  usage {a['usage']:.0%}  {a['velo']:.1f} mph  IVB {a['ivb']:.1f}  HB {a['hb']:.1f}  VAA {a['vaa']:.1f}")
+        n_h = [snap.cells[f"{pt}|{i}|{j}"].get("n_h", 0) for i in range(n_x) for j in range(n_z)]
+        thin = sum(1 for i in range(n_x) for j in range(n_z) if snap.cells[f"{pt}|{i}|{j}"].get("low_support"))
+        lines.append(f"{pt}  usage {a['usage']:.0%}  {a['velo']:.1f} mph  IVB {a['ivb']:.1f}  HB {a['hb']:.1f}  VAA {a['vaa']:.1f}"
+                     f"   (effective hitter swings behind these cells: median {sorted(n_h)[len(n_h) // 2]:.0f}; {thin} thin cells withheld)")
         lines.append("        in  ->  away")
         for j in range(n_z - 1, -1, -1):
             z_mid = Z_RANGE[0] + (j + 0.5) * CELL_IN / 12
-            row = " ".join(SYMBOL[snap.cells[f"{pt}|{i}|{j}"]["cls"]] for i in range(n_x))
+            def sym(i):
+                c = snap.cells[f"{pt}|{i}|{j}"]
+                return LOW_SUPPORT if c.get("low_support") else SYMBOL[c["cls"]]
+            row = " ".join(sym(i) for i in range(n_x))
             lines.append(f"  {z_mid:4.1f} ft  {row}")
     return "\n".join(lines)
 
@@ -81,6 +90,15 @@ def main(argv=None) -> int:
     snap = build_plan(model, Hitter(a.hitter), a.starter, ars, sit, game_id="demo", level="PA", config=cfg,
                       pitcher_state=state, zone_model=zone)
     print(render_card(snap))
+    from .opportunity import LocationModel, SwingRateModel, plan_opportunity
+    loc = LocationModel(pitches)
+    rate = SwingRateModel([s for s in events if s.batter == a.hitter], events)
+    opp = plan_opportunity(snap, loc, rate, stand=stand)
+    print(f"\nIf {a.hitter} follows every call: about {opp.runs_per_100_pitches:+.2f} runs per 100 pitches "
+          f"(upper bound; hitters choose what to swing at, so selection inflates this). "
+          f"{opp.covered_share:.0%} of this starter's pitches land in a called cell; his tendencies already match the call "
+          f"on {opp.already_following:.0%} of those.")
+    print("Largest opportunities (cell, runs per 100 pitches):", ", ".join(f"{k} {v:+.2f}" for k, v in opp.top_cells[:5]))
     return 0
 
 

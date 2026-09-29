@@ -2,6 +2,8 @@
 
 Purpose: separate what is measured from data, what matches a published reference, and what I chose or invented, then list every hole I can find. Written to be read by the person who has to trust or reject the output, not to defend it.
 
+**Status after the fixes (2026-09-29):** D3, D4, V1, E1, E2, E4, S1 (code), S2 (code), M2, M5 (opportunity), L2 (confidence rule), G1 fixed; D2 fixed by the league-wide refit; the published-benchmark checks pass. Still open: D1 (MLB only), D5, D6, D7, V2 to V6, M1, M3, M4, L1, L3 to L5, E3, the coach-report holes, S3 to S6 and G2 to G3. M1, M3, S4 are being tested in the cloud. See the README v0.7 section and `docs/scorecard.md`.
+
 Limits of this audit, stated first:
 - The primary pages (FanGraphs Library, MLB glossary, SABR, arXiv, Baseball Prospectus) are blocked by this environment's network policy, so I could not open them. Every published fact below comes from web-search result summaries, not from reading the page. Treat "matches the reference" as "matches what a search summary of the reference says" until someone opens the page. Domains to allow so I can read them directly: `library.fangraphs.com`, `blogs.fangraphs.com`, `www.mlb.com`, `sabr.org`, `arxiv.org`, `www.baseballprospectus.com`, `tangotiger.net`, `www.baseball-reference.com`.
 - Two cloud runs were still in progress when this was written (hitter-level term experiment; segment calibration, sensitivity and data-handling checks). Results go in `docs/study_hier.txt` and `docs/audit_checks.txt` on branches `claude/hier-experiment-results` and `claude/audit-checks-results`. Sections that depend on them say so.
