@@ -74,7 +74,7 @@ CRITERIA: list[Criterion] = [
     # 6 helps
     Criterion("pilot.mde_runs_per_pitch", 6, "pilot minimum detectable difference, runs per pitch, must be <= expected effect", "<=", (0.02,), "expected effect from compliance x gap"),
     # 7 honest
-    Criterion("honest.low_support_cells_withheld", 7, "share of plan cells below the support threshold that are still called", "<=", (0.0,), "choice"),
+    Criterion("honest.confident_calls_hold", 7, "among cells called at 90% one-sided confidence, share whose held-out swing-minus-take keeps its sign (cell-level coverage test; not built)", ">=", (0.85,), "choice"),
 ]
 
 _BY_KEY = {c.key: c for c in CRITERIA}
