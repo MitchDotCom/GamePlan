@@ -34,3 +34,10 @@ pip install -e '.[dev]' && pytest
 ## Tunable constants
 
 `evaluate.py`: decision scores, `GOOD_DECISION`, `ANGLE_PENALTY`, `TIMING_PENALTY`, `GOOD_EXECUTION`, `PROTECT_TOLERANCE_FT`. `SCORE_CONDITIONAL_NEUTRAL` is a placeholder: a non-protect CONDITIONAL rule has no defined right answer yet.
+
+## Savant (`savant.py`)
+
+- `build_url(batter_id, season, pitch_types)` + `fetch_csv(url)`: pitch-level Statcast search CSV. Needs `baseballsavant.mlb.com` allowed in the environment's network policy; without it, download the CSV by hand and pass the text in.
+- `parse_swings(csv_text)`: swing rows only. Value per swing is xwOBA on balls in play, 0 on whiffs and fouls. IVB is `pfx_z * 12` (proxy); VAA is computed from `vy0, vz0, ay, az`.
+- `fit_hitter_model(csv_text, batter_id, k=30)`: per-cell xwOBA shrunk toward the league mean for that pitch type and cell. The league prior is only as good as the CSV you pass, so include many hitters. Use `model.hitter_baseline` as `Hitter.baseline_xwoba` so the GO/NO_GO margins compare like with like.
+- Caveat: baseline here is value per swing (whiffs count as 0), not batted-ball xwOBA. `evaluate._result_good` compares batted-ball xwOBA to `baseline_xwoba`, so with a swing-based baseline it will be too strict. Split these into two fields before using real data.
