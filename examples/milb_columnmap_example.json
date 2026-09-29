@@ -1,0 +1,15 @@
+{
+  "system": "TrackMan",
+  "columns": {
+    "game_id": "GameID", "date": "Date", "batter_id": "BatterId", "pitcher_id": "PitcherId",
+    "stand": "BatterSide", "p_throws": "PitcherThrows", "balls": "Balls", "strikes": "Strikes",
+    "at_bat": "PlateAppearance", "pitch_no": "PitchOfPA", "inning": "Inning",
+    "pitch_type": "PitchType", "velo": "RelSpeed", "plate_x": "PlateLocSide", "plate_z": "PlateLocHeight",
+    "call": "PitchCall", "ivb": "InducedVertBreak", "hb": "HorzBreak",
+    "launch_speed": "ExitSpeed", "launch_angle": "Angle"
+  },
+  "units": {"plate_x": "ft", "plate_z": "ft", "ivb": "in", "hb": "in", "velo": "mph"},
+  "values": {"stand": {"Right": "R", "Left": "L"}, "p_throws": {"Right": "R", "Left": "L"}},
+  "hb_convention": "catcher_view",
+  "plate_x_sign": 1.0
+}

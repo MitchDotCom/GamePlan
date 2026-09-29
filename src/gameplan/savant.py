@@ -63,7 +63,7 @@ def approach_angle(row: dict) -> Optional[float]:
     Statcast release kinematics. Uses vy0, vz0, ay, az, y0=50 ft, plate front at y=17/12 ft."""
     vy0, vz0, ay, az = (_f(row.get(k)) for k in ("vy0", "vz0", "ay", "az"))
     if None in (vy0, vz0, ay, az) or ay == 0:
-        return None
+        return _f(row.get("approach_angle"))      # feeds without release kinematics may supply the angle directly
     disc = vy0 * vy0 - 2 * ay * (_const("VAA_RELEASE_Y_FT") - _const("VAA_PLATE_FRONT_Y_FT"))
     if disc <= 0:
         return None

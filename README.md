@@ -142,3 +142,17 @@ Built from the audit's plan:
 Cloud runs still in progress when this was written (results land on branches `claude/league-validation-results` and `claude/audit-league-results`): the full corrected rerun on all hitters and starters, calibration by segment, hyperparameter and split-date sensitivity, data-handling effects, and the confidence-bound test. Until they are in, the scorecard rows for measures 2 to 7 read NOT MEASURED and every number in the earlier v0.5 and v0.6 sections that predates this section was computed on the pre-fix data.
 
 **Bug found later the same day (D8):** Savant's `api_break_x_batter_in` is in feet, not inches (SD 0.86 ft), so the horizontal-break dimension of the shape model was effectively switched off in every study so far that used shape mode. Fixed (`savant._hb_in`, tested). Results for shape-aware models in the sections above, including "shape alone adds almost nothing", were computed without horizontal break and have to be treated as unmeasured until the rerun. Cloud runs started before the fix were stopped and restarted.
+
+## MiLB loader (`milb.py`, `evla.py`, `profiles.py`)
+
+Adapter from an organization's export to the Savant-style CSV every study and the card already read. `python -m gameplan.milb --export export.csv --map columnmap.json --out converted.csv --park Visalia`.
+
+- **You declare the mapping** (`examples/milb_columnmap_example.json`; the source column names there are placeholders, not a claim about any vendor's export): which column is which canonical field, units (ft / in / cm / m, mph / kph / mps), value maps (calls, handedness, pitch types), whether horizontal break is catcher-view or batter-relative, and the plate-x sign.
+- **Nothing silent:** unmapped call codes stop the run (or are counted with `--lenient`), missing required fields and columns raise, rows without handedness or location are counted.
+- **Unit check against MLB:** every converted field's SD and mean are compared with the 2025 MLB reference (`field_reference_mlb_2025.json`). A unit error such as break in feet read as inches shows up as an SD ratio near 12 and is flagged; this is the check that would have caught the horizontal-break bug.
+- **Derived state:** times through the order and prior plate appearances vs the pitcher come from the pitch sequence (they match Savant's `n_thruorder_pitcher` for the same plate appearances).
+- **Expected wOBA:** if the export has no expected-stats field but has exit velocity and launch angle, xwOBA is filled from an MLB lookup (`xwoba_evla_2025.json`) and flagged `evla`. Held-out check on 40,254 MLB balls in play: correlation 0.979 with Savant's xwOBA, mean absolute error 0.052, bias -0.0003.
+- **System offsets:** `estimate_offsets` gives the mean difference and standard error between two systems measuring the same pitches, to store as `DataProfile.offsets` (plate location, IVB, HB, velocity). None are assumed.
+- **Tier:** `infer_profile` reads the mapping and returns the data tier and the `ContactModel` settings that tier supports (full shape, velocity-only, or location and type with actual wOBA in place of xwOBA).
+
+What this does not settle: how each park's system actually differs from Savant's Hawk-Eye. That needs overlapping measurements (a Triple-A park that reports to Savant, or pitches captured by two systems), not a config file.
