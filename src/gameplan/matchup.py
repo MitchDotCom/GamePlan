@@ -17,7 +17,7 @@ from typing import Optional
 from .constants import value as _const
 from .decision import (
     DEFAULT, CountValues, SituationConfig, SituationPolicy, SituationWeights, apply_situation, classify,
-    p_called_strike, pitch_value, situation_weights, GO_DELTA, NO_GO_DELTA,
+    p_called_strike, pitch_value, situation_weights, swing_se_np, GO_DELTA, NO_GO_DELTA,
 )
 from .evaluate import evaluate_pitch
 from .models import (
@@ -75,17 +75,9 @@ class PlanSnapshot:
 
 
 def _swing_se(p: dict, cv: CountValues, sit: "Situation", n_h: float, n_bip_h: float, model: ContactModel) -> float:
-    """Standard error of the swing EV from the hitter-specific evidence behind it: outcome-value variance
-    over (whiff, foul, contact) divided by the hitter's local sample plus the prior's pseudo-count, plus
-    the spread of xwOBA on contact over the ball-in-play sample."""
-    a_s, a_f = cv.after_strike(sit.balls, sit.strikes), cv.after_foul(sit.balls, sit.strikes)
-    p_bip = max(1.0 - p["whiff"] - p["foul"], 0.0)
-    vals = (a_s, a_f, p["xw"] + cv.bip_bonus)
-    probs = (p["whiff"], p["foul"], p_bip)
-    m = sum(pr * v for pr, v in zip(probs, vals))
-    var_outcome = sum(pr * (v - m) ** 2 for pr, v in zip(probs, vals))
-    var = var_outcome / (n_h + model.k["whiff"]) + (p_bip ** 2) * _const("XWOBA_CONTACT_SD") ** 2 / (n_bip_h + model.k["xw"])
-    return var ** 0.5
+    """Scalar wrapper over decision.swing_se_np (one implementation, tested against the plan)."""
+    return float(swing_se_np(np.array([p["whiff"]]), np.array([p["foul"]]), np.array([p["xw"]]), [sit.balls],
+                             [sit.strikes], np.array([n_h]), np.array([n_bip_h]), model.k["whiff"], model.k["xw"], cv)[0])
 
 
 def _plan_id(*parts) -> str:

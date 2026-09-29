@@ -408,3 +408,22 @@ def deltas_np(whiff, foul, xw, p_cs, balls, strikes, cv: CountValues = DEFAULT):
     """Vectorised swing-minus-take."""
     swing, take = evs_np(whiff, foul, xw, p_cs, balls, strikes, cv)
     return swing - take
+
+
+def swing_se_np(whiff, foul, xw, balls, strikes, n_h, n_bip_h, k_whiff, k_xw, cv: CountValues = DEFAULT):
+    """Standard error of swing EV (vectorised), from the hitter's local evidence: outcome-value variance
+    over (whiff, foul, contact) divided by hitter-local swings plus the prior pseudo-count, plus the
+    spread of xwOBA on contact over the ball-in-play sample. Same formula as matchup._swing_se."""
+    import numpy as np
+    tab = np.zeros((5, 4))
+    for (b, s_), v in cv.table.items():
+        tab[b, s_] = v
+    b, s_ = np.asarray(balls, int), np.asarray(strikes, int)
+    a_s = np.where(s_ + 1 >= 3, cv.strikeout, tab[b, np.minimum(s_ + 1, 3)])
+    a_f = np.where(s_ >= 2, tab[b, s_], tab[b, np.minimum(s_ + 1, 3)])
+    p_bip = np.maximum(1.0 - whiff - foul, 0.0)
+    v3 = xw + cv.bip_bonus
+    m = whiff * a_s + foul * a_f + p_bip * v3
+    var_outcome = whiff * (a_s - m) ** 2 + foul * (a_f - m) ** 2 + p_bip * (v3 - m) ** 2
+    var = var_outcome / (np.asarray(n_h) + k_whiff) + p_bip ** 2 * _const("XWOBA_CONTACT_SD") ** 2 / (np.asarray(n_bip_h) + k_xw)
+    return np.sqrt(var)

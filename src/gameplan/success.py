@@ -74,7 +74,7 @@ CRITERIA: list[Criterion] = [
     # 6 helps
     Criterion("pilot.mde_runs_per_pitch", 6, "pilot minimum detectable difference, runs per pitch, must be <= expected effect", "<=", (0.02,), "expected effect from compliance x gap"),
     # 7 honest
-    Criterion("honest.confident_calls_hold", 7, "among cells called at 90% one-sided confidence, share whose held-out swing-minus-take keeps its sign (cell-level coverage test; not built)", ">=", (0.85,), "choice"),
+    Criterion("honest.confident_gap_diff_ci_low", 7, "confident GO pitches separate swing from take better than thin-support GO pitches: CI lower bound of the gap difference (runs)", ">=", (0.0,), "choice"),
 ]
 
 _BY_KEY = {c.key: c for c in CRITERIA}

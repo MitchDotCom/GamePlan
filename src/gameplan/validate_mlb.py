@@ -20,7 +20,7 @@ import numpy as np
 
 from .baseout import inning_bucket, score_bucket
 from .decision import (
-    DEFAULT, SituationConfig, SituationPolicy, apply_situation, deltas_np, evs_np, p_called_strike,
+    DEFAULT, SituationConfig, swing_se_np, SituationPolicy, apply_situation, deltas_np, evs_np, p_called_strike,
     realized_value, situation_weights,
 )
 from .savant import SwingRow, parse_swings
@@ -28,6 +28,7 @@ from .shape import ContactModel, filter_starts, parse_pitches
 from .study import _boot, _fmt, _read
 from .stats import benjamini_hochberg, holm, interval, report_family, two_sided_p, two_way_draws
 from .success import record
+from .constants import value as _const
 from .zone import CalledStrikeModel
 
 CUTOFF = "2025-07-01"
@@ -92,6 +93,7 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
         m = ContactModel.for_hitter(train, league)
         Q = np.array([(s.x_away, s.z, s.velo, s.ivb, s.hb, s.vaa) for s in test], float)
         lg, hit = m.predict_pair(Q)
+        sup = m.support(Q)
         sb = np.array([s.sz_bot or 1.5 for s in test])
         st = np.array([s.sz_top or 3.5 for s in test])
         f = {
@@ -105,6 +107,7 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
             "lead": np.array([s.score_diff if s.score_diff is not None else 0 for s in test]),
             "inning": np.array([s.inning or 1 for s in test]),
             "rv": np.array([s.run_exp if s.run_exp is not None else np.nan for s in test]),
+            "n_h": sup["whiff"], "n_bip_h": sup["xw"], "k": (m.k["whiff"], m.k["xw"]),
             "pitcher": np.array([s.pitcher for s in test]), "game": np.array([s.game_pk for s in test]), "p_lg": lg,
             "p": hit, "p_cs": zm.p(np.array([s.x_away for s in test]), np.array([s.z for s in test]), sb, st,
                                    strikes=np.array([s.strikes for s in test])),
@@ -312,6 +315,42 @@ def v5_separation(frames, go=0.02, n_boot=300):
     return pv
 
 
+# ------------------------------------------------------------------ V6
+
+def v6_confidence(frames, go=0.02, z=None, n_boot=300):
+    """Do the confidence bounds do their job? Among pitches whose point estimate says GO, compare the
+    realized swing-minus-take run value where the bound clears zero (confident) with where it does not
+    (low support). If the bounds work, the confident set separates better."""
+    z = _const("CONFIDENCE_Z") if z is None else z
+    print("\n== V6: do confidence bounds separate solid calls from thin ones? (two-way bootstrap, real run value)")
+    cat = lambda k: np.concatenate([f[k] for f in frames])
+    hid = np.concatenate([np.full(f["n"], k) for k, f in enumerate(frames)])
+    _, pidx = np.unique(cat("pitcher"), return_inverse=True)
+    swing, rv = cat("swing"), cat("rv")
+    ok = ~np.isnan(rv)
+    d_all, se_all = [], []
+    for f in frames:
+        d_all.append(deltas_np(f["p"]["whiff"], f["p"]["foul"], f["p"]["xw"], f["p_cs"], f["balls"], f["strikes"]))
+        se_all.append(swing_se_np(f["p"]["whiff"], f["p"]["foul"], f["p"]["xw"], f["balls"], f["strikes"],
+                                  f["n_h"], f["n_bip_h"], f["k"][0], f["k"][1]))
+    d, se = np.concatenate(d_all), np.concatenate(se_all)
+    conf_go, thin_go = (d >= go) & (d - z * se >= 0), (d >= go) & (d - z * se < 0)
+    conf_no, thin_no = (d <= -go) & (d + z * se <= 0), (d <= -go) & (d + z * se > 0)
+
+    def gap(mask, w):
+        a, b = mask & swing & ok, mask & ~swing & ok
+        wa, wb = (w * a).sum(), (w * b).sum()
+        return 0.0 if wa == 0 or wb == 0 else float((w * a * np.nan_to_num(rv)).sum() / wa - (w * b * np.nan_to_num(rv)).sum() / wb)
+    print(f"  pitches: confident GO {int(conf_go.sum())}, thin GO {int(thin_go.sum())}, confident NO_GO {int(conf_no.sum())}, thin NO_GO {int(thin_no.sum())}")
+    for name, fn in (("GO: gap(confident) - gap(thin), runs (positive = bounds help)", lambda w: gap(conf_go, w) - gap(thin_go, w)),
+                     ("NO_GO: -gap(confident) + gap(thin), runs (positive = bounds help)", lambda w: -gap(conf_no, w) + gap(thin_no, w))):
+        point, draws = two_way_draws(hid, pidx, fn, n_boot)
+        pt, lo, hi = interval(point, draws)
+        print(f"  {name:<72} {pt:+.4f} [{lo:+.4f}, {hi:+.4f}]")
+        if name.startswith("GO"):
+            record("honest.confident_gap_diff_ci_low", lo)
+
+
 # ------------------------------------------------------------------ V4
 
 def v4_year_over_year(b24, b25, cutoff):
@@ -367,14 +406,14 @@ def main(argv=None) -> int:
     ap.add_argument("--b25", required=True)
     ap.add_argument("--b24", default=None)
     ap.add_argument("--pitchers", required=True)
-    ap.add_argument("--tests", default="1,2,3,4,5")
+    ap.add_argument("--tests", default="1,2,3,4,5,6")
     ap.add_argument("--cutoff", default=CUTOFF)
     a = ap.parse_args(argv)
     tests = set(a.tests.split(","))
     b25 = load_batters(a.b25)
     print(f"2025 hitters: {len(b25)}")
-    zm = v1_zone(b25, a.cutoff) if tests & {"1", "2", "3", "5"} else None
-    if tests & {"2", "3", "5"}:
+    zm = v1_zone(b25, a.cutoff) if tests & {"1", "2", "3", "5", "6"} else None
+    if tests & {"2", "3", "5", "6"}:
         start_keys = load_start_keys(a.pitchers)
         league_train = [s for r in b25.values() for s in r if s.swing and s.date < a.cutoff]
         frames = _frames(b25, a.cutoff, start_keys, league_train, zm)
@@ -386,6 +425,8 @@ def main(argv=None) -> int:
             v3_situation(frames)
         if "5" in tests:
             family.update(v5_separation(frames))
+        if "6" in tests:
+            v6_confidence(frames)
         if family:
             print("\n== Headline tests, multiplicity-adjusted (Holm controls any false positive; BH controls false discovery)")
             print(report_family(family))

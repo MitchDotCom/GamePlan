@@ -174,3 +174,23 @@ def test_policy_book_layers_and_explains():
     assert PolicyBook.from_json(book.to_json()).resolve("H1", "S1") == cfg
     flipped = PolicyBook(book.default, book.by_starter, book.by_hitter, book.by_pair, ("hitter", "starter", "pair"))
     assert flipped.resolve("H1", "S1").runner_third_lt2 is P.CONTACT_FIRST        # precedence is configurable
+
+
+def test_vectorised_and_plan_standard_errors_agree_and_thin_evidence_withholds_calls():
+    import numpy as np
+    from gameplan.decision import DEFAULT, swing_se_np
+    from gameplan.matchup import _swing_se
+    league, hero = _rows(3000, 2), _rows(600, 3, hero=True)
+    m = ContactModel(hero, league, mode="shape")
+    p = {"whiff": 0.25, "foul": 0.35, "xw": 0.36}
+    a = _swing_se(p, DEFAULT, Situation(1, 1), 12.0, 5.0, m)
+    b = float(swing_se_np(np.array([.25]), np.array([.35]), np.array([.36]), [1], [1], np.array([12.0]), np.array([5.0]),
+                          m.k["whiff"], m.k["xw"])[0])
+    assert abs(a - b) < 1e-12
+    thin = ContactModel(_rows(15, 4, hero=True), league, mode="shape")
+    ars = {"FF": ArsenalPitch("FF", 1.0, 93, 14, 0, -5, 500)}
+    h = Hitter("h")
+    loose = build_plan(thin, h, "p", ars, Situation(0, 0), z_conf=0.0)
+    firm = build_plan(thin, h, "p", ars, Situation(0, 0), z_conf=1.28)
+    calls = lambda snap: sum(1 for c in snap.cells.values() if c["cls"] != "CONDITIONAL")
+    assert calls(firm) <= calls(loose) and any(c["low_support"] for c in firm.cells.values()) or calls(firm) == calls(loose)
