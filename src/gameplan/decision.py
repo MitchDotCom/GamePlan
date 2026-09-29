@@ -150,7 +150,7 @@ def p_called_strike(x_away: float, z: float, sz_bot: float = 1.5, sz_top: float 
     d_in = math.hypot(dx, dz) * 12.0
     inside = abs(x_away) <= half_plate_ft and sz_bot <= z <= sz_top
     signed = -min((half_plate_ft - abs(x_away)), z - sz_bot, sz_top - z) * 12.0 if inside else d_in
-    return 1.0 / (1.0 + math.exp(signed / scale_in))
+    return 1.0 / (1.0 + math.exp(min(signed / scale_in, 700.0)))
 
 
 # ------------------------------------------------------------------ situation
