@@ -22,5 +22,37 @@
  "bench.woba_scale_used": {
   "note": "",
   "value": 1.257
+ },
+ "cal.max_decile_gap": {
+  "note": "",
+  "value": 0.013761200895801462
+ },
+ "cal.swing_slope": {
+  "note": "",
+  "value": 1.0227526532255822
+ },
+ "cal.take_slope": {
+  "note": "",
+  "value": 0.9914583583228298
+ },
+ "honest.confident_gap_diff_ci_low": {
+  "note": "",
+  "value": 0.03802135234230024
+ },
+ "sep.count_removal_hurts": {
+  "note": "",
+  "value": -0.00021835934155690253
+ },
+ "sep.disagree_ci_low": {
+  "note": "",
+  "value": -0.0009134954517189812
+ },
+ "skill.whiff_yoy_ci_low": {
+  "note": "",
+  "value": 0.022044713388131035
+ },
+ "skill.xw_yoy_ci_low": {
+  "note": "",
+  "value": 0.002300412828496512
  }
 }

@@ -1,0 +1,35 @@
+  bench.woba_scale_used                        1.2570  PASS   (wOBA scale in code equals FanGraphs 2025)
+  bench.league_woba_abs_err                    0.0017  PASS   (league-wide wOBA (published weights, proper denominator) vs FanGraphs .314)
+  bench.tto_1_to_2_pts                         6.9322  PASS   (league-wide wOBA increase TTO1 to TTO2 vs starters, points)
+  bench.ivb_ff_in                             15.8224  PASS   (league mean four-seam IVB, inches)
+  bench.ivb_cu_in                            -10.2514  PASS   (league mean curveball IVB, inches)
+  bench.count_run_values_max_rel_err           0.1013  PASS   (count run values vs published (0-0 strike, 0-1 ball, 1-1 strike): max relative error)
+  detail: {
+ "league wOBA (this data)": 0.3157429618542405,
+ "PAs": 181724,
+ "TTO wOBA": {
+  "3": [
+   0.32981745157440556,
+   21786
+  ],
+  "2": [
+   0.31862693483429566,
+   41218
+  ],
+  "1": [
+   0.3116947831900228,
+   43379
+  ]
+ },
+ "TTO 2 to 3+ pts": 11.190516740109901,
+ "count run values (mine)": {
+  "0-0 strike": -0.038127830442885785,
+  "0-1 ball": 0.022648558334002245,
+  "1-1 strike": -0.05946904221084886
+ },
+ "published": {
+  "0-0 strike": -0.037,
+  "0-1 ball": 0.024,
+  "1-1 strike": -0.054
+ }
+}
