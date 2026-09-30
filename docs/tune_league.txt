@@ -1,0 +1,74 @@
+
+== Selection: time-blocked validation (May, June, July), pooled error per combination
+  bandwidth x0.75: k x0.25: whiff 0.15002 xw 0.14010  k x0.5: whiff 0.15014 xw 0.13996  k x1.0: whiff 0.15025 xw 0.13996  k x2.0: whiff 0.15032 xw 0.13999
+  bandwidth x1.0: k x0.25: whiff 0.14761 xw 0.14014  k x0.5: whiff 0.14775 xw 0.13966  k x1.0: whiff 0.14796 xw 0.13958  k x2.0: whiff 0.14813 xw 0.13961
+  bandwidth x1.5: k x0.25: whiff 0.14747 xw 0.14113  k x0.5: whiff 0.14712 xw 0.14009  k x1.0: whiff 0.14715 xw 0.13963  k x2.0: whiff 0.14735 xw 0.13952
+  bandwidth x2.0: k x0.25: whiff 0.14979 xw 0.14187  k x0.5: whiff 0.14847 xw 0.14079  k x1.0: whiff 0.14772 xw 0.14005  k x2.0: whiff 0.14749 xw 0.13970
+  bandwidth x3.0: k x0.25: whiff 0.15573 xw 0.14269  k x0.5: whiff 0.15316 xw 0.14191  k x1.0: whiff 0.15075 xw 0.14107  k x2.0: whiff 0.14907 xw 0.14038
+  default: whiff 0.14796, xw 0.13958
+  chosen whiff: bandwidth x1.5, k x0.5 (0.14712);  xwOBAcon: bandwidth x1.0, k x1.0 (0.13958)
+
+== Final test (used once): fit before 2025-08-01, score from 2025-08-01
+  whiff Brier: default skill +0.0268 [+0.0231, +0.0312]   tuned skill +0.0317 [+0.0265, +0.0368]   tuned - default +0.0049 [+0.0030, +0.0068]   (362 hitters)
+    adopt tuned whiff setting: YES
+  xwOBAcon MSE: default skill +0.0138 [+0.0095, +0.0182]   tuned skill +0.0138 [+0.0093, +0.0186]   tuned - default +0.0000 [+0.0000, +0.0000]   (362 hitters)
+    adopt tuned xwOBAcon setting: NO (interval includes 0)
+
+== Count recalibration: fit before 2025-08-01, judged from 2025-08-01 (vs starters)
+  offsets (whiff, foul, xw) by (balls, strikes):
+    (0, 0): +0.0557 -0.0197 +0.0029
+    (0, 1): +0.0316 -0.0079 -0.0156
+    (0, 2): -0.0242 +0.0100 -0.0329
+    (1, 0): +0.0471 -0.0171 +0.0030
+    (1, 1): +0.0265 -0.0049 -0.0044
+    (1, 2): -0.0288 +0.0158 -0.0230
+    (2, 0): +0.0329 -0.0158 +0.0174
+    (2, 1): +0.0222 -0.0089 +0.0031
+    (2, 2): -0.0215 +0.0119 -0.0252
+    (3, 0): +0.0257 -0.0199 +0.0409
+    (3, 1): +0.0143 -0.0058 +0.0196
+    (3, 2): -0.0175 +0.0071 -0.0053
+
+  --- BEFORE recalibration
+
+== C1: calibration by segment (realized minus predicted value, wOBA scale; 0 = calibrated)
+   Rows where the gap's 95% CI (by hitter) excludes 0 are marked *.
+  by strikes:
+    0        swing +0.0001 [-0.0045, +0.0048]  n=13827   take +0.0005 [+0.0001, +0.0010]* n=26488
+    1        swing +0.0013 [-0.0024, +0.0054]  n=16439   take +0.0011 [+0.0003, +0.0018]* n=14624
+    2        swing +0.0102 [+0.0057, +0.0140]* n=18687   take +0.0026 [+0.0013, +0.0041]* n=12206
+  by balls:
+    0        swing +0.0013 [-0.0020, +0.0053]  n=18080   take +0.0024 [+0.0019, +0.0029]* n=28136
+    1        swing +0.0013 [-0.0023, +0.0048]  n=15526   take +0.0026 [+0.0018, +0.0033]* n=14740
+    2        swing +0.0073 [+0.0029, +0.0130]* n=10251   take -0.0005 [-0.0019, +0.0010]  n=7133
+    3        swing +0.0188 [+0.0102, +0.0280]* n=5096   take -0.0120 [-0.0158, -0.0077]* n=3309
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1849 [+0.1755, +0.1943]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0051 [-0.0106, -0.0002]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0519 [-0.0011, +0.1112]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.1785 [+0.0407, +0.3637]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 1719 / 1249
+
+  --- AFTER recalibration
+
+== C1: calibration by segment (realized minus predicted value, wOBA scale; 0 = calibrated)
+   Rows where the gap's 95% CI (by hitter) excludes 0 are marked *.
+  by strikes:
+    0        swing +0.0017 [-0.0037, +0.0060]  n=13827   take +0.0005 [+0.0000, +0.0010]* n=26488
+    1        swing +0.0062 [+0.0028, +0.0102]* n=16439   take +0.0011 [+0.0005, +0.0018]* n=14624
+    2        swing +0.0110 [+0.0064, +0.0145]* n=18687   take +0.0026 [+0.0014, +0.0041]* n=12206
+  by balls:
+    0        swing +0.0069 [+0.0028, +0.0106]* n=18080   take +0.0024 [+0.0020, +0.0029]* n=28136
+    1        swing +0.0034 [-0.0008, +0.0075]  n=15526   take +0.0026 [+0.0019, +0.0034]* n=14740
+    2        swing +0.0081 [+0.0018, +0.0135]* n=10251   take -0.0005 [-0.0018, +0.0008]  n=7133
+    3        swing +0.0134 [+0.0053, +0.0216]* n=5096   take -0.0120 [-0.0163, -0.0080]* n=3309
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1851 [+0.1756, +0.1948]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0075 [-0.0131, -0.0017]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0425 [-0.0123, +0.0897]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.1467 [+0.0107, +0.2840]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 1682 / 1147
+
+saved count calibration fit on the full season to src/gameplan/count_calibration_2025.json (for use in plans; the test above used pre-2025-08-01 data only)
