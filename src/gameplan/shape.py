@@ -36,8 +36,9 @@ LOC_BW = np.array([0.30, 0.30])
 TYPEVELO_BW = np.array([0.30, 0.30, 1.0, 3.0])
 # "shapecount" adds balls and strikes as two more kernel features, so a swing in a 2-strike count
 # informs a 2-strike query most and a 0-0 query least. Count bandwidths are in counts (not scaled by
-# bw_scale): strikes 1.0 gives an adjacent strike count weight 0.61, two apart 0.14.
-COUNT_BW = np.array([2.0, 1.0])
+# bw_scale): strikes 1.0 gives an adjacent strike count weight 0.61, two apart 0.14; balls 4.0 gives adjacent
+# ball counts 0.97. Values: constants registry, chosen by pre-registered validation (count_feature.py).
+COUNT_BW = np.array([_const("COUNT_BW_BALLS"), _const("COUNT_BW_STRIKES")])
 MODE_BW = {"loc": LOC_BW, "type": TYPE_BW, "typevelo": TYPEVELO_BW, "shape": SHAPE_BW,
            "shapecount": np.concatenate([SHAPE_BW, COUNT_BW])}
 N_COUNT_DIMS = {"shapecount": 2}

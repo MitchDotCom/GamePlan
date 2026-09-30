@@ -79,7 +79,7 @@ def v1_zone(events_by_hitter, cutoff):
 
 # ------------------------------------------------------------------ shared per-hitter frames
 
-def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=300, count_cal=None, mode="shape", count_bw=None):
+def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=300, count_cal=None, mode="shapecount", count_bw=None, zone_balls=False):
     """Per hitter: held-out pitches vs starters with hitter-model predictions for the pitch's own
     location and shape. Returns a list of dicts of aligned numpy arrays."""
     league = ContactModel([], league_train, mode=mode, count_bw=count_bw)
@@ -114,7 +114,8 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
             "n_h": sup["whiff"], "n_bip_h": sup["xw"], "k": (m.k["whiff"], m.k["xw"]),
             "pitcher": np.array([s.pitcher for s in test]), "game": np.array([s.game_pk for s in test]), "p_lg": lg,
             "p": hit, "p_cs": zm.p(np.array([s.x_away for s in test]), np.array([s.z for s in test]), sb, st,
-                                   strikes=np.array([s.strikes for s in test])),
+                                   strikes=np.array([s.strikes for s in test]),
+                                   balls=np.array([s.balls for s in test]) if zone_balls else None),
         }
         f["value"] = np.array([
             realized_value(s.swing, s.whiff, s.xwoba, s.take_call, s.balls, s.strikes, DEFAULT) is None and np.nan

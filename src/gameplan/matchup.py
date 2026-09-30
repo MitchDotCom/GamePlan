@@ -134,7 +134,7 @@ def build_plan(
             pred = dict(pred, whiff=pred["whiff"] + dw, xw=pred["xw"] + dx)
         for n, (i, j, cx, cz) in enumerate(cells):
             p = {k: float(v[n]) for k, v in pred.items()}
-            p_cs = zone_model(cx, cz, sz[0], sz[1], sit.strikes) if zone_model is not None else p_called_strike(cx, cz, *sz)
+            p_cs = zone_model(cx, cz, sz[0], sz[1], sit.strikes, sit.balls) if zone_model is not None else p_called_strike(cx, cz, *sz)
             v = pitch_value(p, p_cs, sit.balls, sit.strikes, cv)
             cls = classify(v.delta, go, no_go)
             se = _swing_se(p, cv, sit, float(sup["whiff"][n]), float(sup["xw"][n]), model)

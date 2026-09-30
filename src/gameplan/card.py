@@ -76,7 +76,7 @@ def main(argv=None) -> int:
     zone = CalledStrikeModel([s for s in events if not s.swing])
     league = [s for s in events if s.swing]
     mine = [s for s in league if s.batter == a.hitter]
-    model = ContactModel(mine, league, mode="shape")
+    model = ContactModel(mine, league, mode="shapecount")
     pitches = filter_starts(parse_pitches(open(pathlib.Path(a.pitchers) / f"{a.starter}_2025.csv", encoding="utf-8-sig").read()))
     stand = max(("R", "L"), key=lambda k: sum(s.stand == k for s in mine)) if mine else "R"
     bases = tuple(c == "1" for c in a.bases)
