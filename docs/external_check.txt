@@ -1,0 +1,14 @@
+hitters in both: 221 (Savant published 221)
+
+per-hitter total decision value, this method (league-average model) vs Savant runs_all, n=221
+  Pearson +0.472   Spearman +0.437
+by rough zone (my zones by called-strike probability: heart > 0.9, shadow 0.1 to 0.9, outside < 0.1; Savant heart, shadow, chase + waste):
+  heart    Pearson +0.035   Spearman +0.040
+  shadow   Pearson +0.082   Spearman +0.080
+  outside  Pearson +0.875   Spearman +0.862
+
+realized production per hitter (this pipeline's count values and outcomes) vs Savant swing/take run values, n=221
+  all      Pearson +0.854   Spearman +0.787
+  heart    Pearson +0.822   Spearman +0.788
+  shadow   Pearson +0.681   Spearman +0.653
+  outside  Pearson +0.947   Spearman +0.943
