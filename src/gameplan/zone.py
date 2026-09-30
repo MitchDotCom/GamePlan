@@ -28,7 +28,8 @@ class CalledStrikeModel:
     more often at 0 strikes than at 2, partly umpire behaviour and partly which pitches hitters take),
     plus a pooled surface used when the count is not given."""
 
-    def __init__(self, takes: Iterable[SwingRow], k: int = 150, prior_m: float = 3.0, m_balls: float = 25.0):
+    def __init__(self, takes: Iterable[SwingRow], k: int = 150, prior_m: float = 3.0, m_balls: float = 25.0,
+                 ball_groups: tuple = (3,)):
         rows = [s for s in takes if not s.swing and s.take_call in ("strike", "ball") and s.x_away is not None]
         self.n = len(rows)
         self.m = prior_m
@@ -44,7 +45,9 @@ class CalledStrikeModel:
             st = np.array([s.sz_top if s.sz_top else DEFAULT_ZONE[1] for s in rs])
             self.trees[key] = (cKDTree(_feat([s.x_away for s in rs], [s.z for s in rs], sb, st)),
                                np.array([s.take_call == "strike" for s in rs], float))
-        for b in range(4):                      # one surface per full count, shrunk toward the strikes-only one
+        self.ball_groups = tuple(ball_groups)
+        for b in self.ball_groups:              # full-count surfaces only for these ball counts (default: 3 balls),
+                                                # each shrunk toward the strikes-only surface
             for st_ in range(3):
                 rs = [s for s in rows if min(s.balls, 3) == b and min(s.strikes, 2) == st_]
                 if rs:

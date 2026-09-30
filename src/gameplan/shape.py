@@ -41,7 +41,11 @@ TYPEVELO_BW = np.array([0.30, 0.30, 1.0, 3.0])
 COUNT_BW = np.array([_const("COUNT_BW_BALLS"), _const("COUNT_BW_STRIKES")])
 MODE_BW = {"loc": LOC_BW, "type": TYPE_BW, "typevelo": TYPEVELO_BW, "shape": SHAPE_BW,
            "shapecount": np.concatenate([SHAPE_BW, COUNT_BW])}
-N_COUNT_DIMS = {"shapecount": 2}
+# "shapecount3" adds a third count feature, is-three-balls (0/1), so swings at 3 balls (where hitters only
+# swing at pitches they like) are weighted mostly against each other. Its bandwidth is chosen in count_design.py.
+THREE_BALL_BW = 1.0
+MODE_BW["shapecount3"] = np.concatenate([SHAPE_BW, COUNT_BW, [THREE_BALL_BW]])
+N_COUNT_DIMS = {"shapecount": 2, "shapecount3": 3}
 TYPE_GAP = 1000.0
 _TYPES = ["FF", "SI", "FC", "SL", "ST", "SV", "CH", "FS", "CU", "KC", "CS", "SC", "KN", "EP", "FO"]
 FASTBALLS = {"FF", "SI", "FC"}
@@ -63,7 +67,11 @@ def raw_swing(s: SwingRow, mode: str):
     v = (s.x_away, s.z, s.velo, s.ivb, s.hb, s.vaa)
     if any(a is None for a in v):
         return None
-    return v + (float(s.balls), float(s.strikes)) if mode == "shapecount" else v
+    if mode == "shapecount":
+        return v + (float(s.balls), float(s.strikes))
+    if mode == "shapecount3":
+        return v + (float(s.balls), float(s.strikes), float(s.balls >= 3))
+    return v
 
 
 def raw_query(mode: str, x: float, z: float, pt: str, velo: float, ivb: float, hb: float, vaa: float,
@@ -76,6 +84,8 @@ def raw_query(mode: str, x: float, z: float, pt: str, velo: float, ivb: float, h
         return (x, z, _type_code(pt), velo)
     if mode == "shapecount":
         return (x, z, velo, ivb, hb, vaa, float(balls), float(strikes))
+    if mode == "shapecount3":
+        return (x, z, velo, ivb, hb, vaa, float(balls), float(strikes), float(balls >= 3))
     return (x, z, velo, ivb, hb, vaa)
 
 

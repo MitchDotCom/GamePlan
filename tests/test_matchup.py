@@ -208,3 +208,16 @@ def test_count_feature_learns_count_dependent_whiff():
     q = lambda st: [[0.0, 2.5, 93, 14, -5.0, -4.5, 0, st]]
     assert m.predict(q(2))["whiff"][0] > m.predict(q(0))["whiff"][0] + 0.2
     assert len(m.bw_t["whiff"]) == 8
+
+
+def test_three_ball_feature_and_zone_groups():
+    from gameplan.shape import raw_query
+    from gameplan.zone import CalledStrikeModel
+    q = raw_query("shapecount3", 0.0, 2.5, "FF", 95.0, 16.0, -6.0, -4.5, 3, 1)
+    assert q[-3:] == (3.0, 1.0, 1.0) and raw_query("shapecount3", 0, 2.5, "FF", 95, 16, -6, -4.5, 2, 1)[-1] == 0.0
+    rows = [SwingRow("h", "2025-05-01", "FF", 0.0, 2.5, 14, -4.5, 93, None, False, x_away=0.85, balls=b, strikes=0,
+                     swing=False, take_call="strike" if b == 3 else "ball", sz_bot=1.5, sz_top=3.5)
+            for b in (0, 3) for _ in range(300)]
+    zm = CalledStrikeModel(rows)
+    assert set(k for k in zm.trees if isinstance(k, tuple)) == {(3, 0)}
+    assert zm.p(0.85, 2.5, strikes=0, balls=3)[0] > zm.p(0.85, 2.5, strikes=0, balls=0)[0] + 0.2
