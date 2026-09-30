@@ -1,0 +1,50 @@
+
+== Test 1: called-strike Brier on held-out borderline takes (fit before 2025-08-01)
+  borderline Brier: strikes only +0.1295 [+0.1273, +0.1316]   balls x strikes +0.1297 [+0.1275, +0.1317]   B - A +0.0002 [-0.0001, +0.0005]   (532 hitters)
+    adopt balls in the zone model: NO (interval includes 0 or above)
+    0 balls: B - A -0.0001 [-0.0005, +0.0002]
+    1 balls: B - A +0.0008 [+0.0002, +0.0013]
+    2 balls: B - A +0.0015 [+0.0005, +0.0025]
+    3 balls: B - A -0.0021 [-0.0037, -0.0007]
+
+  --- A: zone by strikes
+
+== C1: calibration by segment (realized minus predicted value, wOBA scale; 0 = calibrated)
+   Rows where the gap's 95% CI (by hitter) excludes 0 are marked *.
+  by strikes:
+    0        swing -0.0020 [-0.0064, +0.0026]  n=13827   take +0.0005 [+0.0001, +0.0010]* n=26488
+    1        swing +0.0021 [-0.0022, +0.0058]  n=16439   take +0.0011 [+0.0005, +0.0019]* n=14624
+    2        swing +0.0044 [+0.0006, +0.0093]* n=18687   take +0.0026 [+0.0011, +0.0041]* n=12206
+  by balls:
+    0        swing -0.0002 [-0.0040, +0.0035]  n=18080   take +0.0024 [+0.0019, +0.0028]* n=28136
+    1        swing -0.0014 [-0.0055, +0.0022]  n=15526   take +0.0026 [+0.0019, +0.0033]* n=14740
+    2        swing +0.0036 [-0.0015, +0.0102]  n=10251   take -0.0005 [-0.0020, +0.0009]  n=7133
+    3        swing +0.0155 [+0.0078, +0.0243]* n=5096   take -0.0120 [-0.0154, -0.0079]* n=3309
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1836 [+0.1732, +0.1949]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0044 [-0.0099, +0.0011]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0492 [-0.0019, +0.1001]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0600 [-0.0647, +0.1890]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 1557 / 1206
+
+  --- B: zone by balls and strikes
+
+== C1: calibration by segment (realized minus predicted value, wOBA scale; 0 = calibrated)
+   Rows where the gap's 95% CI (by hitter) excludes 0 are marked *.
+  by strikes:
+    0        swing -0.0020 [-0.0070, +0.0034]  n=13827   take +0.0009 [+0.0005, +0.0013]* n=26488
+    1        swing +0.0021 [-0.0017, +0.0055]  n=16439   take +0.0016 [+0.0009, +0.0023]* n=14624
+    2        swing +0.0044 [+0.0001, +0.0083]* n=18687   take +0.0033 [+0.0019, +0.0046]* n=12206
+  by balls:
+    0        swing -0.0002 [-0.0040, +0.0034]  n=18080   take +0.0018 [+0.0014, +0.0023]* n=28136
+    1        swing -0.0014 [-0.0053, +0.0032]  n=15526   take +0.0028 [+0.0021, +0.0035]* n=14740
+    2        swing +0.0036 [-0.0024, +0.0092]  n=10251   take +0.0016 [+0.0002, +0.0031]* n=7133
+    3        swing +0.0155 [+0.0066, +0.0228]* n=5096   take -0.0051 [-0.0089, -0.0014]* n=3309
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1842 [+0.1745, +0.1953]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0066 [-0.0117, -0.0008]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0555 [+0.0074, +0.1049]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0534 [-0.2833, +0.2730]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 1566 / 1195
