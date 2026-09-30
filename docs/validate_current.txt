@@ -1,0 +1,138 @@
+2025 hitters: 673
+
+== V1: called-strike surface, held-out taken pitches (called strike vs ball)
+  train takes 192470, test takes 176375, borderline 59162
+  logistic stand-in  Brier all 0.0523   borderline 0.1455   mean pred 0.465 vs actual 0.511 (borderline)
+  kernel, pooled     Brier all 0.0475   borderline 0.1313   mean pred 0.512 vs actual 0.511 (borderline)
+  kernel, by strike count Brier all 0.0470   borderline 0.1298   mean pred 0.511 vs actual 0.511 (borderline)
+  borderline strike rate, actual vs fitted, by strikes: 0: 0.581 vs 0.581  1: 0.444 vs 0.444  2: 0.350 vs 0.352
+hitters framed: 263, pitches: 138076
+
+== V2: is each half of the decision layer calibrated? (held out, vs starters, count-aware, no situation)
+   Slope intervals: two-way cluster bootstrap over hitters AND pitchers.
+  swing EV (realized: whiff/foul/xwOBA value of the state reached): 66025 pitches
+    decile  mean predicted  mean realized  (gap)
+        1           0.143          0.132  (-0.011)
+        2           0.215          0.215  (+0.000)
+        3           0.242          0.243  (+0.000)
+        4           0.263          0.261  (-0.002)
+        5           0.280          0.278  (-0.001)
+        6           0.295          0.298  (+0.003)
+        7           0.309          0.310  (+0.000)
+        8           0.326          0.326  (-0.000)
+        9           0.348          0.356  (+0.008)
+       10           0.387          0.400  (+0.013)
+    calibration slope (1.0 = perfect): +1.0859 [+1.0367, +1.1436]
+    mean error (realized - predicted): +0.0010
+  take EV (realized: value of the count after the call): 72051 pitches
+    decile  mean predicted  mean realized  (gap)
+        1           0.181          0.184  (+0.003)
+        2           0.254          0.257  (+0.002)
+        3           0.269          0.270  (+0.001)
+        4           0.287          0.286  (-0.000)
+        5           0.299          0.301  (+0.002)
+        6           0.338          0.339  (+0.001)
+        7           0.355          0.357  (+0.003)
+        8           0.359          0.363  (+0.004)
+        9           0.406          0.407  (+0.002)
+       10           0.566          0.562  (-0.004)
+    calibration slope (1.0 = perfect): +0.9915 [+0.9835, +0.9994]
+    mean error (realized - predicted): +0.0012
+
+== V3: do situation weights improve the call against REAL run expectancy? (held out, vs starters)
+   S_RV = [mean run value(swing) - mean run value(take)] in GO pitches minus the same in NO_GO pitches,
+   in runs, restricted to each spot. Higher is better. Paired differences vs count only, CI by hitter.
+  [runner on 3rd, < 2 outs]  classified pitches 5128; hitters already swing at 78% of GO pitches and take 65% of NO_GO pitches
+    swing minus take run value: GO pitches +0.092 runs, NO_GO pitches -0.105 runs per pitch
+    count only                S_RV +0.1970 [+0.1816, +0.2181]
+    base-out MILD             paired diff vs count only -0.0009 [-0.0044, +0.0031]
+    base-out STRONG           paired diff vs count only -0.0027 [-0.0086, +0.0024]
+    score/inning MILD         paired diff vs count only -0.0011 [-0.0032, +0.0005]
+    score/inning STRONG       paired diff vs count only -0.0002 [-0.0028, +0.0019]
+    all MILD                  paired diff vs count only -0.0016 [-0.0056, +0.0031]
+    pitches whose GO call the variant changed: swing-minus-take run value, promoted-to-GO minus demoted-from-GO
+    (positive = the variant moved the right pitches; n = promoted swings+takes / demoted swings+takes)
+    base-out MILD             +0.0339 [-0.0150, +0.0850]   n = 135 / 0
+    base-out STRONG           +0.0405 [-0.0064, +0.0757]   n = 242 / 0
+    score/inning MILD         +0.0972 [-0.2125, +0.3930]   n = 6 / 2
+    score/inning STRONG       +0.1380 [-0.1440, +0.5009]   n = 13 / 11
+    all MILD                  +0.0334 [-0.0122, +0.0812]   n = 138 / 0
+  [RISP, 2 outs]  classified pitches 11407; hitters already swing at 74% of GO pitches and take 69% of NO_GO pitches
+    swing minus take run value: GO pitches +0.093 runs, NO_GO pitches -0.088 runs per pitch
+    count only                S_RV +0.1809 [+0.1637, +0.1952]
+    base-out MILD             paired diff vs count only -0.0011 [-0.0050, +0.0029]
+    base-out STRONG           paired diff vs count only -0.0046 [-0.0104, +0.0008]
+    score/inning MILD         paired diff vs count only -0.0004 [-0.0011, +0.0005]
+    score/inning STRONG       paired diff vs count only -0.0001 [-0.0011, +0.0009]
+    all MILD                  paired diff vs count only -0.0020 [-0.0062, +0.0019]
+    pitches whose GO call the variant changed: swing-minus-take run value, promoted-to-GO minus demoted-from-GO
+    (positive = the variant moved the right pitches; n = promoted swings+takes / demoted swings+takes)
+    base-out MILD             +0.0446 [-0.0039, +0.1079]   n = 294 / 0
+    base-out STRONG           +0.0161 [-0.0215, +0.0633]   n = 577 / 0
+    score/inning MILD         -0.0297 [-0.1684, +0.1650]   n = 17 / 14
+    score/inning STRONG       -0.0373 [-0.1792, +0.1214]   n = 27 / 24
+    all MILD                  +0.0306 [-0.2209, +0.3060]   n = 301 / 2
+  [runner on 1st only, < 2 outs]  classified pitches 15205; hitters already swing at 70% of GO pitches and take 71% of NO_GO pitches
+    swing minus take run value: GO pitches +0.059 runs, NO_GO pitches -0.115 runs per pitch
+    count only                S_RV +0.1737 [+0.1600, +0.1878]
+    base-out MILD             paired diff vs count only -0.0002 [-0.0019, +0.0018]
+    base-out STRONG           paired diff vs count only -0.0002 [-0.0030, +0.0026]
+    score/inning MILD         paired diff vs count only +0.0006 [-0.0002, +0.0013]
+    score/inning STRONG       paired diff vs count only -0.0001 [-0.0013, +0.0012]
+    all MILD                  paired diff vs count only -0.0003 [-0.0025, +0.0023]
+    pitches whose GO call the variant changed: swing-minus-take run value, promoted-to-GO minus demoted-from-GO
+    (positive = the variant moved the right pitches; n = promoted swings+takes / demoted swings+takes)
+    base-out MILD             -0.0303 [-0.0989, +0.0466]   n = 0 / 154
+    base-out STRONG           -0.0341 [-0.0779, +0.0088]   n = 0 / 312
+    score/inning MILD         +0.0022 [-0.3214, +0.2358]   n = 11 / 16
+    score/inning STRONG       +0.0303 [-0.1301, +0.1720]   n = 25 / 32
+    all MILD                  -0.0163 [-0.1309, +0.0701]   n = 3 / 162
+  [late and close (7th+, within 1)]  classified pitches 1217; hitters already swing at 73% of GO pitches and take 68% of NO_GO pitches
+    swing minus take run value: GO pitches +0.046 runs, NO_GO pitches -0.134 runs per pitch
+    count only                S_RV +0.1797 [+0.1471, +0.2182]
+    base-out MILD             paired diff vs count only +0.0036 [-0.0001, +0.0097]
+    base-out STRONG           paired diff vs count only +0.0023 [-0.0025, +0.0067]
+    score/inning MILD         paired diff vs count only +0.0038 [-0.0025, +0.0141]
+    score/inning STRONG       paired diff vs count only +0.0002 [-0.0087, +0.0096]
+    all MILD                  paired diff vs count only +0.0062 [-0.0011, +0.0177]
+    pitches whose GO call the variant changed: swing-minus-take run value, promoted-to-GO minus demoted-from-GO
+    (positive = the variant moved the right pitches; n = promoted swings+takes / demoted swings+takes)
+    base-out MILD             +0.3665 [-0.3360, +0.7750]   n = 2 / 2
+    base-out STRONG           +0.2843 [-0.1985, +0.7698]   n = 6 / 2
+    score/inning MILD         +0.2326 [-0.2893, +1.1441]   n = 7 / 0
+    score/inning STRONG       +0.1295 [-0.1841, +0.5868]   n = 13 / 0
+    all MILD                  +0.5759 [-0.0008, +1.0949]   n = 9 / 2
+  [all pitches]  classified pitches 124530; hitters already swing at 70% of GO pitches and take 70% of NO_GO pitches
+    swing minus take run value: GO pitches +0.066 runs, NO_GO pitches -0.120 runs per pitch
+    count only                S_RV +0.1857 [+0.1792, +0.1917]
+    base-out MILD             paired diff vs count only +0.0002 [-0.0003, +0.0007]
+    base-out STRONG           paired diff vs count only +0.0001 [-0.0006, +0.0009]
+    score/inning MILD         paired diff vs count only +0.0001 [-0.0002, +0.0003]
+    score/inning STRONG       paired diff vs count only +0.0002 [-0.0003, +0.0006]
+    all MILD                  paired diff vs count only +0.0002 [-0.0004, +0.0009]
+    pitches whose GO call the variant changed: swing-minus-take run value, promoted-to-GO minus demoted-from-GO
+    (positive = the variant moved the right pitches; n = promoted swings+takes / demoted swings+takes)
+    base-out MILD             +0.0089 [-0.0688, +0.0798]   n = 429 / 154
+    base-out STRONG           -0.0106 [-0.0732, +0.0403]   n = 819 / 312
+    score/inning MILD         -0.0009 [-0.0895, +0.0789]   n = 134 / 146
+    score/inning STRONG       +0.0122 [-0.0453, +0.0795]   n = 258 / 305
+    all MILD                  +0.0179 [-0.0382, +0.0715]   n = 542 / 278
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1857 [+0.1771, +0.1949]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0047 [-0.0089, -0.0005]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0631 [+0.0227, +0.1125]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0671 [-0.0663, +0.2299]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 2243 / 1621
+
+== V6: do confidence bounds separate solid calls from thin ones? (two-way bootstrap, real run value)
+  pitches: confident GO 35722, thin GO 19295, confident NO_GO 58795, thin NO_GO 10718
+  GO: gap(confident) - gap(thin), runs (positive = bounds help)            +0.0557 [+0.0406, +0.0705]
+  NO_GO: -gap(confident) + gap(thin), runs (positive = bounds help)        +0.0686 [+0.0531, +0.0854]
+
+== Headline tests, multiplicity-adjusted (Holm controls any false positive; BH controls false discovery)
+  test                                            raw p     Holm       BH
+  swing EV calibration slope = 1                 0.0033   0.0133   0.0066
+  hitter-vs-league disagreement gap > 0          0.0033   0.0133   0.0066
+  take EV calibration slope = 1                  0.0333   0.0667   0.0333
+  removing count awareness changes S             0.0333   0.0667   0.0333

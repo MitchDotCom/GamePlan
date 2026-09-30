@@ -1,0 +1,44 @@
+N = 50 swings, 195 hitters
+  whiff Brier: skill vs league-only
+    current (local only)                       +0.0006 [+0.0004, +0.0008]
+    + hitter-level term, k_global=50           +0.0064 [+0.0019, +0.0108]
+    + hitter-level term, k_global=150          +0.0062 [+0.0042, +0.0082]
+    + hitter-level term, k_global=400          +0.0038 [+0.0028, +0.0048]
+  xwOBAcon MSE: skill vs league-only
+    current (local only)                       +0.0002 [-0.0002, +0.0006]
+    + hitter-level term, k_global=50           -0.0056 [-0.0113, +0.0008]
+    + hitter-level term, k_global=150          +0.0016 [-0.0018, +0.0044]
+    + hitter-level term, k_global=400          +0.0018 [+0.0003, +0.0037]
+N = 100 swings, 195 hitters
+  whiff Brier: skill vs league-only
+    current (local only)                       +0.0010 [+0.0007, +0.0013]
+    + hitter-level term, k_global=50           +0.0096 [+0.0059, +0.0137]
+    + hitter-level term, k_global=150          +0.0093 [+0.0068, +0.0131]
+    + hitter-level term, k_global=400          +0.0063 [+0.0048, +0.0081]
+  xwOBAcon MSE: skill vs league-only
+    current (local only)                       +0.0008 [+0.0004, +0.0012]
+    + hitter-level term, k_global=50           +0.0015 [-0.0035, +0.0087]
+    + hitter-level term, k_global=150          +0.0056 [+0.0021, +0.0092]
+    + hitter-level term, k_global=400          +0.0047 [+0.0025, +0.0069]
+N = 200 swings, 195 hitters
+  whiff Brier: skill vs league-only
+    current (local only)                       +0.0022 [+0.0019, +0.0028]
+    + hitter-level term, k_global=50           +0.0141 [+0.0098, +0.0183]
+    + hitter-level term, k_global=150          +0.0138 [+0.0101, +0.0176]
+    + hitter-level term, k_global=400          +0.0108 [+0.0082, +0.0130]
+  xwOBAcon MSE: skill vs league-only
+    current (local only)                       +0.0014 [+0.0007, +0.0021]
+    + hitter-level term, k_global=50           +0.0053 [+0.0007, +0.0113]
+    + hitter-level term, k_global=150          +0.0075 [+0.0036, +0.0121]
+    + hitter-level term, k_global=400          +0.0069 [+0.0044, +0.0099]
+N = 400 swings, 195 hitters
+  whiff Brier: skill vs league-only
+    current (local only)                       +0.0043 [+0.0036, +0.0050]
+    + hitter-level term, k_global=50           +0.0177 [+0.0142, +0.0233]
+    + hitter-level term, k_global=150          +0.0174 [+0.0133, +0.0221]
+    + hitter-level term, k_global=400          +0.0153 [+0.0112, +0.0187]
+  xwOBAcon MSE: skill vs league-only
+    current (local only)                       +0.0029 [+0.0016, +0.0042]
+    + hitter-level term, k_global=50           +0.0105 [+0.0053, +0.0159]
+    + hitter-level term, k_global=150          +0.0114 [+0.0069, +0.0160]
+    + hitter-level term, k_global=400          +0.0108 [+0.0068, +0.0152]

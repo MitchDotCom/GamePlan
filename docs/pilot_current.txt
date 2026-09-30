@@ -1,0 +1,14 @@
+Sample size arithmetic (runs per pitch; SD from 2025: swings 0.33, takes 0.08, mixed about 0.21)
+     250 pitches per arm: minimum detectable difference 0.0526 runs (mixed pitches), 0.0827 (swings only)
+     600 pitches per arm: minimum detectable difference 0.0340 runs (mixed pitches), 0.0534 (swings only)
+    2500 pitches per arm: minimum detectable difference 0.0166 runs (mixed pitches), 0.0261 (swings only)
+   10000 pitches per arm: minimum detectable difference 0.0083 runs (mixed pitches), 0.0131 (swings only)
+   25000 pitches per arm: minimum detectable difference 0.0053 runs (mixed pitches), 0.0083 (swings only)
+Stepped rollout power (effect 0.005 runs/pitch on swings; 12 hitters, 8 periods, 400 swings per hitter-period):
+  power 0.14
+
+Split-half reliability of process metrics across hitters (alternate games):
+  decision value per 100 pitches     r=+0.48  full-length reliability +0.65  (245 hitters)
+  chase rate                         r=+0.64  full-length reliability +0.78  (245 hitters)
+  zone swing rate                    r=+0.65  full-length reliability +0.79  (245 hitters)
+  compliance                         r=+0.48  full-length reliability +0.65  (245 hitters)

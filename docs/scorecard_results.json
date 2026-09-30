@@ -25,7 +25,7 @@
  },
  "cal.max_decile_gap": {
   "note": "",
-  "value": 0.013761200895801462
+  "value": 0.012674749004425723
  },
  "cal.max_segment_gap": {
   "note": "docs/audit_checks_league.txt C1: largest |gap| with CI excluding 0 is swing at 3 balls (+0.0160); take at 3 balls -0.0112",
@@ -33,15 +33,15 @@
  },
  "cal.swing_slope": {
   "note": "",
-  "value": 1.0227526532255822
+  "value": 1.0858570054786016
  },
  "cal.take_slope": {
   "note": "",
-  "value": 0.9914583583228298
+  "value": 0.9914583583228297
  },
  "honest.confident_gap_diff_ci_low": {
   "note": "",
-  "value": 0.03802135234230024
+  "value": 0.040634983098458616
  },
  "pilot.mde_runs_per_pitch": {
   "note": "docs/pilot_reliability.txt: mixed pitches, 2,500 per arm (one hitter-season per arm); 0.0526 at 250",
@@ -49,11 +49,11 @@
  },
  "sep.count_removal_hurts": {
   "note": "",
-  "value": -0.00021835934155690253
+  "value": -0.0005483698386722531
  },
  "sep.disagree_ci_low": {
   "note": "",
-  "value": -0.0009134954517189812
+  "value": 0.022662622166219507
  },
  "skill.whiff_yoy_ci_low": {
   "note": "",

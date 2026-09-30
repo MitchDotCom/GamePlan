@@ -1,0 +1,241 @@
+batters: 184 files, pitchers: 184 files, cutoff 2025-07-01
+count values (expected final wOBA), fit on batters:
+  0-0:0.316  1-0:0.356  2-0:0.427  3-0:0.550  0-1:0.268  1-1:0.297  2-1:0.355  3-1:0.478  0-2:0.202  1-2:0.222  2-2:0.266  3-2:0.375
+league training swings: 174345
+starters: 375, starts pitched: 4882
+
+== Test 0: is hitter ability stable? (train vs held-out, across hitters)
+  whiff rate               r = +0.84  (n=297 hitters)
+  xwOBAcon                 r = +0.64  (n=297 hitters)
+  squared-up rate on BIP   r = +0.57  (n=297 hitters)
+  CQ                       r = +0.48  (n=297 hitters)
+
+== Test 1: held-out swing prediction skill vs league / location+type model
+  whiff Brier: skill vs type-league (1 - err/err_base, higher is better; 95% CI by hitter)
+    type-hitter    +0.0245 [+0.0201, +0.0296]
+    shape-league   +0.0062 [+0.0041, +0.0086]
+    shape-hitter   +0.0263 [+0.0218, +0.0306]
+  xwOBAcon MSE: skill vs type-league (1 - err/err_base, higher is better; 95% CI by hitter)
+    type-hitter    +0.0081 [+0.0026, +0.0131]
+    shape-league   +0.0004 [-0.0012, +0.0022]
+    shape-hitter   +0.0129 [+0.0082, +0.0180]
+  squared-up Brier: skill vs type-league (1 - err/err_base, higher is better; 95% CI by hitter)
+    type-hitter    +0.0071 [+0.0044, +0.0095]
+    shape-league   +0.0032 [+0.0003, +0.0060]
+    shape-hitter   +0.0074 [+0.0045, +0.0105]
+  hitters scored: 245
+
+== Test 2: shape-hitter model calibration by time through the order (vs starters, held out)
+  TTO   n_swings  whiff actual  whiff pred  | n_bip  xwOBAcon actual  pred
+  1       26057         0.253       0.243  |  9428            0.380  0.382
+  2       24861         0.237       0.243  |  9386            0.382  0.380
+  3+      14201         0.231       0.242  |  5500            0.383  0.385
+
+== Test 3: does the call separate swing-beats-take from take-beats-swing? (vs starters)
+   S = [mean value(swing) - mean value(take)] in GO pitches minus the same in NO_GO pitches
+   (wOBA scale, higher is better; selection bias applies, compare variants not levels)
+  TTO shifts from training swings vs starters (whiff, xwOBAcon): TTO1: (+0.008, -0.002)  TTO2: (-0.001, -0.003)  TTO3: (-0.014, +0.008)
+  pitches scored: 112137, hitters: 673
+  V1 league, type, count               S +0.2094 [+0.2027, +0.2160]   n(GO sw/tk, NO_GO sw/tk) = 30069/11561, 18111/41671
+  V2 hitter, type, count               S +0.2100 [+0.2039, +0.2166]   n(GO sw/tk, NO_GO sw/tk) = 30179/11690, 17874/41230
+  V3 hitter, shape, all-TTO arsenal    S +0.2100 [+0.2044, +0.2163]   n(GO sw/tk, NO_GO sw/tk) = 30905/12330, 17258/40314
+  V4 hitter, shape, TTO arsenal        S +0.2097 [+0.2030, +0.2164]   n(GO sw/tk, NO_GO sw/tk) = 30909/12352, 17250/40324
+  V5 hitter, shape, TTO, count-blind   S +0.2072 [+0.2006, +0.2133]   n(GO sw/tk, NO_GO sw/tk) = 28624/12841, 17345/39485
+  V6 league, shape, TTO arsenal        S +0.2098 [+0.2040, +0.2166]   n(GO sw/tk, NO_GO sw/tk) = 31104/12434, 17302/40482
+  V7 hitter, shape, TTO arsenal + TTO shift S +0.2097 [+0.2036, +0.2165]   n(GO sw/tk, NO_GO sw/tk) = 30921/12340, 17222/40294
+  V8 league, shape, TTO arsenal + TTO shift S +0.2095 [+0.2030, +0.2160]   n(GO sw/tk, NO_GO sw/tk) = 31100/12435, 17291/40487
+  Only pitches where the hitter model disagrees with the league model (hitter says GO / NO_GO,
+  league says otherwise). If hitter data helps, swing-take gap should be higher in hitter-GO than in hitter-NO_GO:
+    V7 hitter, shape, TTO arsenal + TTO shift    gap(hitter-GO) - gap(hitter-NO_GO) = +0.0504 [+0.0245, +0.0722]  n GO sw/tk (1083, 857), NO_GO sw/tk (686, 858)
+    V2 hitter, type, count                       gap(hitter-GO) - gap(hitter-NO_GO) = +0.0561 [+0.0355, +0.0766]  n GO sw/tk (1649, 1204), NO_GO sw/tk (804, 777)
+  paired difference in S vs V1 (same hitters, bootstrap):
+    V2 hitter, type, count               +0.0006 [-0.0009, +0.0019]
+    V3 hitter, shape, all-TTO arsenal    +0.0006 [-0.0009, +0.0023]
+    V4 hitter, shape, TTO arsenal        +0.0003 [-0.0013, +0.0020]
+    V5 hitter, shape, TTO, count-blind   -0.0022 [-0.0049, +0.0007]
+    V6 league, shape, TTO arsenal        +0.0004 [-0.0008, +0.0016]
+    V7 hitter, shape, TTO arsenal + TTO shift +0.0003 [-0.0015, +0.0020]
+    V8 league, shape, TTO arsenal + TTO shift +0.0002 [-0.0011, +0.0014]
+
+== Test 4: starters by time through the order (all starters pulled, full season)
+  TTO  pitches  FB velo  FB usage  mean IVB(FB)
+  1    171720    93.45     0.587      12.88
+  2    159353    93.13     0.527      12.58
+  3+    83397    93.04     0.518      12.21
+  pitch mix by strike count and batter side (share of pitches: fastball / breaking / offspeed)
+    0 strikes  n=164105  FB 0.619  BRK 0.277  OFF 0.104
+    1 strike   n=126235  FB 0.533  BRK 0.286  OFF 0.181
+    2 strikes  n=124130  FB 0.475  BRK 0.348  OFF 0.177
+    vs RHB     n=228927  FB 0.556  BRK 0.315  OFF 0.129
+    vs LHB     n=185543  FB 0.543  BRK 0.283  OFF 0.174
+  within-starter FB velo, TTO3+ minus TTO1: mean -0.50 mph over 191 starters
+
+== Test 5: what drives starter decline and hitter advantage? (pitch count, TTO, familiarity, drift, rest)
+ A. Fastball velocity within a start
+  fastball velo (mph), within pitcher-game, all: 225918 fastballs
+    per 25 pitches         -0.1289 [-0.1705, -0.0881]
+    TTO2 (vs TTO1)         -0.1415 [-0.1870, -0.0992]
+    TTO3+ (vs TTO1)        -0.1574 [-0.2315, -0.0805]
+  fastball velo (mph), within pitcher-game, slower half (FB < 93.2): 106209 fastballs
+    per 25 pitches         -0.1273 [-0.1804, -0.0748]
+    TTO2 (vs TTO1)         -0.1775 [-0.2676, -0.1095]
+    TTO3+ (vs TTO1)        -0.2170 [-0.3615, -0.0974]
+  fastball velo (mph), within pitcher-game, faster half (FB >= 93.2): 119709 fastballs
+    per 25 pitches         -0.1325 [-0.1993, -0.0705]
+    TTO2 (vs TTO1)         -0.1058 [-0.1691, -0.0356]
+    TTO3+ (vs TTO1)        -0.0996 [-0.1946, +0.0221]
+ B. Hitter results beyond location and shape
+  all starters: 196815 swings vs starters; corr(TTO, prior PAs) = 0.99, corr(TTO, pitch count) = 0.90
+   [TTO only]
+     whiff residual (n=196815)
+      TTO2                   -0.0120 [-0.0165, -0.0086]
+      TTO3+                  -0.0245 [-0.0295, -0.0199]
+     xwOBAcon residual (n=73612)
+      TTO2                   +0.0015 [-0.0042, +0.0075]
+      TTO3+                  +0.0088 [+0.0011, +0.0161]
+   [pitch count only]
+     whiff residual (n=196815)
+      pitch count /25        -0.0073 [-0.0094, -0.0058]
+     xwOBAcon residual (n=73612)
+      pitch count /25        -0.0033 [-0.0062, +0.0001]
+   [pitch count + TTO]
+     whiff residual (n=196815)
+      pitch count /25        +0.0028 [-0.0023, +0.0071]
+      TTO2                   -0.0160 [-0.0230, -0.0087]
+      TTO3+                  -0.0316 [-0.0432, -0.0165]
+     xwOBAcon residual (n=73612)
+      pitch count /25        -0.0315 [-0.0376, -0.0262]
+      TTO2                   +0.0454 [+0.0358, +0.0541]
+      TTO3+                  +0.0867 [+0.0721, +0.1011]
+   [batter familiarity (prior PAs) only]
+     whiff residual (n=196815)
+      prior PA = 1           -0.0121 [-0.0152, -0.0086]
+      prior PA >= 2          -0.0251 [-0.0299, -0.0208]
+     xwOBAcon residual (n=73612)
+      prior PA = 1           +0.0016 [-0.0043, +0.0075]
+      prior PA >= 2          +0.0091 [+0.0010, +0.0170]
+   [pitch count + TTO + rest]
+     whiff residual (n=196815)
+      pitch count /25        +0.0028 [-0.0015, +0.0072]
+      TTO2                   -0.0159 [-0.0209, -0.0093]
+      TTO3+                  -0.0316 [-0.0411, -0.0208]
+      rest days /5           -0.0025 [-0.0115, +0.0064]
+     xwOBAcon residual (n=73612)
+      pitch count /25        -0.0315 [-0.0370, -0.0251]
+      TTO2                   +0.0453 [+0.0350, +0.0524]
+      TTO3+                  +0.0867 [+0.0696, +0.0989]
+      rest days /5           +0.0044 [-0.0055, +0.0154]
+   [pitch count + TTO + FB drift]
+     whiff residual (n=96221)
+      pitch count /25        +0.0067 [+0.0004, +0.0128]
+      TTO2                   -0.0148 [-0.0321, +0.0056]
+      TTO3+                  -0.0320 [-0.0518, -0.0097]
+      FB drift (mph)         +0.0001 [-0.0035, +0.0030]
+     xwOBAcon residual (n=36521)
+      pitch count /25        -0.0251 [-0.0352, -0.0159]
+      TTO2                   +0.0483 [+0.0275, +0.0689]
+      TTO3+                  +0.0835 [+0.0572, +0.1056]
+      FB drift (mph)         +0.0000 [-0.0030, +0.0035]
+ C. Lower-velocity vs higher-velocity starters
+  slower half (FB < 93.2): 90824 swings vs starters; corr(TTO, prior PAs) = 0.99, corr(TTO, pitch count) = 0.90
+   [TTO only]
+     whiff residual (n=90824)
+      TTO2                   -0.0144 [-0.0193, -0.0090]
+      TTO3+                  -0.0247 [-0.0305, -0.0181]
+     xwOBAcon residual (n=35777)
+      TTO2                   +0.0024 [-0.0072, +0.0113]
+      TTO3+                  +0.0051 [-0.0070, +0.0197]
+   [pitch count only]
+     whiff residual (n=90824)
+      pitch count /25        -0.0084 [-0.0107, -0.0062]
+     xwOBAcon residual (n=35777)
+      pitch count /25        -0.0029 [-0.0070, +0.0011]
+   [pitch count + TTO]
+     whiff residual (n=90824)
+      pitch count /25        -0.0005 [-0.0073, +0.0066]
+      TTO2                   -0.0137 [-0.0237, -0.0032]
+      TTO3+                  -0.0235 [-0.0441, -0.0050]
+     xwOBAcon residual (n=35777)
+      pitch count /25        -0.0243 [-0.0313, -0.0169]
+      TTO2                   +0.0359 [+0.0249, +0.0468]
+      TTO3+                  +0.0645 [+0.0435, +0.0865]
+   [batter familiarity (prior PAs) only]
+     whiff residual (n=90824)
+      prior PA = 1           -0.0142 [-0.0195, -0.0090]
+      prior PA >= 2          -0.0249 [-0.0316, -0.0173]
+     xwOBAcon residual (n=35777)
+      prior PA = 1           +0.0028 [-0.0072, +0.0107]
+      prior PA >= 2          +0.0059 [-0.0076, +0.0186]
+   [pitch count + TTO + rest]
+     whiff residual (n=90824)
+      pitch count /25        -0.0005 [-0.0066, +0.0051]
+      TTO2                   -0.0137 [-0.0236, -0.0042]
+      TTO3+                  -0.0235 [-0.0415, -0.0053]
+      rest days /5           -0.0012 [-0.0133, +0.0129]
+     xwOBAcon residual (n=35777)
+      pitch count /25        -0.0243 [-0.0326, -0.0165]
+      TTO2                   +0.0359 [+0.0228, +0.0469]
+      TTO3+                  +0.0646 [+0.0420, +0.0851]
+      rest days /5           +0.0064 [-0.0110, +0.0226]
+   [pitch count + TTO + FB drift]
+     whiff residual (n=44593)
+      pitch count /25        -0.0007 [-0.0097, +0.0093]
+      TTO2                   -0.0045 [-0.0312, +0.0252]
+      TTO3+                  -0.0132 [-0.0494, +0.0260]
+      FB drift (mph)         +0.0006 [-0.0058, +0.0069]
+     xwOBAcon residual (n=17876)
+      pitch count /25        -0.0148 [-0.0295, -0.0029]
+      TTO2                   +0.0199 [-0.0003, +0.0459]
+      TTO3+                  +0.0413 [+0.0123, +0.0748]
+      FB drift (mph)         +0.0021 [-0.0027, +0.0064]
+  faster half (FB >= 93.2): 105991 swings vs starters; corr(TTO, prior PAs) = 0.99, corr(TTO, pitch count) = 0.90
+   [TTO only]
+     whiff residual (n=105991)
+      TTO2                   -0.0099 [-0.0157, -0.0052]
+      TTO3+                  -0.0247 [-0.0318, -0.0170]
+     xwOBAcon residual (n=37835)
+      TTO2                   +0.0005 [-0.0058, +0.0087]
+      TTO3+                  +0.0123 [+0.0033, +0.0219]
+   [pitch count only]
+     whiff residual (n=105991)
+      pitch count /25        -0.0069 [-0.0097, -0.0043]
+     xwOBAcon residual (n=37835)
+      pitch count /25        -0.0035 [-0.0072, -0.0007]
+   [pitch count + TTO]
+     whiff residual (n=105991)
+      pitch count /25        +0.0038 [-0.0025, +0.0086]
+      TTO2                   -0.0153 [-0.0231, -0.0061]
+      TTO3+                  -0.0342 [-0.0462, -0.0172]
+     xwOBAcon residual (n=37835)
+      pitch count /25        -0.0379 [-0.0462, -0.0297]
+      TTO2                   +0.0539 [+0.0412, +0.0662]
+      TTO3+                  +0.1070 [+0.0832, +0.1292]
+   [batter familiarity (prior PAs) only]
+     whiff residual (n=105991)
+      prior PA = 1           -0.0103 [-0.0154, -0.0048]
+      prior PA >= 2          -0.0256 [-0.0333, -0.0191]
+     xwOBAcon residual (n=37835)
+      prior PA = 1           +0.0004 [-0.0064, +0.0074]
+      prior PA >= 2          +0.0121 [+0.0029, +0.0217]
+   [pitch count + TTO + rest]
+     whiff residual (n=105991)
+      pitch count /25        +0.0038 [-0.0011, +0.0089]
+      TTO2                   -0.0153 [-0.0236, -0.0072]
+      TTO3+                  -0.0342 [-0.0483, -0.0205]
+      rest days /5           -0.0049 [-0.0168, +0.0058]
+     xwOBAcon residual (n=37835)
+      pitch count /25        -0.0379 [-0.0449, -0.0301]
+      TTO2                   +0.0539 [+0.0423, +0.0635]
+      TTO3+                  +0.1070 [+0.0869, +0.1262]
+      rest days /5           +0.0024 [-0.0120, +0.0177]
+   [pitch count + TTO + FB drift]
+     whiff residual (n=51628)
+      pitch count /25        +0.0090 [+0.0003, +0.0183]
+      TTO2                   -0.0215 [-0.0424, -0.0061]
+      TTO3+                  -0.0431 [-0.0663, -0.0209]
+      FB drift (mph)         -0.0018 [-0.0055, +0.0029]
+     xwOBAcon residual (n=18645)
+      pitch count /25        -0.0339 [-0.0457, -0.0229]
+      TTO2                   +0.0759 [+0.0418, +0.1034]
+      TTO3+                  +0.1241 [+0.0842, +0.1551]
+      FB drift (mph)         -0.0020 [-0.0074, +0.0024]
