@@ -304,6 +304,13 @@ def v5_separation(frames, go=0.02, n_boot=300):
         "S lost when count awareness is removed (runs; negative = count helps)": lambda w: S(dC, w) - S(dA, w),
         "disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)": lambda w: gap(dis_go, w) - gap(dis_no, w),
     }
+    # Exploratory, NOT the pre-registered criterion: the same disagreement test restricted to calls whose
+    # confidence bound clears zero (post hoc, reported so a reader can see whether thin-support calls dilute it).
+    se = np.concatenate([swing_se_np(f["p"]["whiff"], f["p"]["foul"], f["p"]["xw"], f["balls"], f["strikes"],
+                                     f["n_h"], f["n_bip_h"], f["k"][0], f["k"][1]) for f in frames])
+    zc = _const("CONFIDENCE_Z")
+    conf_go, conf_no = dis_go & (dA - zc * se >= 0), dis_no & (dA + zc * se <= 0)
+    stats["EXPLORATORY disagreement restricted to confident calls (runs)"] = lambda w: gap(conf_go, w) - gap(conf_no, w)
     pv = {}
     for name, fn in stats.items():
         point, draws = two_way_draws(hid, pidx, fn, n_boot)
