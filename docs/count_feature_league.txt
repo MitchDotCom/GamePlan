@@ -1,0 +1,61 @@
+
+== Selection: count bandwidths (balls, strikes), time-blocked validation, pooled error
+  no count feature: whiff 0.14796  xw 0.13958
+  count bw balls 1.0, strikes 0.5: whiff 0.14875  xw 0.14013
+  count bw balls 1.0, strikes 1.0: whiff 0.14787  xw 0.13983
+  count bw balls 1.0, strikes 2.0: whiff 0.14812  xw 0.13979
+  count bw balls 2.0, strikes 0.5: whiff 0.14787  xw 0.13995
+  count bw balls 2.0, strikes 1.0: whiff 0.14707  xw 0.13963
+  count bw balls 2.0, strikes 2.0: whiff 0.14741  xw 0.13956
+  count bw balls 4.0, strikes 0.5: whiff 0.14761  xw 0.13995
+  count bw balls 4.0, strikes 1.0: whiff 0.14684  xw 0.13961
+  count bw balls 4.0, strikes 2.0: whiff 0.14723  xw 0.13952
+  chosen: balls 4.0, strikes 1.0
+
+== Final test (used once): fit before 2025-08-01, score from 2025-08-01
+  whiff Brier: no count +0.0268 [+0.0231, +0.0312]   count feature +0.0376 [+0.0333, +0.0417]   B - A +0.0108 [+0.0092, +0.0123]   (362 hitters)
+    adopt count feature for whiff: YES
+  xwOBAcon MSE: no count +0.0138 [+0.0095, +0.0182]   count feature +0.0133 [+0.0091, +0.0176]   B - A -0.0005 [-0.0014, +0.0005]   (362 hitters)
+    adopt count feature for xwOBAcon: NO (interval includes 0 or below)
+
+  --- A: no count feature
+
+== C1: calibration by segment (realized minus predicted value, wOBA scale; 0 = calibrated)
+   Rows where the gap's 95% CI (by hitter) excludes 0 are marked *.
+  by strikes:
+    0        swing +0.0001 [-0.0042, +0.0055]  n=13827   take +0.0005 [+0.0000, +0.0010]* n=26488
+    1        swing +0.0013 [-0.0023, +0.0052]  n=16439   take +0.0011 [+0.0004, +0.0018]* n=14624
+    2        swing +0.0102 [+0.0063, +0.0149]* n=18687   take +0.0026 [+0.0014, +0.0040]* n=12206
+  by balls:
+    0        swing +0.0013 [-0.0022, +0.0050]  n=18080   take +0.0024 [+0.0019, +0.0028]* n=28136
+    1        swing +0.0013 [-0.0023, +0.0056]  n=15526   take +0.0026 [+0.0019, +0.0033]* n=14740
+    2        swing +0.0073 [+0.0012, +0.0121]* n=10251   take -0.0005 [-0.0020, +0.0009]  n=7133
+    3        swing +0.0188 [+0.0099, +0.0269]* n=5096   take -0.0120 [-0.0155, -0.0076]* n=3309
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1849 [+0.1746, +0.1958]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0051 [-0.0102, +0.0004]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0519 [+0.0009, +0.1021]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.1785 [+0.0333, +0.3490]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 1719 / 1249
+
+  --- B: count feature
+
+== C1: calibration by segment (realized minus predicted value, wOBA scale; 0 = calibrated)
+   Rows where the gap's 95% CI (by hitter) excludes 0 are marked *.
+  by strikes:
+    0        swing -0.0020 [-0.0066, +0.0025]  n=13827   take +0.0005 [+0.0001, +0.0009]* n=26488
+    1        swing +0.0021 [-0.0017, +0.0055]  n=16439   take +0.0011 [+0.0005, +0.0018]* n=14624
+    2        swing +0.0044 [+0.0006, +0.0087]* n=18687   take +0.0026 [+0.0012, +0.0039]* n=12206
+  by balls:
+    0        swing -0.0002 [-0.0039, +0.0034]  n=18080   take +0.0024 [+0.0019, +0.0029]* n=28136
+    1        swing -0.0014 [-0.0063, +0.0022]  n=15526   take +0.0026 [+0.0020, +0.0034]* n=14740
+    2        swing +0.0036 [-0.0025, +0.0087]  n=10251   take -0.0005 [-0.0020, +0.0009]  n=7133
+    3        swing +0.0155 [+0.0080, +0.0251]* n=5096   take -0.0120 [-0.0155, -0.0079]* n=3309
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1836 [+0.1732, +0.1949]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0044 [-0.0099, +0.0011]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0492 [-0.0019, +0.1001]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0600 [-0.0647, +0.1890]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 1557 / 1206
