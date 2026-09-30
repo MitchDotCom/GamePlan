@@ -1,0 +1,55 @@
+
+== C1: calibration by segment (realized minus predicted value, wOBA scale; 0 = calibrated)
+   Rows where the gap's 95% CI (by hitter) excludes 0 are marked *.
+  by strikes:
+    0        swing -0.0014 [-0.0063, +0.0036]  n=9358   take +0.0001 [-0.0004, +0.0006]  n=17517
+    1        swing -0.0081 [-0.0129, -0.0024]* n=10862   take +0.0008 [-0.0000, +0.0015]  n=9775
+    2        swing +0.0039 [-0.0007, +0.0095]  n=12112   take +0.0012 [-0.0009, +0.0030]  n=8150
+  by balls:
+    0        swing -0.0037 [-0.0082, +0.0013]  n=11934   take +0.0024 [+0.0018, +0.0029]* n=18593
+    1        swing -0.0043 [-0.0094, +0.0008]  n=10062   take +0.0018 [+0.0010, +0.0026]* n=9773
+    2        swing +0.0016 [-0.0052, +0.0079]  n=6839   take -0.0028 [-0.0045, -0.0012]* n=4849
+    3        swing +0.0067 [-0.0045, +0.0162]  n=3497   take -0.0128 [-0.0170, -0.0078]* n=2227
+  by pitch family:
+    BRK      swing +0.0011 [-0.0044, +0.0063]  n=9307   take +0.0006 [-0.0002, +0.0016]  n=10759
+    FB       swing -0.0051 [-0.0092, -0.0006]* n=17915   take +0.0003 [-0.0006, +0.0012]  n=19739
+    OFF      swing +0.0055 [-0.0023, +0.0128]  n=5110   take +0.0015 [+0.0003, +0.0028]* n=4943
+    OTHER    swing: n/a   take +0.0000 [+0.0000, +0.0000]* n=1
+  by batter side:
+    L        swing -0.0040 [-0.0077, +0.0001]  n=14525   take +0.0011 [+0.0001, +0.0021]* n=16330
+    R        swing +0.0003 [-0.0043, +0.0048]  n=17807   take +0.0001 [-0.0007, +0.0010]  n=19112
+  by time through order:
+    1        swing -0.0041 [-0.0079, +0.0005]  n=12073   take +0.0012 [+0.0003, +0.0022]* n=13654
+    2        swing -0.0000 [-0.0049, +0.0054]  n=11874   take +0.0005 [-0.0004, +0.0016]  n=12911
+    3        swing -0.0005 [-0.0060, +0.0044]  n=8385   take -0.0005 [-0.0015, +0.0009]  n=8877
+
+== C2: hyperparameter sensitivity (skill of shape-hitter vs league type model; default marked)
+    kernel bandwidth x0.5                        whiff -0.0299 [-0.0347, -0.0248]   xwOBAcon -0.0042 [-0.0071, -0.0013]   (145 hitters)
+    kernel bandwidth x1.0 (default)              whiff +0.0167 [+0.0137, +0.0188]   xwOBAcon +0.0078 [+0.0029, +0.0126]   (145 hitters)
+    kernel bandwidth x2.0                        whiff +0.0258 [+0.0205, +0.0326]   xwOBAcon +0.0066 [+0.0015, +0.0144]   (145 hitters)
+    hitter neighbours K=40                       whiff +0.0161 [+0.0131, +0.0186]   xwOBAcon +0.0075 [+0.0039, +0.0115]   (145 hitters)
+    hitter neighbours K=80 (default)             whiff +0.0167 [+0.0136, +0.0198]   xwOBAcon +0.0078 [+0.0038, +0.0131]   (145 hitters)
+    hitter neighbours K=160                      whiff +0.0168 [+0.0141, +0.0198]   xwOBAcon +0.0078 [+0.0041, +0.0122]   (145 hitters)
+    shrinkage strength x0.25                     whiff +0.0243 [+0.0196, +0.0292]   xwOBAcon +0.0013 [-0.0054, +0.0097]   (145 hitters)
+    shrinkage strength x0.5                      whiff +0.0212 [+0.0178, +0.0254]   xwOBAcon +0.0068 [+0.0016, +0.0132]   (145 hitters)
+    shrinkage strength x1.0 (default)            whiff +0.0167 [+0.0135, +0.0196]   xwOBAcon +0.0078 [+0.0039, +0.0118]   (145 hitters)
+    shrinkage strength x2.0                      whiff +0.0125 [+0.0102, +0.0152]   xwOBAcon +0.0063 [+0.0030, +0.0091]   (145 hitters)
+    shrinkage strength x4.0                      whiff +0.0094 [+0.0065, +0.0119]   xwOBAcon +0.0043 [+0.0023, +0.0070]   (145 hitters)
+
+== C3: split-date sensitivity
+    cutoff 2025-05-15                            whiff +0.0117 [+0.0094, +0.0142]   xwOBAcon +0.0064 [+0.0030, +0.0102]   (80 hitters)
+    cutoff 2025-06-15                            whiff +0.0153 [+0.0125, +0.0183]   xwOBAcon +0.0079 [+0.0045, +0.0112]   (142 hitters)
+    cutoff 2025-07-01                            whiff +0.0167 [+0.0140, +0.0193]   xwOBAcon +0.0078 [+0.0038, +0.0121]   (145 hitters)
+    cutoff 2025-08-01                            whiff +0.0186 [+0.0149, +0.0220]   xwOBAcon +0.0088 [+0.0038, +0.0145]   (143 hitters)
+
+== C4: data-handling effects on skill (same model, same cutoff)
+  as before (foul tips = fouls, bunts in): swings 160695, whiff rate per swing 0.2206
+       skill                                     whiff +0.0167 [+0.0142, +0.0199]   xwOBAcon +0.0078 [+0.0036, +0.0119]   (145 hitters)
+  foul tips as whiffs: swings 160695, whiff rate per swing 0.2413
+       skill                                     whiff +0.0182 [+0.0148, +0.0208]   xwOBAcon +0.0078 [+0.0040, +0.0117]   (145 hitters)
+  bunts excluded: swings 160113, whiff rate per swing 0.2210
+       skill                                     whiff +0.0166 [+0.0139, +0.0197]   xwOBAcon +0.0077 [+0.0037, +0.0126]   (145 hitters)
+  BIP without Savant xwOBA dropped: swings 160369, whiff rate per swing 0.2211
+       skill                                     whiff +0.0167 [+0.0132, +0.0189]   xwOBAcon +0.0079 [+0.0042, +0.0114]   (145 hitters)
+  all three fixes: swings 159919, whiff rate per swing 0.2420
+       skill                                     whiff +0.0181 [+0.0154, +0.0216]   xwOBAcon +0.0079 [+0.0042, +0.0119]   (145 hitters)
