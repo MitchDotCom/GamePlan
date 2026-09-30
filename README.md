@@ -156,3 +156,27 @@ Adapter from an organization's export to the Savant-style CSV every study and th
 - **Tier:** `infer_profile` reads the mapping and returns the data tier and the `ContactModel` settings that tier supports (full shape, velocity-only, or location and type with actual wOBA in place of xwOBA).
 
 What this does not settle: how each park's system actually differs from Savant's Hawk-Eye. That needs overlapping measurements (a Triple-A park that reports to Savant, or pitches captured by two systems), not a config file.
+
+## v0.8: corrected league-wide validation (docs/validate_league.txt, study_league.txt, audit_checks_league.txt, scorecard.md)
+
+Data: every 2025 regular-season pitch (712,528 pitches, 2,430 games); 673 hitters, 375 starters (4,882 starts); horizontal break fixed, hitter-level term on, published wOBA weights, two-way (hitter and pitcher) bootstrap. **Scorecard: 15 pass, 1 fail, 1 not measured** (`docs/scorecard.md`).
+
+What held up:
+- **Calibration** of the two halves of the decision layer, held out, vs starters: swing EV slope 1.023 [0.973, 1.076], take EV slope 0.992 [0.984, 0.999], every decile within 0.014 wOBA points. Called-strike surface by strike count matches actual borderline strike rates (0.581 / 0.444 / 0.352 fitted vs 0.581 / 0.444 / 0.350).
+- **Hitter data adds skill** (held out; tests of prediction, not of plans): whiff Brier +2.6% and xwOBAcon MSE +1.3% for the shape-aware hitter model vs a league location-and-type model; year over year (fit only on 2024, score 2025) +2.8% and +0.9%; with 2024 plus early 2025, +3.2% and +1.2%. Stable across four cutoffs (whiff +2.1% to +2.7%, xwOBAcon +1.2% to +1.4%). Hitters differ reliably (split-half r: whiff .84, xwOBAcon .64, squared-up .57).
+- **Confidence bounds work:** where the point estimate says GO, pitches whose bound clears zero separate swing from take by +0.054 runs more than thin-support pitches [0.038, 0.068]; for NO_GO +0.066 [0.053, 0.080].
+- **Count awareness** earns its place: removing it changes S by -0.0042 runs [-0.0086, -0.0002] (borderline).
+- **Published benchmarks** all pass (see v0.7). League-wide TTO: +6.9 wOBA points 1 to 2, +12.9 points 2 to 3+.
+
+What did not hold up, or moved:
+- **FAIL, hitter-specific plan calls vs league plan calls** (scorecard measure 4): on pitches where the hitter model and the league model disagree, swing-minus-take is higher in the hitter's GO calls than his NO_GO calls by +0.047 runs [-0.0009, +0.099] under the two-way bootstrap (raw p 0.067, Holm 0.14). The earlier "+0.06, CI excludes 0" used a hitter-only bootstrap; with a hitter-only bootstrap this run also excludes 0 (+0.050 [+0.027, +0.075], Test 3). Prediction-level individualization is established; plan-level individualization is not, under proper clustering and multiplicity correction.
+- **Multiplicity:** no headline test is significant after Holm (smallest adjusted p 0.13). Read the individual CIs as descriptive.
+- **Shape:** with horizontal break fixed, shape alone adds little (league-only +0.6% whiff, +0.0% xwOBAcon, ns) but combined with hitter data it beats location-and-type by +0.2% whiff and +0.5% xwOBAcon.
+- **TTO:** hitters whiff less each time through (actual minus predicted whiff +0.010, -0.006, -0.011 at TTO 1, 2, 3+), contact quality is flat. The plan applies this only behind the `apply_tto_effect` switch.
+- **Situation weights:** overall no gain (paired S difference +0.0005 to +0.0007, CI touching 0). On the pitches whose call the weights actually changed, in the spots they target, the promoted pitches did beat the demoted ones: runner on 3rd < 2 outs, MILD +0.059 [+0.004, +0.107] (143 pitches), STRONG +0.050 [+0.013, +0.088] (250); RISP two outs, MILD +0.050 [+0.001, +0.103] (277). These are single-spot subgroup results without multiplicity correction. Score/inning: no evidence either way; stays OFF.
+- **Small systematic miscalibration by count and context (C1),** all under the 0.02 criterion but real (CI excludes 0): swing value under-predicted at 3 balls (+0.016) and at 2 strikes (+0.009), take value over-predicted at 3 balls (-0.011); swing under-predicted against breaking and offspeed pitches (+0.005), for right-handed batters (+0.004) and at TTO 3+ (+0.006). At 3-0 and 3-1 these gaps are large enough to matter against the +/-0.02 call threshold.
+- **Hyperparameters matter more than I assumed (C2):** halving the kernel bandwidth collapses whiff skill (-3.5%) so the default sits near a cliff edge; whiff prefers bandwidth x2 (+2.9%) and looser shrinkage (x0.25: +2.9%); xwOBAcon prefers the default bandwidth and default or stiffer shrinkage. Neighbour count is irrelevant. A per-target setting could add about 0.3% on whiff.
+- **Data-handling fixes (C4):** counting foul tips as whiffs moves the whiff rate per swing from .231 to .253 but changes skill by only +0.17%; bunts and xwOBA-less balls in play are negligible.
+- **Pilot (docs/pilot_reliability.txt):** process metrics are usable for hitters over a season: decision value per 100 pitches split-half r .48 (full-length reliability .65), chase rate .64 (.78), zone-swing rate .65 (.79), compliance .49 (.66). Stepped-rollout power for a 0.005-run effect with 12 hitters is 0.14.
+
+Caveat on scorecard measure 6: it passes only at 2,500 pitches per arm (minimum detectable 0.0166 runs); at 250 pitches it is 0.053.

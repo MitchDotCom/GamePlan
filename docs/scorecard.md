@@ -9,13 +9,13 @@
 | 2 | swing EV calibration slope | in [0.95, 1.05] | 1.023 | PASS |
 | 2 | take EV calibration slope | in [0.95, 1.05] | 0.9915 | PASS |
 | 2 | largest decile gap, realized minus predicted (wOBA points) | |x| <= 0.02 | 0.01376 | PASS |
-| 2 | largest segment gap (count, family, side, TTO) with CI excluding 0 | |x| <= 0.02 | - | NOT MEASURED |
+| 2 | largest segment gap (count, family, side, TTO) with CI excluding 0 | |x| <= 0.02 | 0.016 | PASS |
 | 3 | year-over-year whiff Brier skill vs league, CI lower bound | >= 0.0 | 0.02204 | PASS |
 | 3 | year-over-year xwOBAcon MSE skill vs league, CI lower bound | >= 0.0 | 0.0023 | PASS |
 | 4 | hitter-vs-league disagreement: swing-take gap difference, CI lower bound | >= 0.0 | -0.0009135 | FAIL |
 | 4 | S lost when count awareness is removed, CI upper bound | <= 0.0 | -0.0002184 | PASS |
 | 5 | hitters recognize pitch type before the decision point (needs pilot data) | >= 1.0 | - | NOT MEASURED |
-| 6 | pilot minimum detectable difference, runs per pitch, must be <= expected effect | <= 0.02 | - | NOT MEASURED |
+| 6 | pilot minimum detectable difference, runs per pitch, must be <= expected effect | <= 0.02 | 0.0166 | PASS |
 | 7 | confident GO pitches separate swing from take better than thin-support GO pitches: CI lower bound of the gap difference (runs) | >= 0.0 | 0.03802 | PASS |
 
-FAIL: 1  NOT MEASURED: 3  PASS: 13
+FAIL: 1  NOT MEASURED: 1  PASS: 15
