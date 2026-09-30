@@ -49,6 +49,7 @@ REGISTRY: dict[str, Constant] = {
     "K_GLOBAL_XW": Constant(60.0, "DERIVED", "docs/study_hier.txt (k_global 150 x 0.4 balls-in-play per swing)", "balls in play"),
     "COUNT_BW_BALLS": Constant(4.0, "DERIVED", "docs/count_feature_league.txt: chosen on May-July 2025 blocks from {1,2,4}; final test whiff skill +0.0108 [+0.0092,+0.0123] over no count feature; at the grid edge, so balls carry little weight", "balls"),
     "COUNT_BW_STRIKES": Constant(1.0, "DERIVED", "docs/count_feature_league.txt: chosen on May-July 2025 blocks from {0.5,1,2}", "strikes"),
+    "ZONE_M_BALLS": Constant(25.0, "CHOICE", "docs/count_design_league.txt: not tuned; 3-ball called-strike surface beat the strikes-only one on an independent season (2024: Brier -0.0043 [-0.0062,-0.0024]) and on 2025", "pseudo-takes"),
     "SITUATION_SHRINK_N": Constant(100.0, "CHOICE", "none"),
     "MIN_LEVERAGE": Constant(0.04, "CHOICE", "none"),
     # --- blueprint numbers with no support

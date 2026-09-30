@@ -79,7 +79,7 @@ def v1_zone(events_by_hitter, cutoff):
 
 # ------------------------------------------------------------------ shared per-hitter frames
 
-def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=300, count_cal=None, mode="shapecount", count_bw=None, zone_balls=False):
+def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=300, count_cal=None, mode="shapecount", count_bw=None, zone_balls=True):
     """Per hitter: held-out pitches vs starters with hitter-model predictions for the pitch's own
     location and shape. Returns a list of dicts of aligned numpy arrays."""
     league = ContactModel([], league_train, mode=mode, count_bw=count_bw)

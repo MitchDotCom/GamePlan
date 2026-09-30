@@ -42,7 +42,8 @@ COUNT_BW = np.array([_const("COUNT_BW_BALLS"), _const("COUNT_BW_STRIKES")])
 MODE_BW = {"loc": LOC_BW, "type": TYPE_BW, "typevelo": TYPEVELO_BW, "shape": SHAPE_BW,
            "shapecount": np.concatenate([SHAPE_BW, COUNT_BW])}
 # "shapecount3" adds a third count feature, is-three-balls (0/1), so swings at 3 balls (where hitters only
-# swing at pitches they like) are weighted mostly against each other. Its bandwidth is chosen in count_design.py.
+# swing at pitches they like) are weighted mostly against each other. Tested and NOT adopted: on 2024 it did not
+# beat shapecount (docs/count_design_league.txt). Kept for the record; the default stays shapecount.
 THREE_BALL_BW = 1.0
 MODE_BW["shapecount3"] = np.concatenate([SHAPE_BW, COUNT_BW, [THREE_BALL_BW]])
 N_COUNT_DIMS = {"shapecount": 2, "shapecount3": 3}

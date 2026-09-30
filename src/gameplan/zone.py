@@ -11,6 +11,7 @@ from typing import Iterable
 import numpy as np
 from scipy.spatial import cKDTree
 
+from .constants import value as _const
 from .decision import p_called_strike
 from .savant import SwingRow
 
@@ -28,7 +29,7 @@ class CalledStrikeModel:
     more often at 0 strikes than at 2, partly umpire behaviour and partly which pitches hitters take),
     plus a pooled surface used when the count is not given."""
 
-    def __init__(self, takes: Iterable[SwingRow], k: int = 150, prior_m: float = 3.0, m_balls: float = 25.0,
+    def __init__(self, takes: Iterable[SwingRow], k: int = 150, prior_m: float = 3.0, m_balls: float = _const("ZONE_M_BALLS"),
                  ball_groups: tuple = (3,)):
         rows = [s for s in takes if not s.swing and s.take_call in ("strike", "ball") and s.x_away is not None]
         self.n = len(rows)
