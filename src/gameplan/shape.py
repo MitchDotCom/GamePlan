@@ -34,7 +34,13 @@ SHAPE_BW = np.array([0.30, 0.30, 3.0, 4.0, 4.0, 0.8])
 TYPE_BW = np.array([0.30, 0.30, 1.0])
 LOC_BW = np.array([0.30, 0.30])
 TYPEVELO_BW = np.array([0.30, 0.30, 1.0, 3.0])
-MODE_BW = {"loc": LOC_BW, "type": TYPE_BW, "typevelo": TYPEVELO_BW, "shape": SHAPE_BW}
+# "shapecount" adds balls and strikes as two more kernel features, so a swing in a 2-strike count
+# informs a 2-strike query most and a 0-0 query least. Count bandwidths are in counts (not scaled by
+# bw_scale): strikes 1.0 gives an adjacent strike count weight 0.61, two apart 0.14.
+COUNT_BW = np.array([2.0, 1.0])
+MODE_BW = {"loc": LOC_BW, "type": TYPE_BW, "typevelo": TYPEVELO_BW, "shape": SHAPE_BW,
+           "shapecount": np.concatenate([SHAPE_BW, COUNT_BW])}
+N_COUNT_DIMS = {"shapecount": 2}
 TYPE_GAP = 1000.0
 _TYPES = ["FF", "SI", "FC", "SL", "ST", "SV", "CH", "FS", "CU", "KC", "CS", "SC", "KN", "EP", "FO"]
 FASTBALLS = {"FF", "SI", "FC"}
@@ -54,16 +60,21 @@ def raw_swing(s: SwingRow, mode: str):
     if mode == "typevelo":
         return None if s.velo is None else (s.x_away, s.z, _type_code(s.pitch_type), s.velo)
     v = (s.x_away, s.z, s.velo, s.ivb, s.hb, s.vaa)
-    return None if any(a is None for a in v) else v
+    if any(a is None for a in v):
+        return None
+    return v + (float(s.balls), float(s.strikes)) if mode == "shapecount" else v
 
 
-def raw_query(mode: str, x: float, z: float, pt: str, velo: float, ivb: float, hb: float, vaa: float):
+def raw_query(mode: str, x: float, z: float, pt: str, velo: float, ivb: float, hb: float, vaa: float,
+              balls: int = 0, strikes: int = 0):
     if mode == "loc":
         return (x, z)
     if mode == "type":
         return (x, z, _type_code(pt))
     if mode == "typevelo":
         return (x, z, _type_code(pt), velo)
+    if mode == "shapecount":
+        return (x, z, velo, ivb, hb, vaa, float(balls), float(strikes))
     return (x, z, velo, ivb, hb, vaa)
 
 
@@ -95,7 +106,7 @@ class ContactModel:
     def __init__(self, hitter: Iterable[SwingRow], league: Iterable[SwingRow], mode: str = "shape",
                  k_whiff: float = 25.0, k_xw: float = 12.0, k_su: float = 12.0,
                  K_hitter: int = 80, K_league: int = 400, prior_m: float = 3.0,
-                 xw_attr: str = "xwoba", bw_scale: "float | dict" = 1.0,
+                 xw_attr: str = "xwoba", bw_scale: "float | dict" = 1.0, count_bw=None,
                  k_global_whiff: float = _const("K_GLOBAL_WHIFF"), k_global_xw: float = _const("K_GLOBAL_XW")):
         """xw_attr: which per-swing value the quality target uses. "xwoba" needs exit velo and launch
         angle; "woba" (actual outcome value) is the fallback for parks with no batted-ball tracking."""
@@ -104,8 +115,17 @@ class ContactModel:
         self.bw_scale_spec = bw_scale
         self.bw = MODE_BW[mode]                       # base bandwidth, one entry per feature
         # kernel bandwidth multiplier per target; a float applies to all four
-        self.bw_t = {t: MODE_BW[mode] * (bw_scale[t] if isinstance(bw_scale, dict) else bw_scale)
-                     for t in ("whiff", "foul", "xw", "su")}
+        nc = N_COUNT_DIMS.get(mode, 0)
+        self.count_bw_spec = count_bw
+
+        def scaled(t):
+            f = bw_scale[t] if isinstance(bw_scale, dict) else bw_scale
+            b = MODE_BW[mode].copy()
+            b[:len(b) - nc] *= f                         # count dims keep their own bandwidth
+            if nc and count_bw is not None:
+                b[len(b) - nc:] = count_bw
+            return b
+        self.bw_t = {t: scaled(t) for t in ("whiff", "foul", "xw", "su")}
         self.k = {"whiff": k_whiff, "foul": k_whiff, "xw": k_xw, "su": k_su}
         self.m = prior_m
         self._rows = list(hitter)
@@ -128,6 +148,7 @@ class ContactModel:
         """One hitter's model that reuses an already-built league model's trees (building the league
         trees is the expensive part) and computes his hitter-level offsets against them."""
         kw.setdefault("bw_scale", league_model.bw_scale_spec)      # hitter and league trees must share bandwidths
+        kw.setdefault("count_bw", league_model.count_bw_spec)
         m = cls(hitter_rows, [], mode=league_model.mode, xw_attr=league_model.xw_attr, **kw)
         m._l, m._g = league_model._l, league_model._g
         m.fit_offsets()

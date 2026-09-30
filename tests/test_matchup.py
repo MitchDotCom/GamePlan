@@ -194,3 +194,17 @@ def test_vectorised_and_plan_standard_errors_agree_and_thin_evidence_withholds_c
     firm = build_plan(thin, h, "p", ars, Situation(0, 0), z_conf=1.28)
     calls = lambda snap: sum(1 for c in snap.cells.values() if c["cls"] != "CONDITIONAL")
     assert calls(firm) <= calls(loose) and any(c["low_support"] for c in firm.cells.values()) or calls(firm) == calls(loose)
+
+
+def test_count_feature_learns_count_dependent_whiff():
+    rnd = random.Random(3)
+    rows = []
+    for _ in range(4000):
+        st = rnd.choice([0, 2])
+        w = rnd.random() < (0.45 if st == 2 else 0.10)
+        rows.append(SwingRow("h", "2025-05-01", "FF", 0.0, 2.5, 14, -4.5, 93, None if w else 0.32, w,
+                             x_away=0.0, hb=-5.0, balls=0, strikes=st))
+    m = ContactModel([], rows, mode="shapecount", count_bw=(2.0, 0.5))
+    q = lambda st: [[0.0, 2.5, 93, 14, -5.0, -4.5, 0, st]]
+    assert m.predict(q(2))["whiff"][0] > m.predict(q(0))["whiff"][0] + 0.2
+    assert len(m.bw_t["whiff"]) == 8

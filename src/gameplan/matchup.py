@@ -124,7 +124,7 @@ def build_plan(
     rules: list[Rule] = []
     cell_out: dict[str, dict] = {}
     for pt, a in arsenal.items():
-        Q = [raw_query(model.mode, cx, cz, pt, a.velo, a.ivb, a.hb, a.vaa) for _, _, cx, cz in cells]
+        Q = [raw_query(model.mode, cx, cz, pt, a.velo, a.ivb, a.hb, a.vaa, sit.balls, sit.strikes) for _, _, cx, cz in cells]
         pred = model.predict(Q, use_hitter=use_hitter)
         if count_cal is not None:                      # count-specific recalibration (calibration.py)
             pred = count_cal.apply(pred, [sit.balls] * len(Q), [sit.strikes] * len(Q))
