@@ -103,6 +103,7 @@ def build_plan(
     apply_tto_effect: bool = False,
     zone_model=None,
     z_conf: float = _const("CONFIDENCE_Z"),
+    count_cal=None,
 ) -> PlanSnapshot:
     """DEVELOP mode ignores count / base-out / score: it is the hitter's fixed damage zone against
     the reference arsenal you pass, evaluated at a 0-0 count.
@@ -125,6 +126,8 @@ def build_plan(
     for pt, a in arsenal.items():
         Q = [raw_query(model.mode, cx, cz, pt, a.velo, a.ivb, a.hb, a.vaa) for _, _, cx, cz in cells]
         pred = model.predict(Q, use_hitter=use_hitter)
+        if count_cal is not None:                      # count-specific recalibration (calibration.py)
+            pred = count_cal.apply(pred, [sit.balls] * len(Q), [sit.strikes] * len(Q))
         sup = model.support(Q) if use_hitter else {"whiff": np.full(len(Q), 1e4), "xw": np.full(len(Q), 1e4)}
         if apply_tto_effect and pitcher_state is not None and mode is PlanMode.COMPETE:
             dw, dx = TTO_EFFECT_2025[cap_tto(pitcher_state.tto) or 1]
@@ -153,7 +156,7 @@ def build_plan(
     plan = Plan(hitter.player_id, pitcher_id, tuple(rules))
     ars = {pt: asdict(a) for pt, a in arsenal.items()}
     pid = _plan_id(level, game_id, hitter.player_id, pitcher_id, mode.value, asdict(sit), ars,
-                   MODEL_VERSION, go, no_go, use_hitter, asdict(config), z_conf,
+                   MODEL_VERSION, go, no_go, use_hitter, asdict(config), z_conf, count_cal is not None,
                    asdict(pitcher_state) if pitcher_state else None, apply_tto_effect, zone_model is not None)
     notes = (f"situation weights: {asdict(w)}",) if mode is PlanMode.COMPETE else ("develop: situation-blind",)
     if pitcher_state:

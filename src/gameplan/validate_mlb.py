@@ -79,7 +79,7 @@ def v1_zone(events_by_hitter, cutoff):
 
 # ------------------------------------------------------------------ shared per-hitter frames
 
-def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=300):
+def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=300, count_cal=None):
     """Per hitter: held-out pitches vs starters with hitter-model predictions for the pitch's own
     location and shape. Returns a list of dicts of aligned numpy arrays."""
     league = ContactModel([], league_train, mode="shape")
@@ -94,6 +94,10 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
         Q = np.array([(s.x_away, s.z, s.velo, s.ivb, s.hb, s.vaa) for s in test], float)
         lg, hit = m.predict_pair(Q)
         sup = m.support(Q)
+        if count_cal is not None:                      # count-specific recalibration (calibration.py)
+            bb = np.array([s.balls for s in test])
+            ss = np.array([s.strikes for s in test])
+            lg, hit = count_cal.apply(lg, bb, ss), count_cal.apply(hit, bb, ss)
         sb = np.array([s.sz_bot or 1.5 for s in test])
         st = np.array([s.sz_top or 3.5 for s in test])
         f = {

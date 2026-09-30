@@ -32,11 +32,11 @@ CUTOFF = "2025-07-01"
 
 # ------------------------------------------------------------------ C1
 
-def _segment_frames(events_by_hitter, cutoff, start_keys):
+def _segment_frames(events_by_hitter, cutoff, start_keys, count_cal=None):
     """Like validate_mlb._frames but also keeps segment labels per pitch."""
     league_train = [s for r in events_by_hitter.values() for s in r if s.swing and s.date < cutoff]
     zm = CalledStrikeModel([s for r in events_by_hitter.values() for s in r if not s.swing and s.date < cutoff])
-    frames = _frames(events_by_hitter, cutoff, start_keys, league_train, zm)
+    frames = _frames(events_by_hitter, cutoff, start_keys, league_train, zm, count_cal=count_cal)
     # _frames drops row objects; rebuild the same row selection to attach labels
     for f in frames:
         rows = events_by_hitter[f["hitter"]]
@@ -48,15 +48,17 @@ def _segment_frames(events_by_hitter, cutoff, start_keys):
     return frames
 
 
-def c1_calibration_by_segment(events_by_hitter, cutoff, start_keys):
+def c1_calibration_by_segment(events_by_hitter, cutoff, start_keys, count_cal=None, segments=None, frames=None):
     print("\n== C1: calibration by segment (realized minus predicted value, wOBA scale; 0 = calibrated)")
     print("   Rows where the gap's 95% CI (by hitter) excludes 0 are marked *.")
-    frames = _segment_frames(events_by_hitter, cutoff, start_keys)
+    frames = frames or _segment_frames(events_by_hitter, cutoff, start_keys, count_cal)
     segs = {
         "strikes": lambda f: f["strikes"], "balls": lambda f: f["balls"], "pitch family": lambda f: f["family"],
         "batter side": lambda f: f["stand"], "time through order": lambda f: f["tto"],
     }
     for sname, get in segs.items():
+        if segments and sname not in segments:
+            continue
         labels = sorted({v for f in frames for v in np.unique(get(f))}, key=str)
         print(f"  by {sname}:")
         for lab in labels:

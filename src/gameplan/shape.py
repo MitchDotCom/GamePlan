@@ -95,13 +95,17 @@ class ContactModel:
     def __init__(self, hitter: Iterable[SwingRow], league: Iterable[SwingRow], mode: str = "shape",
                  k_whiff: float = 25.0, k_xw: float = 12.0, k_su: float = 12.0,
                  K_hitter: int = 80, K_league: int = 400, prior_m: float = 3.0,
-                 xw_attr: str = "xwoba", bw_scale: float = 1.0,
+                 xw_attr: str = "xwoba", bw_scale: "float | dict" = 1.0,
                  k_global_whiff: float = _const("K_GLOBAL_WHIFF"), k_global_xw: float = _const("K_GLOBAL_XW")):
         """xw_attr: which per-swing value the quality target uses. "xwoba" needs exit velo and launch
         angle; "woba" (actual outcome value) is the fallback for parks with no batted-ball tracking."""
         self.mode = mode
         self.xw_attr = xw_attr
-        self.bw = MODE_BW[mode] * bw_scale
+        self.bw_scale_spec = bw_scale
+        self.bw = MODE_BW[mode]                       # base bandwidth, one entry per feature
+        # kernel bandwidth multiplier per target; a float applies to all four
+        self.bw_t = {t: MODE_BW[mode] * (bw_scale[t] if isinstance(bw_scale, dict) else bw_scale)
+                     for t in ("whiff", "foul", "xw", "su")}
         self.k = {"whiff": k_whiff, "foul": k_whiff, "xw": k_xw, "su": k_su}
         self.m = prior_m
         self._rows = list(hitter)
@@ -123,6 +127,7 @@ class ContactModel:
     def for_hitter(cls, hitter_rows: Iterable[SwingRow], league_model: "ContactModel", **kw) -> "ContactModel":
         """One hitter's model that reuses an already-built league model's trees (building the league
         trees is the expensive part) and computes his hitter-level offsets against them."""
+        kw.setdefault("bw_scale", league_model.bw_scale_spec)      # hitter and league trees must share bandwidths
         m = cls(hitter_rows, [], mode=league_model.mode, xw_attr=league_model.xw_attr, **kw)
         m._l, m._g = league_model._l, league_model._g
         m.fit_offsets()
@@ -137,14 +142,15 @@ class ContactModel:
         rows = [r for r in rows if raw_swing(r, self.mode) is not None]
         if not rows:
             return
-        Q = np.array([raw_swing(r, self.mode) for r in rows], float).reshape(-1, len(self.bw)) / self.bw
+        raw = np.array([raw_swing(r, self.mode) for r in rows], float).reshape(-1, len(self.bw))
+        Q = raw / self.bw_t["whiff"]
         ls, lw = self._l["whiff"].sums(Q)
         prior_w = (ls + self.m * self._g["whiff"]) / (lw + self.m)
         y_w = np.array([float(r.whiff) for r in rows])
         self.offset["whiff"] = float((y_w - prior_w).sum() / (len(rows) + self.k_global["whiff"]))
         bip = [k for k, r in enumerate(rows) if getattr(r, self.xw_attr) is not None]
         if bip:
-            ls, lw = self._l["xw"].sums(Q[bip])
+            ls, lw = self._l["xw"].sums((raw / self.bw_t["xw"])[bip])
             prior_x = (ls + self.m * self._g["xw"]) / (lw + self.m)
             y_x = np.array([getattr(rows[k], self.xw_attr) for k in bip])
             self.offset["xw"] = float((y_x - prior_x).sum() / (len(bip) + self.k_global["xw"]))
@@ -153,26 +159,26 @@ class ContactModel:
         feats = [(s, raw_swing(s, self.mode)) for s in rows]
         feats = [(s, f) for s, f in feats if f is not None]
 
-        def sub(pred, yfn):
+        def sub(t, pred, yfn):
             pts = [(f, yfn(s)) for s, f in feats if pred(s)]
-            X = np.array([p[0] for p in pts], float).reshape(-1, len(self.bw)) / self.bw
+            X = np.array([p[0] for p in pts], float).reshape(-1, len(self.bw)) / self.bw_t[t]
             return _Local(X, np.array([p[1] for p in pts], float), K)
 
         return {
-            "whiff": sub(lambda s: True, lambda s: float(s.whiff)),
-            "foul": sub(lambda s: True, lambda s: float(not s.whiff and getattr(s, self.xw_attr) is None)),
-            "xw": sub(lambda s: getattr(s, self.xw_attr) is not None, lambda s: getattr(s, self.xw_attr)),
-            "su": sub(lambda s: s.squared_up is not None, lambda s: float(s.squared_up)),
+            "whiff": sub("whiff", lambda s: True, lambda s: float(s.whiff)),
+            "foul": sub("foul", lambda s: True, lambda s: float(not s.whiff and getattr(s, self.xw_attr) is None)),
+            "xw": sub("xw", lambda s: getattr(s, self.xw_attr) is not None, lambda s: getattr(s, self.xw_attr)),
+            "su": sub("su", lambda s: s.squared_up is not None, lambda s: float(s.squared_up)),
         }
 
     def predict(self, Q, use_hitter: bool = True, coach=None) -> dict[str, np.ndarray]:
         """coach: optional coach.CoachProfile; its adjustments move the league prior before the
         hitter's own swings shrink toward it, so they fade as real data accumulates."""
         raw = np.asarray(Q, float).reshape(-1, len(self.bw))
-        Q = raw / self.bw
         adj = coach.adjust(raw, self.mode) if coach is not None else None
         out = {}
         for t in ("whiff", "foul", "xw", "su"):
+            Q = raw / self.bw_t[t]
             ls, lw = self._l[t].sums(Q)
             prior = (ls + self.m * self._g[t]) / (lw + self.m)
             if adj is not None and t in adj:
@@ -193,16 +199,17 @@ class ContactModel:
         """Kernel-weighted count of the hitter's own swings near each query (whiff target: all swings;
         xw target: balls in play). The information behind a hitter-specific estimate is this plus the
         pseudo-count of the league prior."""
-        Qs = np.asarray(Q, float).reshape(-1, len(self.bw)) / self.bw
-        return {"whiff": self._h["whiff"].sums(Qs)[1], "xw": self._h["xw"].sums(Qs)[1]}
+        raw = np.asarray(Q, float).reshape(-1, len(self.bw))
+        return {"whiff": self._h["whiff"].sums(raw / self.bw_t["whiff"])[1],
+                "xw": self._h["xw"].sums(raw / self.bw_t["xw"])[1]}
 
     def predict_pair(self, Q, coach=None):
         """(league-only prediction, hitter-shrunk prediction), sharing the league prior work."""
         raw = np.asarray(Q, float).reshape(-1, len(self.bw))
-        Qs = raw / self.bw
         adj = coach.adjust(raw, self.mode) if coach is not None else None
         lg, hit = {}, {}
         for t in ("whiff", "foul", "xw", "su"):
+            Qs = raw / self.bw_t[t]
             ls, lw = self._l[t].sums(Qs)
             prior = (ls + self.m * self._g[t]) / (lw + self.m)
             if adj is not None and t in adj:
