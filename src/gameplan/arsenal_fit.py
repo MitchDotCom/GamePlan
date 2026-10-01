@@ -128,7 +128,18 @@ def league_baseline(eng, seed: int = 7) -> dict:
     beta = None
     if len(aa_rows) > 1000:
         beta = _fit_logit(_feats([s.attack_angle - s.vaa for s in aa_rows]), np.array([s.whiff for s in aa_rows], float), 1.0, np.zeros(3))
-    return {"groups": groups, "overall": overall, "types": types, "beta": beta}
+    emp = None
+    if beta is not None:
+        v = np.array([s.attack_angle - s.vaa for s in aa_rows])
+        y = np.array([s.whiff for s in aa_rows], float)
+        emp = np.full(len(GRID), np.nan)
+        for i, g in enumerate(GRID):
+            m = np.abs(v - g) <= 1.5
+            if m.sum() >= 200:
+                emp[i] = y[m].mean()
+        ok = ~np.isnan(emp)
+        emp = np.interp(GRID, GRID[ok], emp[ok])
+    return {"groups": groups, "overall": overall, "types": types, "beta": beta, "emp": emp}
 
 
 def hitter_fit(eng, lg: dict, h: str, starter_rows, min_group: int = 1) -> dict:
@@ -152,7 +163,10 @@ def hitter_fit(eng, lg: dict, h: str, starter_rows, min_group: int = 1) -> dict:
     if lg.get("beta") is not None and len(pers) >= MIN_AA_SWINGS:
         bh = _fit_logit(_feats([s.attack_angle - s.vaa for s in pers]), np.array([s.whiff for s in pers], float), LAMBDA_PERSONAL, lg["beta"])
         G = _feats(GRID)
-        ph, pl = 1 / (1 + np.exp(-(G @ bh))), 1 / (1 + np.exp(-(G @ lg["beta"])))
+        # his curve = the league's empirical whiff curve (a single quadratic cannot follow its steep right side) plus his
+        # validated deviation from the league's fitted curve (docs/traits_test.txt, PERSONAL block)
+        pl = np.clip(lg["emp"], 0.01, 0.99)
+        ph = 1 / (1 + np.exp(-(np.log(pl / (1 - pl)) + G @ (bh - lg["beta"]))))
         j = int(np.argmin(ph))
         lo = hi = j
         while lo > 0 and ph[lo - 1] <= ph[j] + SWEET_TOL:

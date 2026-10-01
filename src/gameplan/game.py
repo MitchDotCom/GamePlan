@@ -211,6 +211,33 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
             "swing_profiles": {p["batter"]: swing_profile(sides[p["half"]]["engine"], p["batter"]) for p in out_pas}}
 
 
+def refit(league_dir: str, date: str, json_path: str) -> None:
+    """Recompute only the hitter fits (arsenal tables, damage groups, personal bands) and the band label on each swing in an
+    existing game.json. The plans and reviews are untouched, so this takes minutes instead of a full rebuild."""
+    g = json.load(open(json_path, encoding="utf-8"))
+    base = Engine(load_events(league_dir, date), [], date, "0")
+    lg = league_baseline(base)
+    fits = {}
+    for half in ("Top", "Bot"):
+        starter = g["sides"][half]["starter"]
+        eng = base.retarget(load_pitcher_rows(league_dir, starter, date), starter)
+        faced = []
+        for p in g["pas"]:
+            if p["half"] == half and p["vs_starter"] and p["batter"] not in faced:
+                faced.append(p["batter"])
+        fits.update({h: hitter_fit(eng, lg, h, eng.pitcher_rows) for h in faced})
+    g["arsenal"] = fits
+    for p in g["pas"]:
+        sweet = (fits.get(p["batter"]) or {}).get("sweet")
+        for q in p["pitches"]:
+            bt = q.get("bt")
+            if bt:
+                bt["sweet"] = sweet
+                bt["band"] = band_personal(bt["vba"], sweet)
+    open(json_path, "w", encoding="utf-8").write(json.dumps(g, separators=(",", ":")))
+    print(f"refit {len(fits)} hitters in {json_path}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--league", required=True)
@@ -219,7 +246,13 @@ def main(argv=None) -> int:
     ap.add_argument("--away", required=True)
     ap.add_argument("--home", required=True)
     ap.add_argument("--out", default="docs/gameview")
+    ap.add_argument("--refit", action="store_true", help="recompute hitter fits and band labels in an existing game.json only")
     a = ap.parse_args(argv)
+    if a.refit:
+        refit(a.league, a.date, str(pathlib.Path(a.out) / "game.json"))
+        from .game_html import render
+        (pathlib.Path(a.out) / "game.html").write_text(render(json.load(open(pathlib.Path(a.out) / "game.json", encoding="utf-8"))), encoding="utf-8")
+        return 0
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     g = build_game(a.league, a.date, a.game, a.away, a.home, str(pathlib.Path(a.league).parent))
