@@ -1,6 +1,9 @@
 # Showing the game viewer to a hitting coach (10 minutes)
 
-Open `docs/gameview/game.html` in any browser (laptop is fine; it works offline). It is one real game from 2025 (Astros at Tigers, 2025-08-19), built from public data, with every plan fit only on games before that date.
+Open either file in any browser (laptop is fine; it works offline). Each is one real 2025 game built from public data, with every plan fit only on games before that date.
+
+- `docs/gameview2/game.html`: Red Sox at Diamondbacks, 2025-09-06, Pfaadt vs Giolito, 9 innings, 69 plate appearances. Lead with this one: normal game, both starters go deep, Arizona hitters.
+- `docs/gameview/game.html`: Astros at Tigers, 2025-08-19, Skubal vs Brown, 0-0 through nine and a 10th-inning walk-off walk, 71 plate appearances. Use it as the second example, a pitchers' duel.
 
 ## Say this first (30 seconds)
 "This is a prototype built on public MLB data. For every hitter, count and time through the order, it shows where a hitter should swing and where he should take against this starter, and then it scores what actually happened. I want to know what is useful, what is noise, and what is missing."
@@ -14,6 +17,7 @@ Open `docs/gameview/game.html` in any browser (laptop is fine; it works offline)
 6. **Save a decision** on the pregame board (plan, reason, note). Ask: "Is this how you would want to record your call?" Export the log as CSV.
 
 ## Be upfront about limits
+- The plan stays silent on about half of pitches (47 to 49% in both games), because the evidence is thin or the two options are too close. The top of the Game tab shows the exact rate. Say it first.
 - Public MLB data, one game, not tested at Single-A, not tied to the club's TrackMan or Hawk-Eye data yet.
 - Hitters' own past swings add little at these sample sizes; the plans are mostly driven by pitch shape and count. The hitter-specific part is the whiff and contact baseline and the bat-tracking profile.
 - Decision value compares the hitter's choice with what the model says is better at that count. It is not a measure of whether he hit the ball hard.
