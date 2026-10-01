@@ -124,6 +124,8 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
                    "desc": DESC.get(r["description"], r["description"]), "plan": None}
             if sw is not None and sw.x_away is not None:
                 rec["x"], rec["z"] = round(sw.x_away, 2), round(sw.z, 2)
+                rec["sz_top"] = round(sw.sz_top, 2) if sw.sz_top else None
+                rec["sz_bot"] = round(sw.sz_bot, 2) if sw.sz_bot else None
                 i, j = int((sw.x_away - X_RANGE[0]) // STEP), int((sw.z - Z_RANGE[0]) // STEP)
                 rec["region"] = cell_region(i, j) if 0 <= i < 5 and 0 <= j < 6 else "off the grid"
                 rec["swing"] = bool(sw.swing)
