@@ -326,8 +326,8 @@ def review_game(eng: Engine, game_rows: list[SwingRow], lineup: list[str], names
                          "flags": list(ev.flags)})
         scored = [r for r in recs if r["dv_runs"] is not None]
         out[h] = {"pitches": len(recs), "process": dict(counts), "decision_value_runs": round(dv_total, 2),
-                  "best": sorted(scored, key=lambda r: -r["dv_runs"])[:3],
-                  "worst": sorted(scored, key=lambda r: r["dv_runs"])[:3],
+                  "best": sorted([r for r in scored if r["dv_runs"] > 0], key=lambda r: -r["dv_runs"])[:3],
+                  "worst": sorted([r for r in scored if r["dv_runs"] < 0], key=lambda r: r["dv_runs"])[:3],
                   "good_decision_bad_result": [r for r in recs if r["process"] == "GOOD" and r["label"] == "FOLLOWED_PLAN"
                                                and r["result"] in ("SWINGING_STRIKE", "CALLED_STRIKE")][:3],
                   "all": recs}

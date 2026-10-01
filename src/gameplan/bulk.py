@@ -76,16 +76,19 @@ def fetch_all(kind: str, ids: list[int], season: int, outdir: str, pause: float 
         time.sleep(pause)
 
 
-def league_day_url(day: str) -> str:
+MINORS_URL = "https://baseballsavant.mlb.com/statcast-search-minors/csv"   # Triple-A since 2023, Florida State League since 2021
+
+
+def league_day_url(day: str, minors: bool = False) -> str:
     params = {
         "all": "true", "hfSea": f"{day[:4]}|", "hfGT": "R|", "player_type": "batter",
         "game_date_gt": day, "game_date_lt": day, "min_pitches": "0", "min_results": "0",
         "group_by": "name", "sort_col": "pitches", "sort_order": "desc", "type": "details",
     }
-    return SEARCH_URL + "?" + urllib.parse.urlencode(params)
+    return (MINORS_URL if minors else SEARCH_URL) + "?" + urllib.parse.urlencode(params)
 
 
-def fetch_league_days(days: list[str], outdir: str, pause: float = 1.0) -> None:
+def fetch_league_days(days: list[str], outdir: str, pause: float = 1.0, minors: bool = False) -> None:
     """Every regular-season pitch for each date (about 4,500 a day, well under Savant's 25,000-row
     cap), trimmed to KEEP columns, one file per day. Days with no games get no file."""
     d = pathlib.Path(outdir)
@@ -96,7 +99,7 @@ def fetch_league_days(days: list[str], outdir: str, pause: float = 1.0) -> None:
             continue
         for attempt in range(3):
             try:
-                text = trim(fetch_csv(league_day_url(day)))
+                text = trim(fetch_csv(league_day_url(day, minors)))
                 if text.count("\n") <= 1:
                     print(f"[{i}/{len(days)}] {day} no games", flush=True)
                 else:
@@ -122,11 +125,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--pitchers", help="output dir for qualified pitchers")
     ap.add_argument("--pitcher-min", default="q", help="leaderboard min for pitchers, e.g. q or 100")
     ap.add_argument("--league", help="output dir: every pitch of the season, one file per day")
+    ap.add_argument("--minors", action="store_true", help="with --league: Savant minor league search instead of MLB")
     ap.add_argument("--start", default="2025-03-18")
     ap.add_argument("--end", default="2025-09-28")
     a = ap.parse_args(argv)
     if a.league:
-        fetch_league_days(season_days(a.start, a.end), a.league)
+        fetch_league_days(season_days(a.start, a.end), a.league, minors=a.minors)
     if a.pitchers:
         fetch_all("pitcher", leaderboard_ids("pitcher", a.season, a.pitcher_min), a.season, a.pitchers)
     if a.batters:
