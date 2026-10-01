@@ -71,3 +71,16 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 Source of the guidelines above: https://github.com/multica-ai/andrej-karpathy-skills (commit `2c60614`, MIT), copied unchanged.
 
 One adjustment for this project. Section 1 says to stop and ask when unclear. The owner's standing preference is to make a reasonable assumption, proceed, and state the assumption briefly at the end. Follow that, and stop to ask only when the choice is high-impact or hard to reverse (adopting a model setting, changing a pre-registered rule, anything that pushes or publishes outside the project).
+
+## gstack (recommended)
+
+This project uses [gstack](https://github.com/garrytan/gstack) for AI-assisted workflows.
+Install it for the best experience:
+
+```bash
+git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
+cd ~/.claude/skills/gstack && ./setup --team
+```
+
+Skills like /qa, /ship, /review, /investigate, and /browse become available after install.
+Use /browse for all web browsing (Aside first, the bundled gstack browser as fallback). Use ~/.claude/skills/gstack/... for gstack file paths.
