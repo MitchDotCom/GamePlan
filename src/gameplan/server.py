@@ -13,6 +13,7 @@ The server only listens on this computer. Games are built on demand by the same 
     GET  /api/board/<pk>/<id>    one hitter's pregame board (404 while it is still building)
     GET  /api/build/<pk>         build status and the last lines of its log
     GET  /api/log                saved decisions and skips
+    GET/POST /api/download       progress of / start the 2025 season data download
     PUT  /api/log                replace them
 """
 from __future__ import annotations
@@ -23,7 +24,8 @@ import glob
 import json
 import pathlib
 import re
-import subprocess
+import multiprocessing
+import os
 import sys
 import threading
 import time
@@ -32,6 +34,28 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .game_html import render_app, VIEWER
 
 MAX_BUILDS = 2
+SEASON_DAYS = 195
+
+
+class Job:
+    """A build running in its own process (works inside a packaged app, where there is no separate Python to launch)."""
+
+    def __init__(self, target, args):
+        self.proc = multiprocessing.get_context("spawn").Process(target=target, args=args, daemon=True)
+        self.proc.start()
+
+    def poll(self):
+        return None if self.proc.is_alive() else self.proc.exitcode
+
+    @property
+    def returncode(self):
+        return self.proc.exitcode
+
+
+def _run_build(argv, log_path):
+    sys.stdout = sys.stderr = open(log_path, "w", buffering=1)
+    from .game import main as game_main
+    raise SystemExit(game_main(argv))
 
 
 class App:
@@ -45,6 +69,7 @@ class App:
         self.index: list[dict] = []
         self.index_ready = False
         self.jobs: dict[str, dict] = {}
+        self.dl = None
         self.import_bundled()
         threading.Thread(target=self.build_index, daemon=True).start()
 
@@ -160,11 +185,9 @@ class App:
             return 404, {"error": "game not found, or its day file has no team names"}
         out = self.games_dir / pk
         out.mkdir(parents=True, exist_ok=True)
-        log = open(out / "build.log", "w")
-        proc = subprocess.Popen([sys.executable, "-u", "-m", "gameplan.game", "--league", str(self.league), "--date", g["date"], "--game", pk,
-                                 "--away", g["away"], "--home", g["home"], "--out", str(out),
-                                 "--lazy-boards", "--cache-dir", str(self.dir / "cache")], stdout=log, stderr=subprocess.STDOUT)
-        self.jobs[pk] = {"proc": proc, "started": time.time()}
+        argv = ["--league", str(self.league), "--date", g["date"], "--game", pk, "--away", g["away"], "--home", g["home"],
+                "--out", str(out), "--lazy-boards", "--cache-dir", str(self.dir / "cache")]
+        self.jobs[pk] = {"proc": Job(_run_build, (argv, str(out / "build.log"))), "started": time.time()}
         return 200, {"status": "building"}
 
     def build_status(self, pk: str):
@@ -176,6 +199,24 @@ class App:
         bd = self.games_dir / pk / "boards"
         return {"status": self.status(pk), "elapsed": int(time.time() - j["started"]) if j else 0, "log": tail,
                 "boards_done": len(list(bd.glob("*.json"))) if bd.exists() else 0, "running": bool(j and j["proc"].poll() is None)}
+
+    # ---- season data download (a button in the app, so there is no terminal step)
+    def start_download(self):
+        if self.dl and self.dl.is_alive():
+            return {"running": True}
+
+        def work():
+            from .bulk import fetch_league_days, season_days
+            fetch_league_days(season_days("2025-03-18", "2025-09-28"), str(self.league))
+            self.build_index()
+
+        self.league.mkdir(parents=True, exist_ok=True)
+        self.dl = threading.Thread(target=work, daemon=True)
+        self.dl.start()
+        return {"running": True}
+
+    def download_status(self):
+        return {"running": bool(self.dl and self.dl.is_alive()), "files": len(list(self.league.glob("*.csv"))), "total": SEASON_DAYS}
 
     # ---- log
     def get_log(self):
@@ -225,11 +266,15 @@ def make_handler(app: App):
             if m:
                 f = app.games_dir / m.group(1) / "boards" / f"{m.group(2)}.json"
                 return self._send(200, f.read_bytes()) if f.exists() else self._send(404, {"pending": True, **app.build_status(m.group(1))})
+            if path == "/api/download":
+                return self._send(200, app.download_status())
             if path == "/api/log":
                 return self._send(200, app.get_log())
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path == "/api/download":
+                return self._send(200, app.start_download())
             if self.path == "/api/build":
                 code, body = app.start_build(str(self._body().get("game_pk", "")))
                 return self._send(code, body)
