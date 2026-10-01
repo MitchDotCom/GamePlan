@@ -19,4 +19,4 @@ where = ["src"]
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
-gameplan = ["*.json"]
+gameplan = ["*.json", "viewer/*"]
