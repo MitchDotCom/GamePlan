@@ -65,10 +65,32 @@ def test_damage_group_is_flagged_and_shrunk():
 
 
 def test_arsenal_table_expected_plane_fit():
-    his = [swing("H", "FF", 0.40, aa=12.0) for _ in range(120)]
+    his = [swing("H", "FF", 0.40, aa=12.0) for _ in range(80)]      # under 100 attack-angle swings: league band applies
     eng = make_engine(his)
     fit = hitter_fit(eng, league_baseline(eng), "H", starter_rows())
     ff = next(t for t in fit["types"] if t["type"] == "FF")
-    assert ff["n_swings"] == 120 and ff["vaa"] == -5.0
+    assert fit["sweet"] is None
+    assert ff["n_swings"] == 80 and ff["vaa"] == -5.0
     assert ff["exp_vba"] is not None and 12.0 < ff["exp_vba"] < 20.0     # his attack angle (about 12, a little league) minus VAA -5
     assert ff["band"] == "matched"
+
+
+def test_personal_sweet_band_follows_his_own_swings():
+    from gameplan.arsenal_fit import band_personal
+    rng = np.random.default_rng(1)
+
+    def sw_at(batter, vba, whiff, pt="FF"):
+        s = swing(batter, pt, None if whiff else 0.3, whiff=whiff, aa=vba - 5.0)     # vaa is -5, so VBA = aa + 5
+        return s
+
+    league = [sw_at("L%d" % (i % 20), float(rng.uniform(0, 36)), bool(rng.random() < 0.25)) for i in range(3000)]
+    his = [sw_at("H", float(v), v > 18) for v in rng.uniform(0, 30, 600)]          # never whiffs below 18 degrees, always above
+    eng = SimpleNamespace(league_swings=[s for s in league + his], events=league + his, zone=FlatZone(),
+                          by_hitter={"H": his, **{"L%d" % i: [s for s in league if s.batter == "L%d" % i] for i in range(20)}})
+    fit = hitter_fit(eng, league_baseline(eng), "H", starter_rows())
+    lo, hi = fit["sweet"]
+    assert hi < 24 and lo < 12, (lo, hi)                       # his band sits where he does not whiff
+    assert band_personal((lo + hi) / 2, fit["sweet"]) == "matched" and band_personal(hi + 5, fit["sweet"]) == "steep"
+    assert fit["curve"]["his"][0] < fit["curve"]["his"][-1]
+    thin = SimpleNamespace(**{**eng.__dict__, "by_hitter": {"H": his[:20]}})
+    assert hitter_fit(thin, league_baseline(eng), "H", starter_rows())["sweet"] is None     # too few swings: league band

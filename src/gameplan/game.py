@@ -21,7 +21,7 @@ from .mockup import (Engine, _deltas, _encode_cells, _flip, build_board, load_ev
 from .matchup import CELL_IN, X_RANGE, Z_RANGE, review_pitch
 from .models import Action, Pitch, Result, Swing
 from .path_variants import cell_region
-from .arsenal_fit import band, classify, hitter_fit, league_baseline, zone_bucket
+from .arsenal_fit import band_personal, classify, hitter_fit, league_baseline, zone_bucket
 from .savant import parse_swings
 from .swing_traits import HitterTraits, _design
 
@@ -160,9 +160,11 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
                     if h not in traits:
                         traits[h] = HitterTraits.fit([x for x in eng.by_hitter[h] if x.swing], eng.league_traits)
                     vba = None if sw.vaa is None else sw.attack_angle - sw.vaa
-                    rec["bt"] = {"bs": _num(sw.bat_speed), "sl": _num(sw.swing_length, 2), "aa": _num(sw.attack_angle), "tilt": _num(sw.tilt),
+                    mine_fit = side["fit"].get(h)
+                    sweet = mine_fit["sweet"] if mine_fit else None
+                    rec["bt"] = {"sweet": sweet, "bs": _num(sw.bat_speed), "sl": _num(sw.swing_length, 2), "aa": _num(sw.attack_angle), "tilt": _num(sw.tilt),
                                  "ev": _num(r.get("launch_speed")), "la": _num(r.get("launch_angle"), 0),
-                                 "xw": _num(r.get("estimated_woba_using_speedangle"), 3), "vba": _num(vba), "band": band(vba),
+                                 "xw": _num(r.get("estimated_woba_using_speedangle"), 3), "vba": _num(vba), "band": band_personal(vba, sweet),
                                  "exp": _expected(traits[h], sw)}
                 if is_starter and None not in (sw.velo, sw.ivb, sw.vaa):
                     call = "SWINGING_STRIKE" if (sw.swing and sw.whiff) else ("IN_PLAY" if sw.swing and (sw.xwoba is not None or sw.woba is not None)

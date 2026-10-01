@@ -5,3 +5,10 @@
    SPEED     +0.00018 [-0.00016, +0.00055] no      +0.000093 [-0.000101, +0.000293] no
    PERSONAL  +0.00179 [+0.00088, +0.00270] PASS    +0.000005 [-0.000068, +0.000073] no
    ALL       +0.00164 [+0.00058, +0.00266] PASS    +0.000053 [-0.000162, +0.000275] no
+
+== 2024 confirmation (all pitchers, from 2024-07-01; blocks need the fields that exist): 112 hitters, 56613 held-out swings, 21066 balls in play
+   block     whiff: log-loss gain per swing (95% CI)         damage: squared-error gain per BIP (95% CI)
+   PATH      +0.00044 [-0.00002, +0.00093] no      +0.000069 [-0.000130, +0.000265] no
+   SPEED     +0.00024 [-0.00015, +0.00065] no      +0.000162 [-0.000006, +0.000334] no
+   PERSONAL  +0.00118 [+0.00038, +0.00203] PASS    +0.000112 [-0.000055, +0.000291] no
+   ALL       +0.00104 [+0.00016, +0.00192] PASS    +0.000175 [-0.000048, +0.000385] no
