@@ -53,6 +53,7 @@ svg.zone.small{max-width:300px}
 .sq.k-called{background:var(--k-called);color:#fff}.sq.k-whiff{background:var(--k-whiff);color:#1a1a19}.sq.k-foul{background:var(--k-foul);color:#1a1a19}.sq.k-play{background:var(--k-play);color:#fff}
 .sq.cur{outline:3px solid var(--accent);outline-offset:1px}
 dl.det{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:10px 0 0}dl.det dt{color:var(--ink2);font-size:13px}dl.det dd{margin:0;font-size:15px}
+.tw{overflow-x:auto}@media(max-width:760px){.zonewrap{grid-template-columns:1fr}}
 .big{font-size:18px;font-weight:600;margin:0}
 tr.sel td{background:var(--mid)}tr[data-pr]{cursor:pointer}
 @media print{.noprint{display:none}body{font-size:12px}.card{break-inside:avoid}}
@@ -133,7 +134,7 @@ function paPanel(){const p=G.pas.find(x=>x.id===SELPA);if(!p)return "";
    <dt>Plan said</dt><dd>${planLine}</dd><dt>Hitter</dt><dd>${q.swing===undefined?"Not tracked":q.swing?"Swung":"Took"}. ${cap(q.desc)}.</dd>
    <dt>Decision value</dt><dd>${pl&&pl.dv!=null?sgn(pl.dv)+" runs":"Not scored"}</dd><dt>Review</dt><dd class="${rv?rv[1]:""}">${rv?`<b>${rv[0]}.</b> ${rv[2]}${pl.flags.includes("umpire_miss")&&pl.label!=="UMPIRE_MISS"?" The umpire missed the call.":""}`:"No plan for relievers."}</dd></dl>
    ${p.pitches.some(x=>x.plan&&x.plan.spot)?`<div class="note" style="margin-top:8px">Runner on third with fewer than 2 outs: the selector at the top switches between the count-only plan and the contact-first policy.</div>`:""}
- <table style="margin-top:14px"><tr><th>Pitch</th><th>Count</th><th>Type</th><th>Location</th><th>Hitter and result</th><th>Plan</th><th>Value</th><th>Review</th></tr>${rows}</table></div></div>
+ <div class="tw"><table style="margin-top:14px"><tr><th>Pitch</th><th>Count</th><th>Type</th><th>Location</th><th>Hitter and result</th><th>Plan</th><th>Value</th><th>Review</th></tr>${rows}</table></div></div></div>
  <div class="note">The zone shows the plan for the pitch type selected, in the count and situation when it was thrown. Use the arrow keys to step through the pitches. Value is the decision value in runs (positive: better than the other option).</div>
  <div class="logrow noprint"><button data-hit="${p.batter}">Open ${last(p.batter_name)}'s pregame board</button></div></div>`}
 function gameView(){const lg=`<div class="note" style="margin:6px 0">Left edge of each box: blue is a hit, light blue a walk, red a strikeout, gray an out. Faded boxes are against relievers (no plan). Click a plate appearance.</div>`;
