@@ -23,7 +23,7 @@ button{cursor:pointer}button.on{background:var(--accent);color:#fff;border-color
 .pa{border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px;cursor:pointer;background:var(--panel);display:flex;justify-content:space-between;gap:6px}
 .pa:hover{outline:1px solid var(--accent)}.pa.sel{outline:2px solid var(--accent)}.pa .r{font-weight:600}
 .k-hit{border-left:4px solid var(--pos)}.k-bb{border-left:4px solid #7aa7e8}.k-k{border-left:4px solid var(--neg)}.k-out{border-left:4px solid var(--ink2)}
-.rel{opacity:.65}
+.rel{opacity:.65}.pa.skip{border-style:dashed;background:var(--mid);text-decoration:line-through;text-decoration-color:var(--ink2)}
 .grid{display:grid;grid-template-columns:repeat(5,34px);gap:2px;margin:8px 0}
 .cell{width:34px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;border-radius:3px;background:var(--mid);color:var(--ink2)}
 .mini{display:inline-grid;grid-template-columns:repeat(5,15px);gap:1px;position:relative;width:max-content}
@@ -84,6 +84,21 @@ $("#team").innerHTML=`<option value="all">Both teams</option><option value="Top"
 $("#team").onchange=e=>{TEAM=e.target.value;render()};$("#pol").onchange=e=>{POL=e.target.value;render()};
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{VIEW=b.dataset.v;render()});
 const planOf=p=>p.plan?p.plan.policy[p.plan.spot?POL:"OFF"]:null;
+let SKIPMODE="exclude";
+const skipKey=p=>"skip|"+G.date+"|"+G.game_pk+"|"+p.id;
+const SKIP_WHY=["Bunt or sacrifice","Intentional walk","Hit and run or called play","Hitter told to take","Injury or substitution","Other"];
+function autoSkip(p){const d=p.pitches.map(q=>q.desc),v=p.pitches.filter(q=>q.velo).map(q=>q.velo);
+ if(d.some(x=>/bunt/.test(x))||p.result==="Sacrifice bunt")return "Bunt attempt";
+ if(p.result==="Intentional walk")return "Intentional walk";
+ if(p.result==="Catcher interference")return "Catcher interference";
+ if(d.some(x=>/automatic/.test(x)))return "Automatic ball or strike";
+ if(v.length&&v.reduce((a,b)=>a+b,0)/v.length<70)return "Position player pitching";
+ return ""}
+function skipInfo(p){const m=LOG[skipKey(p)],auto=autoSkip(p);
+ if(m)return m.path==="SKIP"?{skipped:true,reason:m.why||"Coach decision",by:"coach"}:{skipped:false,reason:auto,by:"coach",overridden:!!auto};
+ return auto?{skipped:true,reason:auto,by:"auto"}:{skipped:false,reason:"",by:""}}
+const counted=p=>!(skipInfo(p).skipped&&SKIPMODE==="exclude");
+function paStats(p){let dv=0,bad=0,n=0,silent=0;for(const q of p.pitches){const l=planOf(q);if(!l||/pitchout/.test(q.desc))continue;n++;if(l.call==="CONDITIONAL")silent++;if(l.dv!=null)dv+=l.dv;if(l.process==="BAD")bad++}return{dv,bad,n,silent}}
 const PN={FF:"Four-seam fastball",SI:"Sinker",FC:"Cutter",SL:"Slider",ST:"Sweeper",SV:"Slurve",CU:"Curveball",KC:"Knuckle curve",CS:"Slow curve",CH:"Changeup",FS:"Splitter",FO:"Forkball",SC:"Screwball",KN:"Knuckleball",EP:"Eephus"};
 const pname=c=>PN[c]||c||"Unknown pitch";
 const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
@@ -92,6 +107,7 @@ function where(r){if(!r)return "Not tracked";if(r==="off the grid")return "Far o
  const [v,h]=r.split("-");return cap(v)+", "+({in:"inside",away:"away",middle:"middle"}[h]||h)}
 function basesText(b){if(b==="empty")return "Bases empty";const m={"1B":"1st","2B":"2nd","3B":"3rd"},ps=b.split("-").map(x=>m[x]);return ps.length===3?"Bases loaded":(ps.length===1?"Runner on ":"Runners on ")+ps.join(" and ")}
 const leadText=l=>l===0?"Tied":l>0?"Batting team up "+l:"Batting team down "+(-l);
+const doWord=q=>/bunt/.test(q.desc)?"Bunted":q.swing===undefined?"Not tracked":q.swing?"Swung":"Took";
 const callWord=c=>c==="GO"?"Swing":c==="NO_GO"?"Take":"No firm call";
 const REV={FOLLOWED_PLAN:["Followed the plan","lab-ok","He did what the plan said."],HITTER_BEAT_MODEL:["Left the plan and it worked","lab-lucky","He chose against the plan and the result favored him."],DEVIATION_COST:["Left the plan and it cost him","lab-bad","He chose against the plan and the model rates that choice worse."],UMPIRE_MISS:["Umpire miss","lab-lucky","The call on this pitch was wrong."],PLAN_SILENT:["No firm call","","The evidence was too thin or the two options too close."],NO_CALL_OK:["Chose the better option","","No firm call, and he chose the option the model rates higher."]};
 function review(q){const pl=planOf(q);if(!pl)return null;const k=pl.call==="CONDITIONAL"&&pl.label==="FOLLOWED_PLAN"?"NO_CALL_OK":pl.label;return REV[k]||[cap(String(k).toLowerCase().replace(/_/g," ")),"",""]}
@@ -113,17 +129,20 @@ function innings(){const filt=p=>TEAM==="all"||p.half===TEAM;const n=Math.max(9,
  let h=`<div class="inn" style="--n:${n}"><div></div>`+Array.from({length:n},(_,i)=>`<div class="h">${i+1}</div>`).join("");
  for(const half of ["Top","Bot"]){if(TEAM!=="all"&&TEAM!==half)continue;h+=`<div class="t">${half==="Top"?G.away:G.home}</div>`;
   for(let i=1;i<=n;i++){const ps=G.pas.filter(p=>p.half===half&&p.inning===i&&filt(p));
-   h+=`<div class="cellc">${ps.map(p=>`<div class="pa k-${p.kind} ${p.vs_starter?"":"rel"} ${p.id===SELPA?"sel":""}" data-pa="${p.id}" title="${p.batter_name} vs ${p.pitcher_name}: ${p.result}"><span>${last(p.batter_name)}</span><span class="r">${short(p.result)}</span></div>`).join("")}</div>`}}
+   h+=`<div class="cellc">${ps.map(p=>`<div class="pa k-${p.kind} ${p.vs_starter?"":"rel"} ${skipInfo(p).skipped?"skip":""} ${p.id===SELPA?"sel":""}" data-pa="${p.id}" title="${p.batter_name} vs ${p.pitcher_name}: ${p.result}${skipInfo(p).skipped?" (skipped: "+skipInfo(p).reason+")":""}"><span>${last(p.batter_name)}</span><span class="r">${short(p.result)}</span></div>`).join("")}</div>`}}
  return h+"</div>"}
+function skipBox(p){const s=skipInfo(p);
+ if(s.skipped)return `<div class="banner" style="margin:8px 0">Skipped: ${s.reason}${s.by==="auto"?" (flagged automatically)":" (your call)"}. ${SKIPMODE==="exclude"?"Left out of the totals.":"Counted in the totals."} <button data-incl="${p.id}" class="noprint">Include this at-bat</button></div>`;
+ return `<div class="logrow noprint"><select id="skipwhy">${SKIP_WHY.map(w=>`<option>${w}</option>`).join("")}</select><button data-skip="${p.id}">Skip this at-bat</button>${s.overridden?`<span class="mut">You restored this one (flagged: ${s.reason}).</span>`:""}</div>`}
 function paPanel(){const p=G.pas.find(x=>x.id===SELPA);if(!p)return "";
  const n=p.pitches.length;if(SELPITCH>=n)SELPITCH=0;const q=p.pitches[SELPITCH],pl=planOf(q),rv=review(q);
  const codes=q.plan&&q.plan.grid,deltas=q.plan&&q.plan.deltas;
  const tag=p.vs_starter?`<span class="badge">Plan applies (starter)</span>`:`<span class="badge">Reliever, no plan</span>`;
  const chips=p.pitches.map((x,i)=>`<button class="sq k-${KIND(x.desc)} ${i===SELPITCH?"cur":""}" data-pi="${i}" title="Pitch ${x.n}: ${cap(x.desc)}">${x.n}</button>`).join("");
- const rows=p.pitches.map((x,i)=>{const l=planOf(x),r=review(x);return `<tr data-pr="${i}" class="${i===SELPITCH?"sel":""}"><td>${x.n}</td><td>${x.count}</td><td>${pname(x.type)}${x.velo?" "+x.velo.toFixed(0)+" mph":""}</td><td>${where(x.region)}</td><td>${x.swing===undefined?"Not tracked":x.swing?"Swung":"Took"}, ${x.desc}</td><td>${l?callWord(l.call):"No plan"}</td><td class="num">${l&&l.dv!=null?sgn(l.dv):"-"}</td><td class="${r?r[1]:""}">${r?r[0]:""}</td></tr>`}).join("");
+ const rows=p.pitches.map((x,i)=>{const l=planOf(x),r=review(x);return `<tr data-pr="${i}" class="${i===SELPITCH?"sel":""}"><td>${x.n}</td><td>${x.count}</td><td>${pname(x.type)}${x.velo?" "+x.velo.toFixed(0)+" mph":""}</td><td>${where(x.region)}</td><td>${doWord(x)}, ${x.desc}</td><td>${l?callWord(l.call):"No plan"}</td><td class="num">${l&&l.dv!=null?sgn(l.dv):"-"}</td><td class="${r?r[1]:""}">${r?r[0]:""}</td></tr>`}).join("");
  const planLine=pl?`${callWord(pl.call)}${pl.delta!=null?` <span class="mut num">(swing minus take ${sgn(pl.delta)} wOBA)</span>`:""}`:"No plan (reliever)";
  return `<div class="card"><h3>${p.half==="Top"?"Top":"Bottom"} ${p.inning}, ${p.team}</h3><p class="big">${p.batter_name} (${p.stand}) vs. ${p.pitcher_name} ${tag}</p>
- <div class="mut">Result: <b>${p.result}</b>${p.dv!=null?`. Decision value ${sgn(p.dv)} runs, ${p.bad} decision${p.bad===1?"":"s"} rated worse than the other option.`:""}</div>
+ <div class="mut">Result: <b>${p.result}</b>${p.vs_starter?(st=>`. Decision value ${sgn(st.dv)} runs, ${st.bad} decision${st.bad===1?"":"s"} rated worse than the other option.`)(paStats(p)):""}</div>${skipBox(p)}
  <div class="zonewrap"><div class="zonecol">${zoneSVG(codes,deltas,{pitches:p.pitches,sel:SELPITCH,szTop:q.sz_top,szBot:q.sz_bot,showAll:SHOWALL})}
   <div class="legend"><span><i class="sw" style="background:${mix(.12)}"></i>Swing</span><span><i class="sw" style="background:${mix(-.12)}"></i>Take</span><span><i class="sw" style="background:var(--mid)"></i>No firm call</span><span>Black outline: his strike zone</span></div>
   <div class="legend"><span><i class="dotk" style="background:var(--panel)"></i>Ball</span><span><i class="dotk" style="background:var(--k-called)"></i>Called strike</span><span><i class="dotk" style="background:var(--k-whiff)"></i>Swinging strike</span><span><i class="dotk" style="background:var(--k-foul)"></i>Foul</span><span><i class="dotk" style="background:var(--k-play)"></i>In play</span></div>
@@ -131,16 +150,17 @@ function paPanel(){const p=G.pas.find(x=>x.id===SELPA);if(!p)return "";
   <div class="stepper noprint"><button data-step="-1">Previous pitch</button><button data-step="1">Next pitch</button><label class="mut"><input type="checkbox" id="showall" ${SHOWALL?"checked":""}> Show all pitches</label></div></div>
   <div class="detcol"><p class="big">Pitch ${q.n} of ${n}: ${pname(q.type)}${q.velo?", "+q.velo.toFixed(1)+" mph":""}</p>
    <dl class="det"><dt>Count</dt><dd>${q.count}</dd><dt>Situation</dt><dd>${q.outs} out${q.outs===1?"":"s"}. ${basesText(q.bases)}. ${leadText(q.lead)}.</dd><dt>Location</dt><dd>${where(q.region)}</dd>
-   <dt>Plan said</dt><dd>${planLine}</dd><dt>Hitter</dt><dd>${q.swing===undefined?"Not tracked":q.swing?"Swung":"Took"}. ${cap(q.desc)}.</dd>
+   <dt>Plan said</dt><dd>${planLine}</dd><dt>Hitter</dt><dd>${doWord(q)}. ${cap(q.desc)}.</dd>
    <dt>Decision value</dt><dd>${pl&&pl.dv!=null?sgn(pl.dv)+" runs":"Not scored"}</dd><dt>Review</dt><dd class="${rv?rv[1]:""}">${rv?`<b>${rv[0]}.</b> ${rv[2]}${pl.flags.includes("umpire_miss")&&pl.label!=="UMPIRE_MISS"?" The umpire missed the call.":""}`:"No plan for relievers."}</dd></dl>
    ${p.pitches.some(x=>x.plan&&x.plan.spot)?`<div class="note" style="margin-top:8px">Runner on third with fewer than 2 outs: the selector at the top switches between the count-only plan and the contact-first policy.</div>`:""}
  <div class="tw"><table style="margin-top:14px"><tr><th>Pitch</th><th>Count</th><th>Type</th><th>Location</th><th>Hitter and result</th><th>Plan</th><th>Value</th><th>Review</th></tr>${rows}</table></div></div></div>
  <div class="note">The zone shows the plan for the pitch type selected, in the count and situation when it was thrown. Use the arrow keys to step through the pitches. Value is the decision value in runs (positive: better than the other option).</div>
  <div class="logrow noprint"><button data-hit="${p.batter}">Open ${last(p.batter_name)}'s pregame board</button></div></div>`}
 function gameView(){const lg=`<div class="note" style="margin:6px 0">Left edge of each box: blue is a hit, light blue a walk, red a strikeout, gray an out. Faded boxes are against relievers (no plan). Click a plate appearance.</div>`;
- const tot=G.pas.filter(p=>p.dv!=null&&(TEAM==="all"||p.half===TEAM));const dv=tot.reduce((a,p)=>a+p.dv,0),bad=tot.reduce((a,p)=>a+p.bad,0);
- const pl=tot.flatMap(p=>p.pitches).filter(x=>x.plan).map(x=>x.plan.policy.OFF.call),silent=pl.filter(c=>c==="CONDITIONAL").length;
- return `<div class="card">${innings()}${lg}<div class="mut">Against the starters in this view: ${tot.length} plate appearances, net decision value ${sgn(dv)} runs (swing or take chosen versus the other option), ${bad} choices the model rates worse than the alternative.</div><div class="mut"><b>How often the plan speaks:</b> it gave a firm swing or take call on ${pl.length-silent} of ${pl.length} pitches (${pct(pl.length?(pl.length-silent)/pl.length:0)}). On the other ${pct(pl.length?silent/pl.length:0)} the evidence was too thin or the two options too close, so it says nothing.</div></div><div style="margin-top:12px">${paPanel()}</div>`}
+ const inView=p=>TEAM==="all"||p.half===TEAM;const tot=G.pas.filter(p=>p.vs_starter&&inView(p)&&counted(p));const nSkip=G.pas.filter(p=>inView(p)&&skipInfo(p).skipped).length;
+ let dv=0,bad=0,pn=0,silent=0;tot.forEach(p=>{const s=paStats(p);dv+=s.dv;bad+=s.bad;pn+=s.n;silent+=s.silent});
+ const skipCtl=`<div class="logrow noprint"><label class="mut">Skipped at-bats in this view (${nSkip}): <select id="skipmode"><option value="exclude" ${SKIPMODE==="exclude"?"selected":""}>Left out of the totals</option><option value="include" ${SKIPMODE==="include"?"selected":""}>Counted in the totals</option></select></label><span class="mut">Bunts, intentional walks and the like are skipped automatically. You can skip or restore any at-bat.</span></div>`;
+ return `<div class="card">${innings()}${lg}${skipCtl}<div class="mut">Against the starters in this view: ${tot.length} plate appearances, net decision value ${sgn(dv)} runs (swing or take chosen versus the other option), ${bad} choices the model rates worse than the alternative.</div><div class="mut"><b>How often the plan speaks:</b> it gave a firm swing or take call on ${pn-silent} of ${pn} pitches (${pct(pn?(pn-silent)/pn:0)}). On the other ${pct(pn?silent/pn:0)} the evidence was too thin or the two options too close, so it says nothing.</div></div><div style="margin-top:12px">${paPanel()}</div>`}
 /* ---------------- pregame board ---------------- */
 const NAME={VALUE:"Value plan",CONTACT:"Contact-capped",HUNT:"Hunt a spot"};
 const DESC={VALUE:"Swing where swinging beats taking, take where the reverse.",CONTACT:"Put it in play: drop swings likely to miss, add swings likely to make contact that are close to even.",HUNT:"Sit on one pitch type and a few spots, take the rest. The model cannot value sitting on a pitch."};
@@ -178,7 +198,7 @@ function swingCard(h){const sw=G.swing_profiles[h];if(!sw||!sw.bat_speed)return 
 let HSEL=null;
 function hittersView(){const ids=[];G.pas.forEach(p=>{if(!ids.some(x=>x.id===p.batter))ids.push({id:p.batter,name:p.batter_name,half:p.half})});if(!HSEL)HSEL=ids[0].id;
  const opts=ids.map(x=>`<option value="${x.id}" ${x.id===HSEL?"selected":""}>${x.half==="Top"?G.away:G.home}: ${x.name}</option>`).join("");const mine=G.pas.filter(p=>p.batter===HSEL);
- const rows=mine.map(p=>`<tr class="hp" data-pa="${p.id}" style="cursor:pointer"><td>${p.inning}${p.half==="Top"?"T":"B"}</td><td>${p.pitcher_name}${p.vs_starter?"":" (reliever)"}</td><td>${p.result}</td><td class="num">${p.dv==null?"-":sgn(p.dv)}</td><td class="num">${p.bad==null?"-":p.bad}</td></tr>`).join("");
+ const rows=mine.map(p=>`<tr class="hp" data-pa="${p.id}" style="cursor:pointer"><td>${p.inning}${p.half==="Top"?"T":"B"}</td><td>${p.pitcher_name}${p.vs_starter?"":" (reliever)"}</td><td>${p.result}</td><td class="num">${!p.vs_starter?"-":skipInfo(p).skipped?"Skipped":sgn(paStats(p).dv)}</td><td class="num">${!p.vs_starter?"-":skipInfo(p).skipped?(skipInfo(p).reason):paStats(p).bad}</td></tr>`).join("");
  return `<div class="top"><label class="mut">Hitter: <select id="hs">${opts}</select></label></div><div class="two"><div class="card"><h3>Swing profile</h3>${swingCard(HSEL)}</div><div class="card"><h3>This game</h3><table><tr><th>Inning</th><th>Pitcher</th><th>Result</th><th>Decision value</th><th>Worse than other option</th></tr>${rows}</table><div class="note">Click a row to see the pitches.</div></div></div>`}
 function logView(){const rows=Object.values(LOG).sort((a,b)=>(b.saved||"").localeCompare(a.saved||"")).map(r=>`<tr><td>${r.hitter}</td><td>${r.tto}</td><td>${r.count}</td><td>${r.path||""}</td><td>${r.why||""}</td><td>${r.note||""}</td></tr>`).join("");
  return `<div class="card"><h3>Coach decisions saved on this device</h3><table><tr><th>Hitter</th><th>TTO</th><th>Count</th><th>Plan</th><th>Reason</th><th>Note</th></tr>${rows||"<tr><td colspan=6 class='mut'>Nothing saved yet. Choose a plan on the pregame board.</td></tr>"}</table><div class="logrow"><button id="lg-export">Export CSV</button></div></div>`}
@@ -187,6 +207,9 @@ function wire(){
  document.querySelectorAll("[data-pi]").forEach(e=>e.onclick=()=>{SELPITCH=+e.dataset.pi;render()});
  document.querySelectorAll("[data-pr]").forEach(e=>e.onclick=()=>{SELPITCH=+e.dataset.pr;render()});
  document.querySelectorAll("[data-step]").forEach(e=>e.onclick=()=>step(+e.dataset.step));
+ document.querySelectorAll("[data-skip]").forEach(b=>b.onclick=()=>{const p=G.pas.find(x=>x.id===+b.dataset.skip);LOG[skipKey(p)]={date:G.date,starter:"",hitter:p.batter_name,hitter_id:p.batter,tto:"",count:"",offered:"",path:"SKIP",why:$("#skipwhy").value,note:"At-bat "+p.id+": "+p.result,saved:new Date().toISOString()};saveLog();render()});
+ document.querySelectorAll("[data-incl]").forEach(b=>b.onclick=()=>{const p=G.pas.find(x=>x.id===+b.dataset.incl);LOG[skipKey(p)]={date:G.date,starter:"",hitter:p.batter_name,hitter_id:p.batter,tto:"",count:"",offered:"",path:"INCLUDE",why:"Restored by coach",note:"At-bat "+p.id+": "+p.result,saved:new Date().toISOString()};saveLog();render()});
+ const sm=$("#skipmode");if(sm)sm.onchange=()=>{SKIPMODE=sm.value;render()};
  const sa=$("#showall");if(sa)sa.onchange=()=>{SHOWALL=sa.checked;render()};
  document.querySelectorAll("[data-hit]").forEach(e=>e.onclick=()=>{const id=e.dataset.hit;for(const hf of ["Top","Bot"]){const i=side(hf).board.hitters.findIndex(x=>x.id===id);if(i>=0){HALF=hf;HI=i;VIEW="board";render();return}}});
  document.querySelectorAll("[data-tto]").forEach(b=>b.onclick=()=>{TTO=b.dataset.tto;render()});document.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{CNT=b.dataset.c;render()});document.querySelectorAll("[data-pt]").forEach(b=>b.onclick=()=>{PT=b.dataset.pt;render()});
