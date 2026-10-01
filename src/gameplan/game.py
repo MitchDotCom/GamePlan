@@ -13,10 +13,11 @@ import argparse
 import csv
 import json
 import pathlib
+import time
 from collections import Counter
 
 from .decision import SituationPolicy
-from .mockup import (Engine, _deltas, _encode_cells, _flip, build_board, load_events, load_pitcher_rows, pitcher_name,
+from .mockup import (Engine, _league_group_loss, _deltas, _encode_cells, _flip, build_board, load_events, load_pitcher_rows, pitcher_name,
                      swing_profile)
 from .matchup import CELL_IN, X_RANGE, Z_RANGE, review_pitch
 from .models import Action, Pitch, Result, Swing
@@ -64,6 +65,26 @@ def _int(v, d=0):
         return d
 
 
+_T0 = time.time()
+
+
+def tick(msg: str) -> None:
+    print(f"[{time.time() - _T0:5.0f}s] {msg}", flush=True)
+
+
+def ensure_group_loss(base: Engine, cache_dir: str | None, date: str) -> None:
+    """The league-wide baseline behind the development targets takes about two minutes and is the same for every hitter on a
+    date, so it is computed once per date and kept on disk."""
+    path = pathlib.Path(cache_dir) / f"group_loss_{date}.json" if cache_dir else None
+    if path and path.exists():
+        base._group_loss.update({tuple(k.split("|")): v for k, v in json.loads(path.read_text()).items()})
+        return
+    gl = _league_group_loss(base)
+    if path:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"|".join(k): v for k, v in gl.items()}))
+
+
 def load_game(league_dir: str, date: str, game_pk: str):
     rows = [r for r in csv.DictReader(open(pathlib.Path(league_dir) / f"{date}.csv", encoding="utf-8-sig")) if r["game_pk"] == game_pk]
     rows.sort(key=lambda r: (_int(r["at_bat_number"]), _int(r["pitch_number"])))
@@ -78,12 +99,16 @@ def _bases_text(b) -> str:
     return "empty" if not any(b) else "-".join(n for n, on in zip(("1B", "2B", "3B"), b) if on)
 
 
-def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, cache_dir: str) -> dict:
+def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, cache_dir: str, lazy_boards: bool = False,
+               group_cache: str | None = None) -> dict:
     rows = load_game(league_dir, date, game_pk)
     game_text = open(pathlib.Path(league_dir) / f"{date}.csv", encoding="utf-8-sig").read()
     sw_by_key = {(s.at_bat, s.pitch_no): s for s in parse_swings(game_text, include_takes=True) if s.game_pk == game_pk}
     events = load_events(league_dir, date)
     base = Engine(events, [], date, "0")
+    tick("data loaded and league model fit")
+    ensure_group_loss(base, group_cache, date)
+    tick("league baseline ready")
     print("league baseline for damage and plane fit", flush=True)
     lg = league_baseline(base)
     traits: dict = {}
@@ -108,7 +133,7 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
             pas.append(pa_index[k])
         pa_index[k]["pitches_raw"].append(r)
 
-    sides = {}
+    sides, todo = {}, []
     for half in ("Top", "Bot"):
         starter = starters[half]
         faced = []
@@ -122,7 +147,17 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
             st = [r["stand"] for r in rows if r["batter"] == h and r["pitcher"] == starter and r["stand"] in ("R", "L")]
             stands[h] = Counter(st).most_common(1)[0][0] if st else "R"
         print(f"{half}: {team[half]} batting vs {pname(starter)}; {len(faced)} hitters faced the starter", flush=True)
-        board = build_board(eng, faced, names, stands, pname(starter))
+        if lazy_boards:
+            ars0 = eng.snapshot(faced[0], 1, 0, 0, stands[faced[0]], eng.hitter(faced[0])).arsenal
+            board = {"starter": {"id": eng.starter, "name": pname(starter), "arsenal_tto1_0_0": ars0,
+                                 "starts_before": len({p.game_pk for p in eng.pitcher_rows})},
+                     "date": eng.date, "model": "shapecount + 3-ball zone, TTO effect on",
+                     "hitters": [{"order": i, "id": h, "name": names.get(h, f"Hitter {h}"), "stand": stands[h], "pending": True}
+                                 for i, h in enumerate(faced, 1)]}
+            todo += [(h, eng, stands[h], pname(starter)) for h in faced]
+        else:
+            board = build_board(eng, faced, names, stands, pname(starter))
+        tick(f"{half}: board {'skeleton' if lazy_boards else 'complete'}")
         fits = {h: hitter_fit(eng, lg, h, eng.pitcher_rows) for h in faced}
         sides[half] = {"batting": team[half], "fielding": fielding[half], "starter": starter, "starter_name": pname(starter),
                        "board": board, "engine": eng, "stands": stands, "fit": fits}
@@ -206,7 +241,8 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
                         "outs": _int(first["outs_when_up"]), "bases": _bases_text(_bases(first)),
                         "lead": _int(first["bat_score"]) - _int(first["fld_score"]), "stand": stand,
                         "dv": round(dv_total, 2) if is_starter else None, "bad": n_bad if is_starter else None, "pitches": pitches})
-    return {"date": date, "game_pk": game_pk, "away": away, "home": home,
+    tick("plate appearances reviewed")
+    return {"_todo": (todo, names), "date": date, "game_pk": game_pk, "away": away, "home": home,
             "sides": {half: {k: v for k, v in sd.items() if k not in ("engine", "stands", "fit")} for half, sd in sides.items()},
             "pas": out_pas,
             "arsenal": {h: fit for sd in sides.values() for h, fit in sd["fit"].items()},
@@ -248,6 +284,8 @@ def main(argv=None) -> int:
     ap.add_argument("--away", required=True)
     ap.add_argument("--home", required=True)
     ap.add_argument("--out", default="docs/gameview")
+    ap.add_argument("--lazy-boards", action="store_true", help="write the game first, then each hitter's pregame board as it completes")
+    ap.add_argument("--cache-dir", default=None, help="folder for per-date caches (league baseline)")
     ap.add_argument("--refit", action="store_true", help="recompute hitter fits and band labels in an existing game.json only")
     a = ap.parse_args(argv)
     if a.refit:
@@ -257,11 +295,23 @@ def main(argv=None) -> int:
         return 0
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    g = build_game(a.league, a.date, a.game, a.away, a.home, str(pathlib.Path(a.league).parent))
-    (out / "game.json").write_text(json.dumps(g, separators=(",", ":")), encoding="utf-8")
+    g = build_game(a.league, a.date, a.game, a.away, a.home, str(pathlib.Path(a.league).parent), lazy_boards=a.lazy_boards,
+                   group_cache=a.cache_dir or str(pathlib.Path(a.league).parent / "cache"))
+    todo, names = g.pop("_todo")
+    g["boards_total"] = len(todo)
     from .game_html import render
+    (out / "game.json").write_text(json.dumps(g, separators=(",", ":")), encoding="utf-8")
     (out / "game.html").write_text(render(g), encoding="utf-8")
-    print(f"wrote {out / 'game.json'} ({len(g['pas'])} plate appearances) and {out / 'game.html'}")
+    print(f"wrote {out / 'game.json'} ({len(g['pas'])} plate appearances) and {out / 'game.html'}", flush=True)
+    if todo:
+        (out / "boards").mkdir(exist_ok=True)
+        for h, eng, stand, sname in todo:
+            rec = build_board(eng, [h], names, {h: stand}, sname)["hitters"][0]
+            tmp = out / "boards" / f"{h}.json.tmp"
+            tmp.write_text(json.dumps(rec, separators=(",", ":")), encoding="utf-8")
+            tmp.replace(out / "boards" / f"{h}.json")
+            tick(f"board ready: {names.get(h, h)}")
+        print("all boards ready", flush=True)
     return 0
 
 

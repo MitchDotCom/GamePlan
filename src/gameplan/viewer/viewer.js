@@ -12,7 +12,7 @@ const SHORT={Strikeout:"K",Walk:"BB","Intentional walk":"IBB","Hit by pitch":"HB
 const short=r=>SHORT[r]||r.split(" ")[0];
 const last=n=>{const p=(n||"").split(" ");return p[p.length-1]};
 const side=h=>G.sides[h];
-function initGame(g){G=g;SELPA=g.pas[0].id;SELPITCH=0;TEAM="all";HALF="Top";HI=0;TTO="1";CNT="0-0";PT=null;HSEL=null;
+function initGame(g){G=g;Object.keys(BOARDS).forEach(k=>delete BOARDS[k]);SELPA=g.pas[0].id;SELPITCH=0;TEAM="all";HALF="Top";HI=0;TTO="1";CNT="0-0";PT=null;HSEL=null;
  $("#title").textContent=`${G.away} at ${G.home} \u00b7 ${G.date}`;
  $("#team").innerHTML=`<option value="all">Both</option><option value="Top">${G.away}</option><option value="Bot">${G.home}</option>`;$("#team").value="all"}
 function buildTabs(){const tabs=(SERVER?[["library","Games"]]:[]).concat(G?[["game","Game"],["board","Pregame"],["hitters","Hitters"],["log","Log"]]:[]);
@@ -143,7 +143,14 @@ function gameView(){
 const NAME={VALUE:"Value plan",CONTACT:"Contact-capped",HUNT:"Hunt a spot"};
 const DESC={VALUE:"Swing where swinging beats taking.",CONTACT:"Fewer swings that miss; adds near-even contact swings.",HUNT:"Sit on one pitch type. Experimental: the model cannot value anticipation."};
 function viable(cn){return cn.differ.VALUE_vs_CONTACT>=0.05&&(cn.styles.CONTACT.value_per_100-cn.styles.VALUE.value_per_100)>=-0.5}
-function boardView(){const sd=side(HALF),B=sd.board;if(HI>=B.hitters.length)HI=0;const h=B.hitters[HI];const cn=h.tto[TTO][CNT];
+const BOARDS={};
+async function ensureBoard(h){if(!SERVER||BOARDS[h.id]==="loading")return;BOARDS[h.id]="loading";
+ try{const r=await fetch(`/api/board/${G.game_pk}/${h.id}`);if(r.ok){Object.assign(h,await r.json());delete h.pending;BOARDS[h.id]="done";if(VIEW==="board")render();return}}catch(e){}
+ BOARDS[h.id]=null;setTimeout(()=>{if(VIEW==="board"&&h.pending)ensureBoard(h)},5000)}
+const hitterSelect=()=>`<select id="bh" aria-label="Hitter">${["Top","Bot"].map(hf=>side(hf).board.hitters.map((x,i)=>`<option value="${hf}|${i}" ${hf===HALF&&i===HI?"selected":""}>${hf==="Top"?G.away:G.home}: ${x.order}. ${x.name}</option>`).join("")).join("")}</select>`;
+function boardView(){const sd=side(HALF),B=sd.board;if(HI>=B.hitters.length)HI=0;const h=B.hitters[HI];
+ if(h.pending){ensureBoard(h);return `<div class="top"><label class="mut">Hitter: ${hitterSelect()}</label></div><div class="card" style="margin-top:var(--s4)"><h3>${h.name}</h3><p class="mut">The pregame board is still being built. It appears here as soon as it is ready.</p></div>`}
+ const cn=h.tto[TTO][CNT];
  const types=Object.keys(cn.arsenal).sort((a,b)=>cn.arsenal[b].usage-cn.arsenal[a].usage);if(!PT||!types.includes(PT))PT=types[0];
  const sel=`<select id="bh">${["Top","Bot"].map(hf=>side(hf).board.hitters.map((x,i)=>`<option value="${hf}|${i}" ${hf===HALF&&i===HI?"selected":""}>${hf==="Top"?G.away:G.home}: ${x.order}. ${x.name}</option>`).join("")).join("")}</select>`;
  const ars=Object.entries(B.starter.arsenal_tto1_0_0).sort((a,b)=>b[1].usage-a[1].usage).map(([k,v])=>`<tr><td>${pname(k)}</td><td class="num">${pct(v.usage)}</td><td class="num">${v.velo.toFixed(1)}</td><td class="num">${v.ivb.toFixed(1)}</td><td class="num">${v.hb.toFixed(1)}</td></tr>`).join("");

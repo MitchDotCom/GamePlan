@@ -10,6 +10,7 @@ The server only listens on this computer. Games are built on demand by the same 
     GET  /api/games              every game in the data, with build status
     GET  /api/game/<pk>          one built game
     POST /api/build              {"game_pk": "..."}  start building a game
+    GET  /api/board/<pk>/<id>    one hitter's pregame board (404 while it is still building)
     GET  /api/build/<pk>         build status and the last lines of its log
     GET  /api/log                saved decisions and skips
     PUT  /api/log                replace them
@@ -131,7 +132,10 @@ class App:
         seen = set()
         for g in idx:
             seen.add(g["game_pk"])
-            rows.append({**g, "status": self.status(g["game_pk"]),
+            pk0 = g["game_pk"]
+            bd = self.games_dir / pk0 / "boards"
+            rows.append({**g, "status": self.status(pk0), "boards_running": bool(self.jobs.get(pk0) and self.jobs[pk0]["proc"].poll() is None),
+                         "boards_done": len(list(bd.glob("*.json"))) if bd.exists() else 0,
                          "home_starter": self.names.get(g["starters"].get("Top", ""), g["starters"].get("Top", "")),
                          "away_starter": self.names.get(g["starters"].get("Bot", ""), g["starters"].get("Bot", ""))})
         for pk in built - seen:                       # built games whose day file is not in this data folder
@@ -158,7 +162,8 @@ class App:
         out.mkdir(parents=True, exist_ok=True)
         log = open(out / "build.log", "w")
         proc = subprocess.Popen([sys.executable, "-u", "-m", "gameplan.game", "--league", str(self.league), "--date", g["date"], "--game", pk,
-                                 "--away", g["away"], "--home", g["home"], "--out", str(out)], stdout=log, stderr=subprocess.STDOUT)
+                                 "--away", g["away"], "--home", g["home"], "--out", str(out),
+                                 "--lazy-boards", "--cache-dir", str(self.dir / "cache")], stdout=log, stderr=subprocess.STDOUT)
         self.jobs[pk] = {"proc": proc, "started": time.time()}
         return 200, {"status": "building"}
 
@@ -168,7 +173,9 @@ class App:
         lp = self.games_dir / pk / "build.log"
         if lp.exists():
             tail = "\n".join(lp.read_text(errors="ignore").splitlines()[-4:])
-        return {"status": self.status(pk), "elapsed": int(time.time() - j["started"]) if j else 0, "log": tail}
+        bd = self.games_dir / pk / "boards"
+        return {"status": self.status(pk), "elapsed": int(time.time() - j["started"]) if j else 0, "log": tail,
+                "boards_done": len(list(bd.glob("*.json"))) if bd.exists() else 0, "running": bool(j and j["proc"].poll() is None)}
 
     # ---- log
     def get_log(self):
@@ -214,6 +221,10 @@ def make_handler(app: App):
             m = re.fullmatch(r"/api/build/(\d+)", path)
             if m:
                 return self._send(200, app.build_status(m.group(1)))
+            m = re.fullmatch(r"/api/board/(\d+)/(\d+)", path)
+            if m:
+                f = app.games_dir / m.group(1) / "boards" / f"{m.group(2)}.json"
+                return self._send(200, f.read_bytes()) if f.exists() else self._send(404, {"pending": True, **app.build_status(m.group(1))})
             if path == "/api/log":
                 return self._send(200, app.get_log())
             self._send(404, {"error": "not found"})
