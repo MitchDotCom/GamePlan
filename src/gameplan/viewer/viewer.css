@@ -24,6 +24,7 @@ h3{font-size:var(--t-lead);margin:0 0 var(--s2);font-weight:650}
 .bar{position:sticky;top:0;z-index:5;padding:var(--s3) 0;margin-bottom:var(--s4);background:linear-gradient(180deg,var(--bg) 70%,transparent);border-top:3px solid var(--brand)}
 .top{display:flex;gap:var(--s4);align-items:center;flex-wrap:wrap}
 #main>.card .tabs,#main .card>.tabs{margin-bottom:var(--s3)}
+.tools[hidden]{display:none}
 .tools{display:flex;gap:var(--s3);flex-wrap:wrap;align-items:center;margin-top:var(--s2)}
 /* pill segmented controls */
 .tabs{display:flex;width:fit-content;max-width:100%;gap:2px;flex-wrap:wrap;padding:4px;background:var(--mid);border-radius:999px}

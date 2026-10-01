@@ -216,6 +216,7 @@ document.addEventListener("keydown",e=>{if(VIEW!=="game"||["INPUT","SELECT","TEX
 let LIB={games:[],ready:false,date:"",q:"",built:false,msg:"",poll:null};
 async function loadLib(){try{const r=await (await fetch("/api/games")).json();LIB.games=r.games;LIB.ready=r.ready;if(!LIB.date){const b=LIB.games.find(g=>g.status==="ready");LIB.date=(b||LIB.games[0]||{}).date||""}}catch(e){LIB.msg="Cannot reach the GamePlan server."}
  clearTimeout(LIB.poll);if(VIEW==="library"&&(!LIB.ready||LIB.games.some(g=>g.status==="building")))LIB.poll=setTimeout(async()=>{await loadLib();if(VIEW==="library")render()},4000)}
+function gameNo(g){const same=LIB.games.filter(x=>x.date===g.date&&x.home===g.home&&x.away===g.away).sort((a,b)=>a.game_pk-b.game_pk);return same.length>1?` (game ${same.findIndex(x=>x.game_pk===g.game_pk)+1})`:""}
 function libraryView(){const q=LIB.q.toLowerCase(),dates=[...new Set(LIB.games.map(g=>g.date))];
  const rows=LIB.games.filter(g=>(!LIB.date||g.date===LIB.date)&&(!LIB.built||g.status==="ready")&&(!q||[g.away,g.home,g.away_starter,g.home_starter].join(" ").toLowerCase().includes(q)));
  const nReady=LIB.games.filter(g=>g.status==="ready").length;
@@ -224,8 +225,8 @@ function libraryView(){const q=LIB.q.toLowerCase(),dates=[...new Set(LIB.games.m
  <div class="hrow noprint"><label class="f">Date <select id="libdate"><option value="">All dates</option>${dates.map(d=>`<option value="${d}" ${d===LIB.date?"selected":""}>${d}</option>`).join("")}</select></label>
  <label class="f">Search <input type="text" id="libq" value="${LIB.q.replace(/"/g,"")}" placeholder="Team or pitcher"></label><label class="f"><input type="checkbox" id="libbuilt" ${LIB.built?"checked":""}> Built only</label></div>
  ${LIB.ready?"":`<p class="hlab">Reading game files...</p>`}${LIB.ready&&!LIB.games.length?dlBox():""}${LIB.msg?`<p class="hlab">${LIB.msg}</p>`:""}</div>
- <div class="card" style="margin-top:var(--s4)">${rows.length?rows.map(g=>`<div class="grow"><div><div class="name" style="font-size:var(--t-lead)">${g.away||"?"} at ${g.home||"?"}</div><div class="mut">${g.date} \u00b7 ${g.away_starter||"?"} vs. ${g.home_starter||"?"} \u00b7 ${g.pas} plate appearances</div></div><div>${btn(g)}</div></div>`).join(""):`<p class="mut">${LIB.ready?"No games match.":"The list appears when the data has been read."}</p>`}
- <p class="note">Building a game takes about 20 minutes for now. You can build up to 2 at a time and keep working.</p></div>`}
+ <div class="card" style="margin-top:var(--s4)">${rows.length?rows.map(g=>`<div class="grow"><div><div class="name" style="font-size:var(--t-lead)">${g.away||"?"} at ${g.home||"?"}${gameNo(g)}</div><div class="mut">${g.date} \u00b7 ${g.away_starter||"?"} vs. ${g.home_starter||"?"} \u00b7 ${g.pas} plate appearances</div></div><div>${btn(g)}</div></div>`).join(""):`<p class="mut">${LIB.ready?"No games match.":"The list appears when the data has been read."}</p>`}
+ <p class="note">Building a game takes about 5 minutes; each hitter's pregame board then fills in over the next few. You can build up to 2 at a time and keep working.</p></div>`}
 let DL={running:false,files:0,total:195};
 function dlBox(){return DL.running?`<p class="hlab">Downloading the 2025 season: ${DL.files} of ${DL.total} days...</p>`:`<p class="hlab">No game data yet. The 2025 season is about 200 MB and takes 10 to 20 minutes to download.</p><div class="hrow noprint"><button data-dl>Download the 2025 season</button></div>`}
 async function pollDl(){try{DL=await (await fetch("/api/download")).json()}catch(e){return}if(DL.running){if(VIEW==="library")render();setTimeout(pollDl,4000)}else{await loadLib();if(VIEW==="library")render()}}
