@@ -1,0 +1,74 @@
+
+== 2025: fit before 2025-07-01, score on starters after
+
+  --- A shape (no count)
+  swing EV slope +1.0228 [+0.9782, +1.0795]   SD predicted 0.0722   SD realized 0.2634   (66025 swings)
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1859 [+0.1772, +0.1957]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0042 [-0.0082, -0.0003]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0470 [-0.0072, +0.0934]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0794 [-0.0681, +0.2870]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 2469 / 1650
+
+  --- B shapecount (default)
+  swing EV slope +1.0859 [+1.0378, +1.1433]   SD predicted 0.0682   SD realized 0.2634   (66025 swings)
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1857 [+0.1771, +0.1949]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0047 [-0.0089, -0.0005]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0631 [+0.0227, +0.1125]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0671 [-0.0663, +0.2299]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 2243 / 1621
+
+  --- C shapecount, strikes bw 2.0
+  swing EV slope +1.0521 [+1.0052, +1.1105]   SD predicted 0.0705   SD realized 0.2634   (66025 swings)
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1859 [+0.1773, +0.1953]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0038 [-0.0081, +0.0003]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0546 [+0.0088, +0.1031]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.1679 [-0.0042, +0.4469]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 2366 / 1606
+
+  --- D shapecount, bw x1.5, k x0.5
+  swing EV slope +1.0856 [+1.0375, +1.1445]   SD predicted 0.0681   SD realized 0.2634   (66025 swings)
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1850 [+0.1762, +0.1943]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0055 [-0.0105, -0.0008]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0459 [+0.0005, +0.0872]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0762 [-0.0487, +0.1930]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 3177 / 1805
+
+  --- E shape, bw x1.5, k x0.5
+  swing EV slope +1.0223 [+0.9804, +1.0766]   SD predicted 0.0721   SD realized 0.2634   (66025 swings)
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1850 [+0.1763, +0.1953]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0045 [-0.0095, -0.0000]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0190 [-0.0263, +0.0616]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0233 [-0.0890, +0.1496]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 3831 / 1916
+
+== 2024 (independent season): fit before 2024-07-01, score on starters after
+
+  --- A shape (no count)
+  swing EV slope +1.0322 [+0.9866, +1.0721]   SD predicted 0.0714   SD realized 0.2617   (65613 swings)
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1827 [+0.1737, +0.1911]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0035 [-0.0080, +0.0012]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0579 [+0.0119, +0.0930]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0994 [-0.0418, +0.2686]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 2240 / 1747
+
+  --- B shapecount (default)
+  swing EV slope +1.0944 [+1.0462, +1.1395]   SD predicted 0.0675   SD realized 0.2617   (65613 swings)
+
+== V5: separation against real run value; two-way cluster bootstrap (hitters and pitchers)
+  S, hitter model, count aware (runs)                                      +0.1831 [+0.1747, +0.1921]
+  S lost when count awareness is removed (runs; negative = count helps)    -0.0045 [-0.0093, +0.0006]
+  disagreement: swing-take gap in hitter-GO minus hitter-NO_GO (runs)      +0.0607 [+0.0094, +0.1067]
+  EXPLORATORY disagreement restricted to confident calls (runs)            +0.0996 [-0.0222, +0.2588]
+  pitches in hitter-GO-only / hitter-NO_GO-only sets: 2051 / 1736
