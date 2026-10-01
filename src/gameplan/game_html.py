@@ -11,10 +11,15 @@ import pathlib
 VIEWER = pathlib.Path(__file__).parent / "viewer"
 
 
-def render(game: dict) -> str:
+def render_app() -> str:
+    """The shell for the local server: no game embedded; the page loads the library and games from the API."""
+    return render(None)
+
+
+def render(game: dict | None) -> str:
     """The viewer is three real files (viewer.html, viewer.css, viewer.js) so design checks can read them; this inlines them
     with the game data into one self-contained page."""
     page = (VIEWER / "viewer.html").read_text(encoding="utf-8")
     css = (VIEWER / "viewer.css").read_text(encoding="utf-8")
-    js = (VIEWER / "viewer.js").read_text(encoding="utf-8").replace("__DATA__", json.dumps(game, separators=(",", ":")))
+    js = (VIEWER / "viewer.js").read_text(encoding="utf-8").replace("__DATA__", json.dumps(game, separators=(",", ":")) if game is not None else "null")
     return page.replace("/*__CSS__*/", css).replace("/*__JS__*/", js)

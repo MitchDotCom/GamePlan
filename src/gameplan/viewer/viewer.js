@@ -1,21 +1,24 @@
-const G=__DATA__;
+const EMBED=__DATA__;let G=EMBED;const SERVER=EMBED===null;
 const $=(s,r=document)=>r.querySelector(s);
 const pct=x=>(100*x).toFixed(0)+"%";const sgn=x=>(x>=0?"+":"")+x.toFixed(2);
 const SYM={G:"G",x:"x",".":"."};
-let VIEW="game",TEAM="all",POL="OFF",SELPA=G.pas[0].id,SELPITCH=0;
+let VIEW="game",TEAM="all",POL="OFF",SELPA=0,SELPITCH=0;
 let HALF="Top",HI=0,TTO="1",CNT="0-0",PT=null,EXP=false;
-let LOG={};try{LOG=JSON.parse(localStorage.getItem("gameplanLog2")||"{}")}catch(e){LOG={}}
-const saveLog=()=>{try{localStorage.setItem("gameplanLog2",JSON.stringify(LOG))}catch(e){}};
+let LOG={},saveT=null;
+async function loadLog(){if(SERVER){try{LOG=await (await fetch("/api/log")).json()}catch(e){LOG={}}}else{try{LOG=JSON.parse(localStorage.getItem("gameplanLog2")||"{}")}catch(e){LOG={}}}}
+const saveLog=()=>{if(SERVER){clearTimeout(saveT);saveT=setTimeout(()=>fetch("/api/log",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(LOG)}).catch(()=>{}),150)}else{try{localStorage.setItem("gameplanLog2",JSON.stringify(LOG))}catch(e){}}};
 const mix=d=>{const a=Math.min(Math.abs(d)/0.12,1);const c=d>=0?"var(--pos)":"var(--neg)";return `color-mix(in srgb, ${c} ${Math.round(20+60*a)}%, var(--mid))`};
 const SHORT={Strikeout:"K",Walk:"BB","Intentional walk":"IBB","Hit by pitch":"HBP",Single:"1B",Double:"2B",Triple:"3B","Home run":"HR","Out in play":"Out","Force out":"FO","Double play":"DP","Sacrifice fly":"SF","Sacrifice bunt":"SH","Reached on error":"E","Fielder's choice":"FC"};
 const short=r=>SHORT[r]||r.split(" ")[0];
 const last=n=>{const p=(n||"").split(" ");return p[p.length-1]};
 const side=h=>G.sides[h];
-$("#title").textContent=`${G.away} at ${G.home} · ${G.date}`;
-$("#views").innerHTML=[["game","Game"],["board","Pregame"],["hitters","Hitters"],["log","Log"]].map(([k,t])=>`<button data-v="${k}">${t}</button>`).join("");
-$("#team").innerHTML=`<option value="all">Both</option><option value="Top">${G.away}</option><option value="Bot">${G.home}</option>`;
+function initGame(g){G=g;SELPA=g.pas[0].id;SELPITCH=0;TEAM="all";HALF="Top";HI=0;TTO="1";CNT="0-0";PT=null;HSEL=null;
+ $("#title").textContent=`${G.away} at ${G.home} \u00b7 ${G.date}`;
+ $("#team").innerHTML=`<option value="all">Both</option><option value="Top">${G.away}</option><option value="Bot">${G.home}</option>`;$("#team").value="all"}
+function buildTabs(){const tabs=(SERVER?[["library","Games"]]:[]).concat(G?[["game","Game"],["board","Pregame"],["hitters","Hitters"],["log","Log"]]:[]);
+ $("#views").innerHTML=tabs.map(([k,t])=>`<button data-v="${k}">${t}</button>`).join("");
+ document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{if(b.dataset.v==="library"){location.hash="#/"}else{VIEW=b.dataset.v;render()}})}
 $("#team").onchange=e=>{TEAM=e.target.value;render()};$("#pol").onchange=e=>{POL=e.target.value;render()};$("#vside").onchange=e=>{VIEWSIDE=e.target.value;render()};
-document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{VIEW=b.dataset.v;render()});
 const planOf=p=>p.plan?p.plan.policy[p.plan.spot?POL:"OFF"]:null;
 let SKIPMODE="exclude";
 const skipKey=p=>"skip|"+G.date+"|"+G.game_pk+"|"+p.id;
@@ -202,6 +205,31 @@ function wire(){
   box.innerHTML='<div class="mut" style="margin-top:8px">Copy this into a spreadsheet.</div><textarea id="lg-csv-text" rows="8" style="width:100%"></textarea><div class="logrow"><button id="lg-copy">Copy</button></div>';
   const ta=$("#lg-csv-text");ta.value=csv;ta.select();$("#lg-copy").onclick=()=>{ta.select();try{navigator.clipboard.writeText(csv).catch(()=>{})}catch(e){}}}}
 document.addEventListener("keydown",e=>{if(VIEW!=="game"||["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;if(e.key==="ArrowRight")step(1);else if(e.key==="ArrowLeft")step(-1)});
-function render(){document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===VIEW));
+/* ---------------- game library (server mode) ---------------- */
+let LIB={games:[],ready:false,date:"",q:"",built:false,msg:"",poll:null};
+async function loadLib(){try{const r=await (await fetch("/api/games")).json();LIB.games=r.games;LIB.ready=r.ready;if(!LIB.date){const b=LIB.games.find(g=>g.status==="ready");LIB.date=(b||LIB.games[0]||{}).date||""}}catch(e){LIB.msg="Cannot reach the GamePlan server."}
+ clearTimeout(LIB.poll);if(VIEW==="library"&&(!LIB.ready||LIB.games.some(g=>g.status==="building")))LIB.poll=setTimeout(async()=>{await loadLib();if(VIEW==="library")render()},4000)}
+function libraryView(){const q=LIB.q.toLowerCase(),dates=[...new Set(LIB.games.map(g=>g.date))];
+ const rows=LIB.games.filter(g=>(!LIB.date||g.date===LIB.date)&&(!LIB.built||g.status==="ready")&&(!q||[g.away,g.home,g.away_starter,g.home_starter].join(" ").toLowerCase().includes(q)));
+ const nReady=LIB.games.filter(g=>g.status==="ready").length;
+ const btn=g=>g.status==="ready"?`<button data-open="${g.game_pk}">Open</button>`:g.status==="building"?`<span class="chip">Building</span>`:`<button data-build="${g.game_pk}">${g.status==="failed"?"Retry build":"Build"}</button>`;
+ return `<div class="hero"><div class="hlab">Game library</div><div class="hnum">${nReady}<small>built of ${LIB.games.length} games</small></div>
+ <div class="hrow noprint"><label class="f">Date <select id="libdate"><option value="">All dates</option>${dates.map(d=>`<option value="${d}" ${d===LIB.date?"selected":""}>${d}</option>`).join("")}</select></label>
+ <label class="f">Search <input type="text" id="libq" value="${LIB.q.replace(/"/g,"")}" placeholder="Team or pitcher"></label><label class="f"><input type="checkbox" id="libbuilt" ${LIB.built?"checked":""}> Built only</label></div>
+ ${LIB.ready?"":`<p class="hlab">Reading game files...</p>`}${LIB.msg?`<p class="hlab">${LIB.msg}</p>`:""}</div>
+ <div class="card" style="margin-top:var(--s4)">${rows.length?rows.map(g=>`<div class="grow"><div><div class="name" style="font-size:var(--t-lead)">${g.away||"?"} at ${g.home||"?"}</div><div class="mut">${g.date} \u00b7 ${g.away_starter||"?"} vs. ${g.home_starter||"?"} \u00b7 ${g.pas} plate appearances</div></div><div>${btn(g)}</div></div>`).join(""):`<p class="mut">${LIB.ready?"No games match.":"The list appears when the data has been read."}</p>`}
+ <p class="note">Building a game takes about 20 minutes for now. You can build up to 2 at a time and keep working.</p></div>`}
+function wireLib(){const d=$("#libdate");if(!d)return;d.onchange=()=>{LIB.date=d.value;render()};$("#libq").oninput=e=>{LIB.q=e.target.value;const p=e.target.selectionStart;render();const n=$("#libq");n.focus();n.setSelectionRange(p,p)};$("#libbuilt").onchange=e=>{LIB.built=e.target.checked;render()};
+ document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{location.hash="#/game/"+b.dataset.open});
+ document.querySelectorAll("[data-build]").forEach(b=>b.onclick=async()=>{b.disabled=true;const r=await fetch("/api/build",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({game_pk:b.dataset.build})});const j=await r.json();LIB.msg=r.ok?"":(j.error||"Build failed to start.");await loadLib();render()})}
+function render(){const lib=VIEW==="library";document.querySelector(".tools").hidden=lib;document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===VIEW));
+ if(lib){$("#title").textContent="GamePlan";$("#main").innerHTML=libraryView();wireLib();return}
  $("#main").innerHTML=VIEW==="game"?gameView():VIEW==="board"?boardView():VIEW==="hitters"?hittersView():logView();wire()}
-render();
+async function route(){
+ if(!SERVER){initGame(EMBED);VIEW="game";buildTabs();render();return}
+ const m=location.hash.match(/^#\/game\/(\d+)/);
+ if(m){$("#main").innerHTML=`<div class="card"><p class="mut">Loading game...</p></div>`;const r=await fetch("/api/game/"+m[1]);
+  if(r.ok){initGame(await r.json());VIEW="game";buildTabs();render();return}LIB.msg="That game is not built yet."}
+ VIEW="library";buildTabs();render();await loadLib();if(VIEW==="library")render()}
+window.addEventListener("hashchange",route);
+loadLog().then(route);

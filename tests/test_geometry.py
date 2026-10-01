@@ -59,7 +59,7 @@ def test_rendered_geometry_matches_numbers(path):
             for idx, pa in enumerate(g["pas"]):
                 if not any("x" in q for q in pa["pitches"]):
                     continue
-                pg.query_selector_all("[data-pa]")[idx].click()
+                pg.click(f'[data-pa="{pa["id"]}"]')
                 svg = pg.query_selector("svg.zone")
                 pts = svg.query_selector_all("g.pt")
                 stand = pa["stand"]
