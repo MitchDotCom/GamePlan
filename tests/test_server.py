@@ -76,3 +76,33 @@ def test_library_open_skip_persist(server):
         pg.wait_for_selector(".grow")
         b.close()
     assert not errors, errors[:3]
+
+
+@pytest.mark.skipif(not pathlib.Path(CHROMIUM).exists() or not GAME.exists(), reason="no browser or demo game")
+def test_pending_board_loads_when_ready(server):
+    """A game opens before its boards exist; the Pregame tab waits, then shows the board once the server has it."""
+    url, app = server
+    g = json.load(open(GAME))
+    pk = "900002"
+    g["game_pk"] = pk
+    full = {h["id"]: h for sd in g["sides"].values() for h in sd["board"]["hitters"]}
+    for sd in g["sides"].values():                                  # skeleton boards, as a lazy build writes them
+        sd["board"]["hitters"] = [{"order": h["order"], "id": h["id"], "name": h["name"], "stand": h["stand"], "pending": True}
+                                  for h in sd["board"]["hitters"]]
+    d = app.games_dir / pk
+    (d / "boards").mkdir(parents=True)
+    (d / "game.json").write_text(json.dumps(g))
+    with pw.sync_playwright() as p:
+        b = p.chromium.launch(executable_path=CHROMIUM, args=["--no-sandbox"])
+        pg = b.new_page(viewport={"width": 1280, "height": 900})
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
+        pg.goto(url + f"/#/game/{pk}")
+        pg.wait_for_selector(".hero")
+        pg.click("[data-v=board]")
+        pg.wait_for_selector("text=still being built")
+        first = g["sides"]["Top"]["board"]["hitters"][0]["id"]
+        (d / "boards" / f"{first}.json").write_text(json.dumps(full[first]))      # the build finishes this hitter
+        pg.wait_for_selector("text=Value plan", timeout=15000)
+        assert not errors, errors[:3]
+        b.close()
