@@ -45,6 +45,7 @@ Hard limit to respect: a typical hitter has well under one of his own swings beh
 | Day | Ships | Gate |
 |---|---|---|
 | D4 (done) | Zone-first view, skip control, republished pages | Browser test on both games |
+| D4-D5 (done) | Traits test run: personal sweet band passes for whiffs (2025 and 2024); bat speed, swing length, path deviation alone and every damage test do not. Layers 1 to 3 built (per-swing bat tracking, personal band, damage versus arsenal) | docs/traits_test.txt |
 | D5 | Layer 1 (per-swing bat tracking card) and layer 3 (hitter versus arsenal table, swings at damage pitches versus weak spots). Both games rebuilt. Plane-fit decision from the league table | Numbers spot-checked against raw rows; browser test |
 | D6 | Layer 2 if the data supports it. One-page pregame sheet per hitter (arsenal, damage table, zone plan) for the series meeting. Your dry run | You can run the walkthrough alone |
 | D7 | Present to hitting coaches. Feedback sheet | |
