@@ -101,7 +101,7 @@ function hitter(){
   return `<div class="card ${cur===st?"chosen":""}"><h3>${NAME[st]}${st==="HUNT"?" (experimental)":""}</h3><div>${s.tags.map(t=>`<span class="chip">${t}</span>`).join("")}</div>
   ${s.target?`<div class="mut">Hunt: ${s.target}</div>`:""}
   ${grid(s.cells[PT],cn.delta[PT])}
-  <div class="mut">${DESC[st]}</div>
+  <div class="mut">${DESC[st]}</div>${st==="CONTACT"&&s.value_per_100>cn.styles.VALUE.value_per_100?`<div class="mut">Reads higher than the value plan because it swings at close-to-even cells the value plan leaves without a call for thin evidence. Point estimate, less certain.</div>`:""}
   <table style="margin-top:6px"><tr><td>Swing on</td><td class="num">${pct(s.swing_share)} of his pitches</td></tr>
   <tr><td>Whiff on swings</td><td class="num">${pct(s.whiff)}</td></tr><tr><td>xwOBA on contact</td><td class="num">${s.contact.toFixed(3)}</td></tr>
   <tr><td>Value if followed</td><td class="num">${sgn(s.value_per_100)} runs / 100 pitches</td></tr>

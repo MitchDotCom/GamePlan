@@ -35,7 +35,7 @@ button{cursor:pointer}button.on{background:var(--accent);color:#fff;border-color
 .rel{opacity:.65}
 .grid{display:grid;grid-template-columns:repeat(5,34px);gap:2px;margin:8px 0}
 .cell{width:34px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;border-radius:3px;background:var(--mid);color:var(--ink2)}
-.mini{display:grid;grid-template-columns:repeat(5,15px);gap:1px;position:relative}
+.mini{display:inline-grid;grid-template-columns:repeat(5,15px);gap:1px;position:relative;width:max-content}
 .mini .c{width:15px;height:13px;font-size:9px;display:flex;align-items:center;justify-content:center;border-radius:2px;background:var(--mid);color:var(--ink2)}
 .dotw{position:absolute;inset:0;pointer-events:none}.dot{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--ink);border:2px solid var(--panel);transform:translate(-50%,50%)}
 .counts{display:grid;grid-template-columns:repeat(4,auto);gap:4px;width:max-content}
@@ -64,6 +64,8 @@ let HALF="Top",HI=0,TTO="1",CNT="0-0",PT=null,EXP=false;
 let LOG={};try{LOG=JSON.parse(localStorage.getItem("gameplanLog2")||"{}")}catch(e){LOG={}}
 const saveLog=()=>{try{localStorage.setItem("gameplanLog2",JSON.stringify(LOG))}catch(e){}};
 const mix=d=>{const a=Math.min(Math.abs(d)/0.12,1);const c=d>=0?"var(--pos)":"var(--neg)";return `color-mix(in srgb, ${c} ${Math.round(20+60*a)}%, var(--mid))`};
+const SHORT={Strikeout:"K",Walk:"BB","Intentional walk":"IBB","Hit by pitch":"HBP",Single:"1B",Double:"2B",Triple:"3B","Home run":"HR","Out in play":"Out","Force out":"FO","Double play":"DP","Sacrifice fly":"SF","Sacrifice bunt":"SH","Reached on error":"E","Fielder's choice":"FC"};
+const short=r=>SHORT[r]||r.split(" ")[0];
 const last=n=>{const p=(n||"").split(" ");return p[p.length-1]};
 const side=h=>G.sides[h];
 $("#title").textContent=`${G.away} @ ${G.home}, ${G.date}`;
@@ -82,10 +84,10 @@ function innings(){const filt=p=>TEAM==="all"||p.half===TEAM;const n=Math.max(9,
  let h=`<div class="inn" style="--n:${n}"><div></div>`+Array.from({length:n},(_,i)=>`<div class="h">${i+1}</div>`).join("");
  for(const half of ["Top","Bot"]){if(TEAM!=="all"&&TEAM!==half)continue;h+=`<div class="t">${half==="Top"?G.away:G.home}</div>`;
   for(let i=1;i<=n;i++){const ps=G.pas.filter(p=>p.half===half&&p.inning===i&&filt(p));
-   h+=`<div class="cellc">${ps.map(p=>`<div class="pa k-${p.kind} ${p.vs_starter?"":"rel"} ${p.id===SELPA?"sel":""}" data-pa="${p.id}" title="${p.batter_name} vs ${p.pitcher_name}: ${p.result}"><span>${last(p.batter_name)}</span><span class="r">${p.result.split(" ")[0]}</span></div>`).join("")}</div>`}}
+   h+=`<div class="cellc">${ps.map(p=>`<div class="pa k-${p.kind} ${p.vs_starter?"":"rel"} ${p.id===SELPA?"sel":""}" data-pa="${p.id}" title="${p.batter_name} vs ${p.pitcher_name}: ${p.result}"><span>${last(p.batter_name)}</span><span class="r">${short(p.result)}</span></div>`).join("")}</div>`}}
  return h+"</div>"}
 function paPanel(){const p=G.pas.find(x=>x.id===SELPA);if(!p)return "";
- const rows=p.pitches.map((q,i)=>{const pl=planOf(q);const lab=pl?(LBL[pl.label]||[pl.label,""]):["",""];
+ const rows=p.pitches.map((q,i)=>{const pl=planOf(q);let lab=pl?(LBL[pl.label]||[pl.label,""]):["",""];if(pl&&pl.call==="CONDITIONAL"&&pl.label==="FOLLOWED_PLAN")lab=["Took the better option (thin evidence, no firm call)",""];
   return `<tr data-pi="${i}" style="${i===SELPITCH?"background:var(--mid)":""}"><td>${q.n}</td><td>${q.count}</td><td>${q.type||""} ${q.velo?q.velo.toFixed(1):""}</td><td>${q.region||"-"}</td><td>${q.swing===undefined?"-":q.swing?"swung":"took"}</td><td>${q.desc}</td>
   <td>${pl?callChip(pl.call):"-"} <span class="mut num">${pl&&pl.delta!=null?sgn(pl.delta):""}</span></td><td class="num">${pl&&pl.dv!=null?sgn(pl.dv):"-"}</td><td class="${lab[1]}">${lab[0]}${pl&&pl.flags.includes("umpire_miss")?" (umpire miss)":""}</td><td>${miniGrid(q)}</td></tr>`}).join("");
  const sd=side(p.half);const tag=p.vs_starter?`<span class="badge">starter: plan applies</span>`:`<span class="badge">reliever: no plan</span>`;
@@ -96,7 +98,7 @@ function paPanel(){const p=G.pas.find(x=>x.id===SELPA);if(!p)return "";
  <div class="logrow noprint"><button data-hit="${p.batter}">Open ${last(p.batter_name)}'s pregame board</button></div></div>`}
 function gameView(){const lg=`<div class="note" style="margin:6px 0">Bar colour: blue hit or walk, red strikeout, gray out. Faded = reliever (no plan). Click a plate appearance.</div>`;
  const tot=G.pas.filter(p=>p.dv!=null&&(TEAM==="all"||p.half===TEAM));const dv=tot.reduce((a,p)=>a+p.dv,0),bad=tot.reduce((a,p)=>a+p.bad,0);
- return `<div class="card">${innings()}${lg}<div class="mut">Against the starters in this view: ${tot.length} plate appearances, decision value ${sgn(dv)} runs, ${bad} decisions worse than the other option.</div></div><div style="margin-top:12px">${paPanel()}</div>`}
+ return `<div class="card">${innings()}${lg}<div class="mut">Against the starters in this view: ${tot.length} plate appearances, net decision value ${sgn(dv)} runs (swing or take chosen versus the other option), ${bad} choices the model rates worse than the alternative.</div></div><div style="margin-top:12px">${paPanel()}</div>`}
 /* ---------------- pregame board ---------------- */
 function grid(codes,deltas){let o=`<div class="mut" style="font-size:11px">in &rarr; away (batter view), high at top</div><div class="grid">`;
  for(let j=5;j>=0;j--)for(let i=0;i<5;i++){const k=i*6+j,c=codes[k],d=deltas[k];o+=`<div class="cell" style="background:${c==="G"?mix(Math.abs(d)):c==="x"?mix(-Math.abs(d)):"var(--mid)"}" title="${c==="G"?"swing":c==="x"?"take":"no call"}; swing minus take ${sgn(d)} (wOBA)">${c}</div>`}
@@ -115,7 +117,7 @@ function boardView(){const sd=side(HALF),B=sd.board;if(HI>=B.hitters.length)HI=0
  const key=[G.date,sd.starter,h.id,TTO,CNT].join("|");const cur=(LOG[key]||{}).path;
  const card=st=>{const s=cn.styles[st];const diff=st==="CONTACT"?cn.differ.VALUE_vs_CONTACT:st==="HUNT"?cn.differ.VALUE_vs_HUNT:null;
   return `<div class="card ${cur===st?"chosen":""}"><h3>${NAME[st]}${st==="HUNT"?" (experimental)":""}</h3><div>${s.tags.map(t=>`<span class="chip">${t}</span>`).join("")}</div>${s.target?`<div class="mut">Hunt: ${s.target}</div>`:""}
-  ${grid(s.cells[PT],cn.delta[PT])}<div class="mut">${DESC[st]}</div>
+  ${grid(s.cells[PT],cn.delta[PT])}<div class="mut">${DESC[st]}</div>${st==="CONTACT"&&s.value_per_100>cn.styles.VALUE.value_per_100?`<div class="mut">Reads higher than the value plan because it swings at close-to-even cells the value plan leaves without a call for thin evidence. Point estimate, less certain.</div>`:""}
   <table style="margin-top:6px"><tr><td>Swing on</td><td class="num">${pct(s.swing_share)} of his pitches</td></tr><tr><td>Whiff on swings</td><td class="num">${pct(s.whiff)}</td></tr><tr><td>xwOBA on contact</td><td class="num">${s.contact.toFixed(3)}</td></tr>
   <tr><td>Value if followed</td><td class="num">${sgn(s.value_per_100)} runs / 100 pitches</td></tr>${diff==null?"":`<tr><td>Differs from value plan</td><td class="num">${pct(diff)} of pitches</td></tr>`}</table>
   <div class="logrow noprint"><button data-pick="${st}">Use this plan</button></div></div>`};
