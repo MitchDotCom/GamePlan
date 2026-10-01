@@ -1,9 +1,8 @@
 # Showing the game viewer to a hitting coach (10 minutes)
 
-Open either file in any browser (laptop is fine; it works offline). Each is one real 2025 game built from public data, with every plan fit only on games before that date.
+Start the app (`gameplan --open`, or the desktop app). It opens on the **Games** library: every game in the data, by date, with search. **Open** shows a built game; **Build** prepares a new one (about 5 minutes; each hitter's pregame board fills in after). Your saved decisions and skipped at-bats are stored by the app and persist across games.
 
-- `docs/gameview2/game.html`: Red Sox at Diamondbacks, 2025-09-06, Pfaadt vs Giolito, 9 innings, 69 plate appearances. Lead with this one: normal game, both starters go deep, Arizona hitters.
-- `docs/gameview/game.html`: Astros at Tigers, 2025-08-19, Skubal vs Brown, 0-0 through nine and a 10th-inning walk-off walk, 71 plate appearances. Use it as the second example, a pitchers' duel.
+Lead with Boston at Arizona (2025-09-06, Pfaadt vs Giolito): a normal game, both starters go deep, Arizona hitters. Use Houston at Detroit (2025-08-19, Skubal vs Brown, 0-0 into a 10th-inning walk-off walk) as the second example. Both are in the library from the start.
 
 ## Say this first (30 seconds)
 "This is a prototype built on public MLB data. For every hitter, count and time through the order, it shows where a hitter should swing and where he should take against this starter, and then it scores what actually happened. I want to know what is useful, what is noise, and what is missing."

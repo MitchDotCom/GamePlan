@@ -10,7 +10,7 @@ Mission: develop hitters first, win second. For a 9-man lineup against a specifi
 | Zone-first at-bat view | Large zone, hitter's own strike zone outline, numbered pitches by result, plan overlay per pitch, stepper |
 | Skip control | Bunts, intentional walks, catcher interference, automatic calls and position players pitching are skipped automatically. Coach can skip or restore any at-bat. Skipped at-bats leave the totals. Logged and exported |
 | Pregame board | Value and Contact-capped plans per count, same zone |
-| Hosted private pages | Both games, republished with each change |
+| Working app | Local server with a game library, a page per game, saved decisions, builds on demand (game page in about 5 minutes, boards after), in-app season download, desktop window and installer workflow |
 
 Known limits, said out loud to coaches: the plan is silent on about half of pitches; one calibration check fails (swing value slope 1.086); nothing tested at Single-A yet.
 
