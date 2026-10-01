@@ -147,7 +147,9 @@ def build_plan(
                 cls = "CONDITIONAL"   # contact-first: not worth a swing that likely misses
             cell_out[f"{pt}|{i}|{j}"] = {"swing": round(v.swing_ev, 4), "take": round(v.take_ev, 4),
                                          "delta": round(v.delta, 4), "cls": cls, "se": round(se, 4),
-                                         "n_h": round(float(sup["whiff"][n]), 1), "low_support": low_support}
+                                         "n_h": round(float(sup["whiff"][n]), 1), "low_support": low_support,
+                                         "whiff": round(p["whiff"], 4), "foul": round(p["foul"], 4), "xw": round(p["xw"], 4),
+                                         "p_cs": round(float(p_cs), 4)}
             if cls == "CONDITIONAL":
                 continue
             x0, z0 = X_RANGE[0] + i * step, Z_RANGE[0] + j * step

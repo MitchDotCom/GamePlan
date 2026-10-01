@@ -116,7 +116,10 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
             "p": hit, "p_cs": zm.p(np.array([s.x_away for s in test]), np.array([s.z for s in test]), sb, st,
                                    strikes=np.array([s.strikes for s in test]),
                                    balls=np.array([s.balls for s in test]) if zone_balls else None),
+            "tto": np.array([min(max(s.tto or 1, 1), 3) for s in test]),
         }
+        f["p_cs_strikes"] = zm.p(np.array([s.x_away for s in test]), np.array([s.z for s in test]), sb, st,
+                                 strikes=np.array([s.strikes for s in test]))
         f["value"] = np.array([
             realized_value(s.swing, s.whiff, s.xwoba, s.take_call, s.balls, s.strikes, DEFAULT) is None and np.nan
             or realized_value(s.swing, s.whiff, s.xwoba, s.take_call, s.balls, s.strikes, DEFAULT)

@@ -221,3 +221,19 @@ def test_three_ball_feature_and_zone_groups():
     zm = CalledStrikeModel(rows)
     assert set(k for k in zm.trees if isinstance(k, tuple)) == {(3, 0)}
     assert zm.p(0.85, 2.5, strikes=0, balls=3)[0] > zm.p(0.85, 2.5, strikes=0, balls=0)[0] + 0.2
+
+
+def test_path_styles_are_consistent_with_the_value_plan():
+    from gameplan.path_variants import cell_region, style_cells
+    league, hero = _rows(3000, 2), _rows(600, 3, hero=True)
+    m = ContactModel(hero, league, mode="shape")
+    ars = {"FF": ArsenalPitch("FF", 1.0, 93, 14, 0, -5, 500)}
+    snap = build_plan(m, Hitter("h"), "p", ars, Situation(1, 1), game_id="g")
+    value, contact, hunt = (style_cells(snap, s) for s in ("VALUE", "CONTACT", "HUNT"))
+    assert all(value[k]["cls"] == snap.cells[k]["cls"] for k in snap.cells)               # VALUE changes nothing
+    assert not any(c["cls"] == "GO" and c["whiff"] > 0.22 for c in contact.values())       # contact style never swings at likely misses
+    n_go = sum(c["cls"] == "GO" for c in hunt.values())
+    assert n_go <= 4 and all(c["cls"] in ("GO", "NO_GO") for c in hunt.values())            # hunt: a few spots, take the rest
+    two = build_plan(m, Hitter("h"), "p", ars, Situation(1, 2), game_id="g")
+    assert all(style_cells(two, "HUNT")[k]["cls"] == two.cells[k]["cls"] for k in two.cells)  # protect at two strikes
+    assert cell_region(2, 2) == "middle" and cell_region(0, 0) == "low-in" and cell_region(4, 5) == "high-away"
