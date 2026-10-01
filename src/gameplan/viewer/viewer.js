@@ -101,8 +101,7 @@ function arsenalCard(hid,starterName){const a=G.arsenal[hid];if(!a)return "";
   ${curveSVG(a)}<div class="tw"><table><tr><th>Pitch</th><th class="num">Use</th><th class="num">Velo</th><th class="num">Swings</th><th class="num">Whiff <span class="mut">lg</span></th><th class="num">Damage <span class="mut">lg</span></th><th class="num">Edge</th><th class="num">Bat path</th><th>Plane fit</th></tr>${rows}</table></div>
  <details style="margin-top:var(--s2)"><summary>Where he damages</summary><div class="tw"><table><tr><th>Pitch group</th><th>Zone</th><th class="num">Swings</th><th class="num">Damage <span class="mut">lg</span></th><th>For him</th></tr>${gr}</table></div></details>
  <details style="margin-top:var(--s2)"><summary>Definitions</summary><p class="note">Damage: xwOBA on contact, counting zero for misses and fouls. Figures shrink toward the league (lg) when his sample is thin. Edge: his damage minus the league's. Bat path: his usual attack angle minus the pitch's approach angle.</p></details></div>`}
-function decisionSummary(tot){let sw={damage:0,average:0,weak:0},tk=0;tot.forEach(p=>p.pitches.forEach(q=>{if(!q.dmg||/bunt|pitchout/.test(q.desc))return;if(q.swing)sw[q.dmg.cat]++;else if(q.dmg.cat==="damage")tk++}));
- return sw.damage+sw.average+sw.weak?`<span title="Swings by how well the hitter damages that pitch group and zone">Swings: <b>${sw.damage}</b> damage, <b>${sw.average}</b> average, <b>${sw.weak}</b> weak spot</span><span title="Damage pitches the hitter took"><b>${tk}</b> damage pitches taken</span>`:""}
+function decisionSummary(tot){let sw={damage:0,average:0,weak:0},tk=0;tot.forEach(p=>p.pitches.forEach(q=>{if(!q.dmg||/bunt|pitchout/.test(q.desc))return;if(q.swing)sw[q.dmg.cat]++;else if(q.dmg.cat==="damage")tk++}));return {sw,tk}}
 function skipBox(p){const s=skipInfo(p);
  if(s.skipped)return `<div class="skipbar">Skipped: ${s.reason} (${s.by==="auto"?"automatic":"coach"}). ${SKIPMODE==="exclude"?"Excluded from":"Included in"} totals. <button data-incl="${p.id}" class="noprint">Include</button></div>`;
  return `<div class="logrow noprint"><select id="skipwhy" aria-label="Reason to skip">${SKIP_WHY.map(w=>`<option>${w}</option>`).join("")}</select><button data-skip="${p.id}">Skip at-bat</button>${s.overridden?`<span class="mut">Restored (flagged: ${s.reason}).</span>`:""}</div>`}
@@ -114,11 +113,11 @@ function paPanel(){const p=G.pas.find(x=>x.id===SELPA);if(!p)return "";
  return `<div class="card"><div class="head"><div><div class="mut">${p.half==="Top"?"Top":"Bottom"} ${p.inning} \u00b7 ${p.team}</div><div class="name">${p.batter_name} (${p.stand}) vs. ${p.pitcher_name}</div>
  <div><span class="chip">${p.result}</span> <span class="chip">${p.vs_starter?"Starter: plan applies":"Reliever: no plan"}</span></div></div>
  ${st?`<div class="stats" style="margin:0"><span>Decision value <b>${sgn(st.dv)}</b> runs</span><span><b>${st.bad}</b> below alternative</span></div>`:""}</div>${skipBox(p)}
- <div class="zonewrap"><div class="zonecol">${zoneSVG(codes,deltas,{stand:p.stand,pitches:p.pitches,sel:SELPITCH,szTop:q.sz_top,szBot:q.sz_bot,showAll:SHOWALL})}
+ <div class="zonewrap"><div class="zonecol"><div class="zonecard">${zoneSVG(codes,deltas,{stand:p.stand,pitches:p.pitches,sel:SELPITCH,szTop:q.sz_top,szBot:q.sz_bot,showAll:SHOWALL})}
   <div class="legend"><span><i class="sw" style="background:${mix(.12)}"></i>Swing</span><span><i class="sw" style="background:${mix(-.12)}"></i>Take</span><span><i class="sw" style="background:var(--mid)"></i>No call</span><span>Outline: his zone</span></div>
   <div class="legend"><span><i class="dotk" style="background:var(--panel)"></i>Ball</span><span><i class="dotk" style="background:var(--k-called)"></i>Called strike</span><span><i class="dotk" style="background:var(--k-whiff)"></i>Swinging strike</span><span><i class="dotk" style="background:var(--k-foul)"></i>Foul</span><span><i class="dotk" style="background:var(--k-play)"></i>In play</span></div>
   <div class="seq noprint">${chips}</div>
-  <div class="stepper noprint"><button data-step="-1">Previous</button><button data-step="1">Next</button><label class="f"><input type="checkbox" id="showall" ${SHOWALL?"checked":""}> All pitches</label></div></div>
+  <div class="stepper noprint"><button data-step="-1">Previous</button><button data-step="1">Next</button><label class="f"><input type="checkbox" id="showall" ${SHOWALL?"checked":""}> All pitches</label></div></div></div>
   <div class="detcol"><p class="big">Pitch ${q.n} of ${n}: ${pname(q.type)}${q.velo?", "+q.velo.toFixed(1)+" mph":""}</p>
    <dl class="det"><dt>Count</dt><dd>${q.count}</dd><dt>Situation</dt><dd>${q.outs} out${q.outs===1?"":"s"}, ${basesText(q.bases)}, ${leadText(q.lead)}</dd><dt>Location</dt><dd>${where(q)}</dd>
    <dt>Plan</dt><dd>${pl?callWord(pl.call)+(pl.delta!=null?` <span class="mut" title="Swing minus take, in wOBA">(${sgn(pl.delta)})</span>`:""):"No plan (reliever)"}</dd><dt>Hitter</dt><dd>${doWord(q)}, ${q.desc}</dd>
@@ -127,12 +126,16 @@ function paPanel(){const p=G.pas.find(x=>x.id===SELPA);if(!p)return "";
    ${p.pitches.some(x=>x.plan&&x.plan.spot)?`<p class="note">Runner on third, under 2 outs: use the selector at the top to switch policy.</p>`:""}
    <div class="tw"><table style="margin-top:var(--s4)"><tr><th>#</th><th>Count</th><th>Pitch</th><th>Location</th><th>Hitter</th><th>Plan</th><th class="num">Value</th><th>Review</th></tr>${rows}</table></div></div></div>
  <div class="logrow noprint"><button data-hit="${p.batter}">Pregame: ${last(p.batter_name)}</button></div></div>`}
-function gameView(){const lg=`<p class="note">Click a plate appearance. Faded: reliever, no plan. Dashed: skipped.</p>`;
+function gameView(){
  const inView=p=>TEAM==="all"||p.half===TEAM;const tot=G.pas.filter(p=>p.vs_starter&&inView(p)&&counted(p));const nSkip=G.pas.filter(p=>inView(p)&&skipInfo(p).skipped).length;
- let dv=0,bad=0,pn=0,silent=0;tot.forEach(p=>{const s=paStats(p);dv+=s.dv;bad+=s.bad;pn+=s.n;silent+=s.silent});
+ let dv=0,bad=0,pn=0,silent=0;tot.forEach(p=>{const s=paStats(p);dv+=s.dv;bad+=s.bad;pn+=s.n;silent+=s.silent});const ds=decisionSummary(tot);
  const skipCtl=`<label class="f noprint">Skipped at-bats (${nSkip}) <select id="skipmode"><option value="exclude" ${SKIPMODE==="exclude"?"selected":""}>Excluded from totals</option><option value="include" ${SKIPMODE==="include"?"selected":""}>Included in totals</option></select></label>`;
- return `<div class="card">${innings()}<div class="stats"><span><b>${tot.length}</b> plate appearances vs. starters</span><span title="Model value of the choice made versus the alternative, in runs">Decision value <b>${sgn(dv)}</b> runs</span><span><b>${bad}</b> below alternative</span><span title="The plan stays silent when evidence is thin or the options are close">Plan gives a call on <b>${pct(pn?(pn-silent)/pn:0)}</b> of pitches</span>${decisionSummary(tot)}</div>
- <div class="logrow">${skipCtl}</div>${lg}</div><div style="margin-top:var(--s4)">${paPanel()}</div>`}
+ const tile=(l,v,tip)=>`<div class="tile" title="${tip}"><div class="tl">${l}</div><div class="tv">${v}</div></div>`;
+ return `<div class="hero"><div class="hlab" title="Model value of the choices made versus the alternatives, in runs">Decision value against the starters</div><div class="hnum">${sgn(dv)}<small>runs</small></div>
+ <div class="hrow"><span class="delta ${bad>0?"dn":""}">${bad} choices below the alternative</span><span class="hlab">${tot.length} plate appearances</span></div>
+ <div class="tiles">${tile("Plan gives a call",pct(pn?(pn-silent)/pn:0),"Share of pitches with a swing or take call. The plan stays silent when evidence is thin or the options are close.")}${tile("Swings at damage pitches",ds.sw.damage,"Swings at pitch groups the hitter damages")}${tile("Swings at average pitches",ds.sw.average,"Swings at pitch groups near his average")}${tile("Swings at weak spots",ds.sw.weak,"Swings at pitch groups where he does little damage")}${tile("Damage pitches taken",ds.tk,"Pitches in his damage groups that he took")}</div>
+ <div class="hrow" style="margin-top:var(--s4)">${skipCtl}</div></div>
+ <div class="card" style="margin-top:var(--s4)">${innings()}<p class="note">Click a plate appearance. Faded: reliever, no plan. Dashed: skipped.</p></div><div style="margin-top:var(--s4)">${paPanel()}</div>`}
 /* ---------------- pregame board ---------------- */
 const NAME={VALUE:"Value plan",CONTACT:"Contact-capped",HUNT:"Hunt a spot"};
 const DESC={VALUE:"Swing where swinging beats taking.",CONTACT:"Fewer swings that miss; adds near-even contact swings.",HUNT:"Sit on one pitch type. Experimental: the model cannot value anticipation."};
