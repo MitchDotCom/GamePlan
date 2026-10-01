@@ -61,6 +61,7 @@ class ColumnMap:
     hb_convention: str = "batter_relative"               # or "catcher_view" (+ toward first base side)
     plate_x_sign: float = 1.0                            # -1 if your + is toward third base
     system: str = "unknown"
+    hb_sign: float = 1.0                                 # -1 if your horizontal break has the opposite sign convention
 
     @classmethod
     def from_json(cls, text: str) -> "ColumnMap":
@@ -161,7 +162,7 @@ def convert(text: str, cmap: ColumnMap, profile: Optional[DataProfile] = None, x
         if ivb is not None:
             rec["pfx_z"] = _fmt((ivb * LENGTH_TO_FT[cmap.units.get("ivb", "in")] * 12.0 + off.get("ivb_in", 0.0)) / 12.0) if cmap.units.get("ivb", "in") in ("in", "ft", "cm", "m") else ""
         if hb is not None:
-            hb_ft = hb * LENGTH_TO_FT[cmap.units.get("hb", "in")] + off.get("hb_in", 0.0) / 12.0
+            hb_ft = hb * cmap.hb_sign * LENGTH_TO_FT[cmap.units.get("hb", "in")] + off.get("hb_in", 0.0) / 12.0
             if cmap.hb_convention == "catcher_view":
                 rec["pfx_x"] = _fmt(hb_ft)
                 rec["api_break_x_batter_in"] = _fmt(-hb_ft if stand == "R" else hb_ft)   # Savant: R: -pfx_x, L: +pfx_x (measured)
