@@ -21,9 +21,28 @@ from .mockup import (Engine, _deltas, _encode_cells, _flip, build_board, load_ev
 from .matchup import CELL_IN, X_RANGE, Z_RANGE, review_pitch
 from .models import Action, Pitch, Result, Swing
 from .path_variants import cell_region
+from .arsenal_fit import band, classify, hitter_fit, league_baseline, zone_bucket
 from .savant import parse_swings
+from .swing_traits import HitterTraits, _design
 
 STEP = CELL_IN / 12.0
+TRAIT_KEY = {"bat_speed": "bs", "swing_length": "sl", "attack_angle": "aa", "tilt": "tilt"}
+
+
+def _num(v, nd=1):
+    try:
+        return round(float(v), nd) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _expected(ht, sw):
+    """{trait key: [his expected, league expected]} for this swing's pitch and count; nothing the swing itself produced."""
+    exp, keep = ht.expected_for([sw])
+    if not keep:
+        return None
+    X, _, _ = _design([sw])
+    return {TRAIT_KEY[t]: [round(float(v[0]), 2), round(float(ht.league.predict(X, t)[0]), 2)] for t, v in exp.items()}
 DESC = {"ball": "ball", "blocked_ball": "ball in the dirt", "called_strike": "called strike", "swinging_strike": "swinging strike",
         "swinging_strike_blocked": "swinging strike", "foul": "foul", "foul_tip": "foul tip", "hit_into_play": "in play",
         "hit_by_pitch": "hit by pitch", "foul_bunt": "foul bunt", "missed_bunt": "missed bunt", "pitchout": "pitchout",
@@ -65,6 +84,9 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
     sw_by_key = {(s.at_bat, s.pitch_no): s for s in parse_swings(game_text, include_takes=True) if s.game_pk == game_pk}
     events = load_events(league_dir, date)
     base = Engine(events, [], date, "0")
+    print("league baseline for damage and plane fit", flush=True)
+    lg = league_baseline(base)
+    traits: dict = {}
     pcache = str(pathlib.Path(cache_dir) / "pitcher_names_2025.csv")
     names = {r["batter"]: _flip(r.get("player_name", "")) for r in rows}
     pnames: dict[str, str] = {}
@@ -100,8 +122,9 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
             stands[h] = Counter(st).most_common(1)[0][0] if st else "R"
         print(f"{half}: {team[half]} batting vs {pname(starter)}; {len(faced)} hitters faced the starter", flush=True)
         board = build_board(eng, faced, names, stands, pname(starter))
+        fits = {h: hitter_fit(eng, lg, h, eng.pitcher_rows) for h in faced}
         sides[half] = {"batting": team[half], "fielding": fielding[half], "starter": starter, "starter_name": pname(starter),
-                       "board": board, "engine": eng, "stands": stands}
+                       "board": board, "engine": eng, "stands": stands, "fit": fits}
 
     out_pas = []
     for pa in pas:
@@ -129,6 +152,18 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
                 i, j = int((sw.x_away - X_RANGE[0]) // STEP), int((sw.z - Z_RANGE[0]) // STEP)
                 rec["region"] = cell_region(i, j) if 0 <= i < 5 and 0 <= j < 6 else "off the grid"
                 rec["swing"] = bool(sw.swing)
+                fit = side["fit"].get(h) if is_starter else None
+                if fit is not None and sw.z is not None:
+                    pcs = float(eng.zone.p([sw.x_away], [sw.z], [sw.sz_bot or 1.5], [sw.sz_top or 3.5], strikes=[s], balls=[b])[0])
+                    rec["dmg"] = classify(fit, sw.pitch_type, zone_bucket(pcs))
+                if sw.swing and sw.attack_angle is not None:
+                    if h not in traits:
+                        traits[h] = HitterTraits.fit([x for x in eng.by_hitter[h] if x.swing], eng.league_traits)
+                    vba = None if sw.vaa is None else sw.attack_angle - sw.vaa
+                    rec["bt"] = {"bs": _num(sw.bat_speed), "sl": _num(sw.swing_length, 2), "aa": _num(sw.attack_angle), "tilt": _num(sw.tilt),
+                                 "ev": _num(r.get("launch_speed")), "la": _num(r.get("launch_angle"), 0),
+                                 "xw": _num(r.get("estimated_woba_using_speedangle"), 3), "vba": _num(vba), "band": band(vba),
+                                 "exp": _expected(traits[h], sw)}
                 if is_starter and None not in (sw.velo, sw.ivb, sw.vaa):
                     call = "SWINGING_STRIKE" if (sw.swing and sw.whiff) else ("IN_PLAY" if sw.swing and (sw.xwoba is not None or sw.woba is not None)
                                                                                else "FOUL" if sw.swing else
@@ -168,8 +203,9 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
                         "lead": _int(first["bat_score"]) - _int(first["fld_score"]), "stand": stand,
                         "dv": round(dv_total, 2) if is_starter else None, "bad": n_bad if is_starter else None, "pitches": pitches})
     return {"date": date, "game_pk": game_pk, "away": away, "home": home,
-            "sides": {half: {k: v for k, v in sd.items() if k not in ("engine", "stands")} for half, sd in sides.items()},
+            "sides": {half: {k: v for k, v in sd.items() if k not in ("engine", "stands", "fit")} for half, sd in sides.items()},
             "pas": out_pas,
+            "arsenal": {h: fit for sd in sides.values() for h, fit in sd["fit"].items()},
             "swing_profiles": {p["batter"]: swing_profile(sides[p["half"]]["engine"], p["batter"]) for p in out_pas}}
 
 
