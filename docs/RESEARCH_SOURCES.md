@@ -1,0 +1,20 @@
+# Research sources (working list)
+
+Findings from a first pass of web research (search snippets and a few readable pages). Several methodology pages were not reachable from the build environment (FanGraphs library, Baseball Prospectus, MLB.com, arXiv, Substack, Baseball America, Driveline), so details for those come from search summaries only and must be confirmed from the primary page before anything is built on them. A full research report (run separately) will replace this list.
+
+Rule for this project: only openly licensed or published methods are used, re-implemented from their descriptions. A source whose license is unstated or restrictive is read, not copied.
+
+| Area | Source | What it gives | Status |
+|---|---|---|---|
+| Pitch quality | FanGraphs Stuff+, Location+, Pitching+ (Sarris, Bay); PitchingBot (Grove, XGBoost; Overall, Stuff and Command models) | Physical-characteristics pitch models trained against run value; 100 = average. Export is Members Only and MLB only | Proprietary; use leaderboard export as a comparison column |
+| Pitch quality | Baseball Prospectus StuffPro / PitchPro | Outcome probabilities (ML) times run values, with batter side and count; PitchPro adds location; runs per 100 pitches | Proprietary; method matches our probability-times-run-value structure |
+| Pitch quality | github Sakshi3027/redsox-stuff-model | XGBoost, 2.14M pitches 2022-24, run-value target; movement relative to the pitcher's own fastball dominates; year-over-year r 0.74 across 508 pitchers | Code only, no weights, license not stated: read, re-implement |
+| Pitch quality | github michaelbaker-2026/michaels-stuff-plus-model | XGBoost and LightGBM, 10 features, year-over-year r 0.49-0.62, whiff AUC 0.76 | Same |
+| Swing mechanics | Savant bat tracking (bat speed, swing length, attack angle, attack direction, swing path tilt over the last 40 ms, intercept point, squared-up, blast) | Public per-swing measures, MLB since 2024; present on about 98% of swings in a public minor league sample | Direct. Swing shape changes with pitch height, so condition on the pitch |
+| Swing mechanics | Swing+ (Thomas), aSwing+ / aDecision+ (Salorio) | XGBoost on bat tracking to predict xwOBAcon (R2 about 0.63); swing-decision value by location, approach angle and count | Method reference |
+| Swing decisions | SEAGER (Baseball Prospectus), Decision Value (PLV), SwRV, Savant swing/take | Run value of swing versus take by count and location | Same family as the engine's decision value; Savant replication done (r 0.85 realized production, 0.48 for the expectation-based value) |
+| Minor league data | Savant Minor League Statcast Search | Triple-A all games since 2023, Florida State League Single-A since 2021; CSV export works; same columns as MLB incl. bat tracking, arm angle, extension | Public stand-in for sample sizes. California League not included |
+| Plan generation | NFL fourth-down bot and expected-points models; NBA quantified shot quality vs shot probability (Second Spectrum); soccer xT / VAEP; tennis serve and return models (mixed strategies, Bayesian hierarchical shrinkage, point importance by score); cricket matchup plans (target zone plus sequence with expected outcome per option) | Design analogues: argmax of expected value and a measured gap to the coach; decision quality separated from execution; value surfaces rather than frequency maps | Design checks only |
+| Pitch sequencing | Pitch-prediction literature | Pitcher, count, batter side and previous pitch predict the next pitch type; accuracy highest at 3-0 and 2-0, lowest at 1-2 and 0-2 | Starter usage model |
+| Game theory | Kovash and Levitt (2009) and later work | Pitch selection is predictable and serially correlated; later work disputes the minimax conclusion | Context for rotating options |
+| Approach vocabulary | Driveline "Developing a Baseball Hitting Approach", ABCA two-strike hitting, MLB two-strike coverage | Hunt a pitch or location, cover a zone, sit fast adjust slow, two-strike protect, situational | Basis for the tag axes in docs/PLAN notes |
