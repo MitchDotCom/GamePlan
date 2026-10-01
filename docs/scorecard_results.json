@@ -49,11 +49,11 @@
  },
  "sep.count_removal_hurts": {
   "note": "",
-  "value": -0.00021835934155690253
+  "value": 0.01251474209281307
  },
  "sep.disagree_ci_low": {
   "note": "",
-  "value": -0.0009134954517189812
+  "value": -0.09573471682294926
  },
  "skill.whiff_yoy_ci_low": {
   "note": "",

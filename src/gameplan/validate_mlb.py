@@ -79,10 +79,10 @@ def v1_zone(events_by_hitter, cutoff):
 
 # ------------------------------------------------------------------ shared per-hitter frames
 
-def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=300, count_cal=None, mode="shapecount", count_bw=None, zone_balls=True):
+def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=300, count_cal=None, mode="shapecount", count_bw=None, zone_balls=True, league_kw=None, hitter_kw=None):
     """Per hitter: held-out pitches vs starters with hitter-model predictions for the pitch's own
     location and shape. Returns a list of dicts of aligned numpy arrays."""
-    league = ContactModel([], league_train, mode=mode, count_bw=count_bw)
+    league = ContactModel([], league_train, mode=mode, count_bw=count_bw, **(league_kw or {}))
     out = []
     for b, rows in events_by_hitter.items():
         train = [s for s in rows if s.swing and s.date < cutoff]
@@ -90,7 +90,7 @@ def _frames(events_by_hitter, cutoff, start_keys, league_train, zm, min_train=30
                 and s.x_away is not None and None not in (s.velo, s.ivb, s.hb, s.vaa)]
         if len(train) < min_train or not test:
             continue
-        m = ContactModel.for_hitter(train, league)
+        m = ContactModel.for_hitter(train, league, **(hitter_kw or {}))
         Q = np.array([raw_swing(s, mode) for s in test], float)
         lg, hit = m.predict_pair(Q)
         sup = m.support(Q)
