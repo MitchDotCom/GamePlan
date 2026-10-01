@@ -158,7 +158,9 @@ function wire(){
  document.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{LOG[key]=Object.assign(LOG[key]||{},meta(),{path:b.dataset.pick});saveLog();render()});
  const sv=$("#lg-save");if(sv){const cur=LOG[key]||{};$("#lg-path").value=cur.path||"";$("#lg-why").value=cur.why||"";$("#lg-note").value=cur.note||"";sv.onclick=()=>{LOG[key]=Object.assign(cur,meta(),{path:$("#lg-path").value,why:$("#lg-why").value,note:$("#lg-note").value});saveLog();render()}}
  const ex2=$("#lg-export");if(ex2)ex2.onclick=()=>{const rows=[["date","starter","hitter","hitter_id","tto","count","offered","path","reason","note","saved"]].concat(Object.values(LOG).map(r=>[r.date,r.starter,r.hitter,r.hitter_id,r.tto,r.count,r.offered||"",r.path||"",r.why||"",(r.note||"").replace(/"/g,"'"),r.saved]));
-  const csv=rows.map(r=>r.map(x=>'"'+String(x==null?"":x)+'"').join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="gameplan_decisions.csv";a.click()}}
+  const csv=rows.map(r=>r.map(x=>'"'+String(x==null?"":x)+'"').join(",")).join("\n");let box=$("#lg-csv");if(!box){box=document.createElement("div");box.id="lg-csv";ex2.parentNode.parentNode.appendChild(box)}
+  box.innerHTML='<div class="mut" style="margin-top:8px">Copy this into a spreadsheet.</div><textarea id="lg-csv-text" rows="8" style="width:100%"></textarea><div class="logrow"><button id="lg-copy">Copy</button></div>';
+  const ta=$("#lg-csv-text");ta.value=csv;ta.select();$("#lg-copy").onclick=()=>{ta.select();try{navigator.clipboard.writeText(csv).catch(()=>{})}catch(e){}}}}
 function render(){document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===VIEW));
  $("#main").innerHTML=VIEW==="game"?gameView():VIEW==="board"?boardView():VIEW==="hitters"?hittersView():logView();wire()}
 render();
