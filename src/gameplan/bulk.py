@@ -24,7 +24,7 @@ KEEP = [
     "bat_speed", "swing_length", "attack_angle", "attack_direction", "swing_path_tilt",
     "pitcher_days_since_prev_game", "n_priorpa_thisgame_player_at_bat", "bat_score", "fld_score",
     "on_1b", "on_2b", "on_3b", "outs_when_up", "delta_run_exp", "events",
-    "delta_home_win_exp", "home_win_exp",
+    "delta_home_win_exp", "home_win_exp", "home_team", "away_team",
 ]
 
 
