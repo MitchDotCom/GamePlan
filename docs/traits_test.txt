@@ -1,0 +1,7 @@
+
+== 2025 test (swings vs starters from 2025-07-01): 145 hitters, 32175 held-out swings, 12269 balls in play
+   block     whiff: log-loss gain per swing (95% CI)         damage: squared-error gain per BIP (95% CI)
+   PATH      +0.00051 [-0.00007, +0.00107] no      +0.000070 [-0.000078, +0.000221] no
+   SPEED     +0.00018 [-0.00016, +0.00055] no      +0.000093 [-0.000101, +0.000293] no
+   PERSONAL  +0.00179 [+0.00088, +0.00270] PASS    +0.000005 [-0.000068, +0.000073] no
+   ALL       +0.00164 [+0.00058, +0.00266] PASS    +0.000053 [-0.000162, +0.000275] no
