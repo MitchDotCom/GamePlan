@@ -180,3 +180,15 @@ What did not hold up, or moved:
 - **Pilot (docs/pilot_reliability.txt):** process metrics are usable for hitters over a season: decision value per 100 pitches split-half r .48 (full-length reliability .65), chase rate .64 (.78), zone-swing rate .65 (.79), compliance .49 (.66). Stepped-rollout power for a 0.005-run effect with 12 hitters is 0.14.
 
 Caveat on scorecard measure 6: it passes only at 2,500 pitches per arm (minimum detectable 0.0166 runs); at 250 pitches it is 0.053.
+
+
+## Run the app on your computer
+
+```bash
+git clone <this repo> && cd GamePlan
+pip install -e .
+gameplan --download --open     # first run only: downloads the 2025 season of public pitch data, then opens the app
+gameplan --open                # every later run
+```
+
+The app runs only on your computer (http://127.0.0.1:8765). Pick a game in the library; Build prepares a new one (about 5 minutes, with each hitter's pregame board filling in after). Your saved decisions and skips are stored in `data/app/`.

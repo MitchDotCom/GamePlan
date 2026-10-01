@@ -250,10 +250,18 @@ def main(argv=None) -> int:
     ap.add_argument("--app-dir", default="data/app")
     ap.add_argument("--names", default="data/pitcher_names_2025.csv")
     ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--open", action="store_true", help="open the app in your browser")
+    ap.add_argument("--download", action="store_true", help="first download the 2025 season of pitch data into --league (about 195 files)")
     a = ap.parse_args(argv)
+    if a.download:
+        from .bulk import fetch_league_days, season_days
+        fetch_league_days(season_days("2025-03-18", "2025-09-28"), a.league)
     app = App(a.league, a.app_dir, a.names)
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(app))
     print(f"GamePlan running at http://127.0.0.1:{a.port} (Ctrl+C to stop)", flush=True)
+    if a.open:
+        import webbrowser
+        webbrowser.open(f"http://127.0.0.1:{a.port}/")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

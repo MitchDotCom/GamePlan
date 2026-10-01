@@ -8,6 +8,9 @@ dependencies = ["numpy", "scipy"]
 [project.optional-dependencies]
 dev = ["pytest"]
 
+[project.scripts]
+gameplan = "gameplan.server:main"
+
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"

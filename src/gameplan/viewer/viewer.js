@@ -219,7 +219,7 @@ async function loadLib(){try{const r=await (await fetch("/api/games")).json();LI
 function libraryView(){const q=LIB.q.toLowerCase(),dates=[...new Set(LIB.games.map(g=>g.date))];
  const rows=LIB.games.filter(g=>(!LIB.date||g.date===LIB.date)&&(!LIB.built||g.status==="ready")&&(!q||[g.away,g.home,g.away_starter,g.home_starter].join(" ").toLowerCase().includes(q)));
  const nReady=LIB.games.filter(g=>g.status==="ready").length;
- const btn=g=>g.status==="ready"?`<button data-open="${g.game_pk}">Open</button>`:g.status==="building"?`<span class="chip">Building</span>`:`<button data-build="${g.game_pk}">${g.status==="failed"?"Retry build":"Build"}</button>`;
+ const btn=g=>g.status==="ready"?`${g.boards_running?`<span class="chip" title="Pregame boards fill in one hitter at a time">Boards loading (${g.boards_done})</span> `:""}<button data-open="${g.game_pk}">Open</button>`:g.status==="building"?`<span class="chip">Building</span>`:`<button data-build="${g.game_pk}">${g.status==="failed"?"Retry build":"Build"}</button>`;
  return `<div class="hero"><div class="hlab">Game library</div><div class="hnum">${nReady}<small>built of ${LIB.games.length} games</small></div>
  <div class="hrow noprint"><label class="f">Date <select id="libdate"><option value="">All dates</option>${dates.map(d=>`<option value="${d}" ${d===LIB.date?"selected":""}>${d}</option>`).join("")}</select></label>
  <label class="f">Search <input type="text" id="libq" value="${LIB.q.replace(/"/g,"")}" placeholder="Team or pitcher"></label><label class="f"><input type="checkbox" id="libbuilt" ${LIB.built?"checked":""}> Built only</label></div>
