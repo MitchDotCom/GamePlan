@@ -32,10 +32,14 @@ button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .axis{font-size:11px;color:var(--ink2)}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
 details summary{cursor:pointer;color:var(--ink2)}
+.logrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+select,input[type=text]{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+.chosen{outline:2px solid var(--accent)}
+.note{font-size:12px;color:var(--ink2)}
 @media print{.noprint{display:none}body{font-size:12px}.card{break-inside:avoid}}
 </style></head><body><div class="wrap">
 <h1 id="title"></h1><div class="mut" id="sub"></div>
-<div class="banner">Mock-up built from public 2025 MLB data with the current engine, fit only on games before the date. For feedback on format and usefulness. Not validated for Single-A, and the three approach styles are illustrative, not the final path generator.</div>
+<div class="banner">Mock-up built from public 2025 MLB data with the current engine, fit only on games before the date. For feedback on format and usefulness. Not validated for Single-A, and the approach styles are illustrative, not the final path generator.</div>
 <h2>Starter profile</h2><div class="card" id="starter"></div>
 <h2>Lineup</h2><div class="card"><table id="lineup"></table><div class="mut" style="margin-top:6px">Click a hitter. Support = tracked swings before the date (high 800+, medium 300+, thin under 300). Decision value is the post-game result against the plan, in runs; positive is better than the plan's other option.</div></div>
 <div id="hitter"></div>
@@ -52,7 +56,9 @@ details summary{cursor:pointer;color:var(--ink2)}
 const B = __DATA__;
 const $ = (s,r=document)=>r.querySelector(s);
 const NX=5, NZ=6;
-let H=0, TTO="1", CNT="0-0", PT=null;
+let H=0, TTO="1", CNT="0-0", PT=null, EXP=false;
+let LOG={};try{LOG=JSON.parse(localStorage.getItem("gameplanLog")||"{}")}catch(e){LOG={}}
+const saveLog=()=>{try{localStorage.setItem("gameplanLog",JSON.stringify(LOG))}catch(e){}};
 const pct=x=>(100*x).toFixed(0)+"%";
 const sgn=x=>(x>=0?"+":"")+x.toFixed(2);
 function mixColor(delta){const a=Math.min(Math.abs(delta)/0.12,1);const c=delta>=0?"var(--pos)":"var(--neg)";return `color-mix(in srgb, ${c} ${Math.round(20+60*a)}%, var(--mid))`}
@@ -78,22 +84,36 @@ function grid(codes,deltas){
 }
 const NAME={VALUE:"Value plan",CONTACT:"Contact-capped",HUNT:"Hunt a spot"};
 const DESC={VALUE:"Swing where swinging beats taking, take where the reverse.",CONTACT:"Put it in play: drop swings likely to miss, add swings likely to make contact that are close to even.",HUNT:"Sit on one pitch type and a few spots, take the rest. Reverts to the value plan at two strikes."};
+function viableOffered(){const h=B.hitters[H];const cn=h.tto[TTO][CNT];const vc=cn.differ.VALUE_vs_CONTACT>=0.05&&(cn.styles.CONTACT.value_per_100-cn.styles.VALUE.value_per_100)>=-0.5;return vc?"VALUE+CONTACT":"VALUE"}
 function hitter(){
  const h=B.hitters[H];const cn=h.tto[TTO][CNT];const types=Object.keys(cn.arsenal).sort((a,b)=>cn.arsenal[b].usage-cn.arsenal[a].usage);
  if(!PT||!types.includes(PT))PT=types[0];
  const tabs=["1","2","3"].map(t=>`<button class="${t===TTO?"on":""}" data-tto="${t}">Time through order ${t}${t==="3"?"+":""}</button>`).join("");
  let cnts="";for(let s=0;s<3;s++)for(let b=0;b<4;b++){const k=b+"-"+s;cnts+=`<button class="${k===CNT?"on":""}" data-c="${k}">${k}</button>`}
+ const expBtn=`<label class="mut"><input type="checkbox" id="exp" ${EXP?"checked":""}> show experimental hunt style (the model cannot value sitting on a pitch)</label>`;
  const chips=types.map(t=>`<button class="${t===PT?"on":""}" data-pt="${t}">${t} ${pct(cn.arsenal[t].usage)}</button>`).join("");
- const styles=["VALUE","CONTACT","HUNT"].map(st=>{const s=cn.styles[st];
+ const base=cn.styles.VALUE;
+ const viableC=cn.differ.VALUE_vs_CONTACT>=0.05&&(cn.styles.CONTACT.value_per_100-base.value_per_100)>=-0.5;
+ const show=["VALUE"].concat(viableC?["CONTACT"]:[]).concat(EXP?["HUNT"]:[]);
+ const card=st=>{const s=cn.styles[st];
   const diff=st==="CONTACT"?cn.differ.VALUE_vs_CONTACT:st==="HUNT"?cn.differ.VALUE_vs_HUNT:null;
-  return `<div class="card"><h3>${NAME[st]}</h3><div>${s.tags.map(t=>`<span class="chip">${t}</span>`).join("")}</div>
+  const key=[B.date,B.starter.id,h.id,TTO,CNT].join("|");const cur=(LOG[key]||{}).path;
+  return `<div class="card ${cur===st?"chosen":""}"><h3>${NAME[st]}${st==="HUNT"?" (experimental)":""}</h3><div>${s.tags.map(t=>`<span class="chip">${t}</span>`).join("")}</div>
   ${s.target?`<div class="mut">Hunt: ${s.target}</div>`:""}
   ${grid(s.cells[PT],cn.delta[PT])}
   <div class="mut">${DESC[st]}</div>
   <table style="margin-top:6px"><tr><td>Swing on</td><td class="num">${pct(s.swing_share)} of his pitches</td></tr>
   <tr><td>Whiff on swings</td><td class="num">${pct(s.whiff)}</td></tr><tr><td>xwOBA on contact</td><td class="num">${s.contact.toFixed(3)}</td></tr>
   <tr><td>Value if followed</td><td class="num">${sgn(s.value_per_100)} runs / 100 pitches</td></tr>
-  ${diff==null?"":`<tr><td>Differs from value plan</td><td class="num">${pct(diff)} of pitches</td></tr>`}</table></div>`}).join("");
+  ${diff==null?"":`<tr><td>Differs from value plan</td><td class="num">${pct(diff)} of pitches</td></tr>`}</table>
+  <div class="logrow noprint"><button data-pick="${st}">Use this plan</button></div></div>`};
+ const styles=show.map(card).join("")+(show.length===1?`<div class="card"><h3>One viable plan here</h3><div class="mut">${CNT.endsWith("-2")?"With two strikes the options collapse to protecting the plate.":cn.styles.VALUE.swing_share===0?"The model sees no pitch worth swinging at in this count.":"The other style differs on under 5% of pitches or gives up more than half a run per 100 pitches, so it is not offered."}</div></div>`:"");
+ const keyNow=[B.date,B.starter.id,h.id,TTO,CNT].join("|");const L=LOG[keyNow]||{};
+ const logBox=`<div class="card noprint"><h3>Coach decision for ${h.name} at ${CNT}, time through order ${TTO}</h3><div class="logrow">
+  <select id="lg-path"><option value="">Plan chosen</option><option value="VALUE">Value plan</option><option value="CONTACT">Contact-capped</option><option value="OWN">My own plan</option></select>
+  <select id="lg-why"><option value="">Reason</option><option>hitter feel/recent form</option><option>scouting report</option><option>game situation</option><option>development goal</option><option>model looks wrong</option><option>other</option></select>
+  <input type="text" id="lg-note" placeholder="note" size="28"><button id="lg-save">Save</button></div>
+  <div class="note">Saved on this device. ${Object.keys(LOG).length} decisions logged. <button id="lg-export">Export log (CSV)</button></div></div>`;
  const tg=(h.targets.groups||[]).map(g=>`<li>${g.family} pitches in the ${g.zone} zone, ${g.count}: he gives up ${g.his_rate.toFixed(1)} runs per 100 such pitches vs ${g.typical_rate.toFixed(1)} for a typical hitter (${g.n} pitches, ${g.excess_per_100.toFixed(2)} runs per 100 of all his pitches)</li>`).join("")||"<li class='mut'>not enough tracked pitches</li>";
  const r=B.review[h.id];let post="";
  if(r&&r.pitches){const row=x=>`<tr><td>PA ${x.pa}</td><td>${x.count}</td><td>${x.type}</td><td>${x.region}</td><td>${x.action}</td><td>${x.result.toLowerCase().replace("_"," ")}</td><td class="num">${x.dv_runs==null?"-":sgn(x.dv_runs)}</td></tr>`;
@@ -102,14 +122,30 @@ function hitter(){
   <div class="mut">Good ${r.process.GOOD||0} | close call ${r.process.NEUTRAL||0} | worse than the other option ${r.process.BAD||0} | not covered ${r.process.UNSCORED||0}</div>
   <div class="two"><div><h3>Best decisions</h3><table>${head}${r.best.map(row).join("")}</table></div><div><h3>Costliest decisions</h3><table>${head}${r.worst.map(row).join("")}</table></div></div>
   <details><summary>All ${r.pitches} pitches</summary><table>${head}${r.all.map(row).join("")}</table></details></div>`}
+ const sw=h.swing||{};const fmt=(t,k,d=1)=>sw[t]?sw[t][k].toFixed(d):"-";
+ const swingCard=sw.bat_speed?`<div class="card"><h3>Swing profile (bat tracking, shrunk toward the league)</h3><table>
+  <tr><th></th><th>His</th><th>League</th></tr>
+  <tr><td>Bat speed, middle pitch (mph)</td><td class="num">${fmt("bat_speed","mid")}</td><td class="num">${fmt("bat_speed","league_mid")}</td></tr>
+  <tr><td>Bat speed, two strikes (mph)</td><td class="num">${fmt("bat_speed","mid_two_strikes")}</td><td class="num">-</td></tr>
+  <tr><td>Swing length (ft)</td><td class="num">${fmt("swing_length","mid",2)}</td><td class="num">${fmt("swing_length","league_mid",2)}</td></tr>
+  <tr><td>Attack angle: low / middle / high pitch (deg)</td><td class="num">${fmt("attack_angle","low")} / ${fmt("attack_angle","mid")} / ${fmt("attack_angle","high")}</td><td class="num">${fmt("attack_angle","league_mid")} (mid)</td></tr>
+  ${sw.tilt?`<tr><td>Swing path tilt, middle pitch (deg)</td><td class="num">${fmt("tilt","mid")}</td><td class="num">${fmt("tilt","league_mid")}</td></tr>`:""}</table>
+  <div class="mut">Based on ${sw.bat_speed.n} tracked swings; ${(sw.bat_speed.kept*100).toFixed(0)}% of his own pattern is kept, the rest is the league average. Descriptive: not used in the plan yet.</div></div>`:"";
  $("#hitter").innerHTML=`<h2>${h.order}. ${h.name} (${h.stand}) <span class="badge">${h.profile.support} support</span></h2>
- <div class="card"><div class="tabs">${tabs}</div><div class="counts">${cnts}</div><div class="tabs">${chips}</div>
+ <div class="card"><div class="tabs">${tabs}</div><div class="counts">${cnts}</div><div class="tabs">${chips}</div><div>${expBtn}</div>
  <div class="mut">Showing ${h.name} against ${B.starter.name}'s ${PT} at ${CNT}, time through the order ${TTO}. G swing, x take, . no call (thin evidence or too close).</div>
- <div class="styles">${styles}</div></div>
- <div class="two" style="margin-top:12px"><div class="card"><h3>Development targets (his past decisions vs an average-hitter model)</h3><ul>${tg}</ul><div class="mut">Where his swing/take choices cost more than a typical hitter's so far. Descriptive, not a diagnosis.</div></div>${post}</div>`;
+ <div class="styles">${styles}</div>${logBox}</div>
+ <div class="two" style="margin-top:12px">${swingCard}<div class="card"><h3>Development targets (his past decisions vs an average-hitter model)</h3><ul>${tg}</ul><div class="mut">Where his swing/take choices cost more than a typical hitter's so far. Descriptive, not a diagnosis.</div></div>${post}</div>`;
+ const eb=document.getElementById("exp");if(eb)eb.onchange=()=>{EXP=eb.checked;hitter()};
  document.querySelectorAll("[data-tto]").forEach(b=>b.onclick=()=>{TTO=b.dataset.tto;hitter()});
  document.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{CNT=b.dataset.c;hitter()});
  document.querySelectorAll("[data-pt]").forEach(b=>b.onclick=()=>{PT=b.dataset.pt;hitter()});
+ document.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{const k=[B.date,B.starter.id,h.id,TTO,CNT].join("|");LOG[k]=Object.assign(LOG[k]||{},{path:b.dataset.pick,saved:new Date().toISOString(),hitter:h.name,hitter_id:h.id,starter:B.starter.name,date:B.date,tto:TTO,count:CNT});saveLog();hitter()});
+ const sv=document.getElementById("lg-save");if(sv){const k=[B.date,B.starter.id,h.id,TTO,CNT].join("|");const cur=LOG[k]||{};
+  document.getElementById("lg-path").value=cur.path||"";document.getElementById("lg-why").value=cur.why||"";document.getElementById("lg-note").value=cur.note||"";
+  sv.onclick=()=>{LOG[k]=Object.assign(cur,{path:document.getElementById("lg-path").value,why:document.getElementById("lg-why").value,note:document.getElementById("lg-note").value,saved:new Date().toISOString(),hitter:h.name,hitter_id:h.id,starter:B.starter.name,date:B.date,tto:TTO,count:CNT,offered:viableOffered()});saveLog();hitter()};
+  document.getElementById("lg-export").onclick=()=>{const rows=[["date","starter","hitter","hitter_id","tto","count","offered","path","reason","note","saved"]].concat(Object.values(LOG).map(r=>[r.date,r.starter,r.hitter,r.hitter_id,r.tto,r.count,r.offered||"",r.path||"",r.why||"",(r.note||"").replace(/"/g,"'"),r.saved]));
+   const csv=rows.map(r=>r.map(x=>'"'+String(x==null?"":x)+'"').join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="gameplan_decisions.csv";a.click()}}
 }
 lineup();hitter();
 </script></body></html>"""

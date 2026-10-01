@@ -110,6 +110,7 @@ class SwingRow:
     inning: Optional[int] = None
     woba: Optional[float] = None       # actual wOBA value on balls in play (no EV/LA needed)
     run_exp: Optional[float] = None    # delta_run_exp of the pitch
+    tilt: Optional[float] = None       # swing_path_tilt, degrees (Savant bat tracking; 2025+)
 
 
 def parse_swings(csv_text: str, include_takes: bool = False, foul_tip_as_whiff: bool = True,
@@ -169,6 +170,7 @@ def parse_swings(csv_text: str, include_takes: bool = False, foul_tip_as_whiff: 
             stand=stand, x_away=(x if stand == "R" else -x) if stand in ("R", "L") else None,
             hb=_hb_in(row), bat_speed=bs,
             swing_length=_f(row.get("swing_length")), attack_angle=_f(row.get("attack_angle")),
+            tilt=_f(row.get("swing_path_tilt")),
             squared_up=su, balls=int(_f(row.get("balls")) or 0), strikes=int(_f(row.get("strikes")) or 0),
         ))
     return out

@@ -1,0 +1,28 @@
+# Showing the game viewer to a hitting coach (10 minutes)
+
+Open `docs/gameview/game.html` in any browser (laptop is fine; it works offline). It is one real game from 2025 (Astros at Tigers, 2025-08-19), built from public data, with every plan fit only on games before that date.
+
+## Say this first (30 seconds)
+"This is a prototype built on public MLB data. For every hitter, count and time through the order, it shows where a hitter should swing and where he should take against this starter, and then it scores what actually happened. I want to know what is useful, what is noise, and what is missing."
+
+## Walk through (in this order)
+1. **Game tab.** Nine innings, both teams. Each box is a plate appearance (bar color: blue hit or walk, red strikeout, gray out; faded = reliever, no plan). Click one.
+2. **Pitch by pitch.** For every pitch against the starter: the plan at that count (G swing, x take, . no strong call), what the hitter did, the decision value in runs, and a small plate showing the plan with a dot where the pitch went. Ask: "Would you show this to the hitter on video? Which pitches?"
+3. **Runner on third.** Switch the selector at the top to "contact first" and look at a plate appearance with a runner on third and fewer than two outs. Ask: "Is this the policy you would want to control, and by hitter or by starter?"
+4. **Pregame board tab.** Pick a hitter, a time through the order, a count, a pitch. Show the two plans when they genuinely differ (value plan and contact-capped). At two strikes and some counts only one is offered, on purpose. Ask: "Are these two the right alternatives? What would you call them?"
+5. **Hitters tab.** Swing profile from bat tracking (attack angle low / middle / high, bat speed, swing length), shrunk toward the league. Descriptive only. Ask: "Does this match what you see in the cage?"
+6. **Save a decision** on the pregame board (plan, reason, note). Ask: "Is this how you would want to record your call?" Export the log as CSV.
+
+## Be upfront about limits
+- Public MLB data, one game, not tested at Single-A, not tied to the club's TrackMan or Hawk-Eye data yet.
+- Hitters' own past swings add little at these sample sizes; the plans are mostly driven by pitch shape and count. The hitter-specific part is the whiff and contact baseline and the bat-tracking profile.
+- Decision value compares the hitter's choice with what the model says is better at that count. It is not a measure of whether he hit the ball hard.
+- "Value if followed" is an upper bound.
+- A hunt-a-pitch style is hidden by default because the model cannot value sitting on a pitch.
+
+## Questions to write down
+1. What would you use in a pregame meeting? What would you skip?
+2. Are two plans per count useful? What words do you use for them?
+3. Which hitters' development targets look right or wrong?
+4. Which post-game pitches would you show on video?
+5. What is missing (a count, a situation, a pitch, a name for something)?

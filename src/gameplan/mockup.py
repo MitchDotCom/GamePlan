@@ -20,12 +20,13 @@ from collections import Counter, defaultdict
 import numpy as np
 
 from .coach import FAMILY_OF
-from .decision import evs_np
+from .decision import SituationConfig, SituationPolicy, evs_np
 from .matchup import CELL_IN, X_RANGE, Z_RANGE, Situation, build_plan, review_pitch
 from .models import Action, Hitter, Pitch, Result, Swing
 from .opportunity import LocationModel, SwingRateModel
 from .path_variants import all_styles, call_difference, cell_region, style_cells
 from .savant import SwingRow, fetch_csv, parse_swings
+from .swing_traits import HitterTraits, LeagueTraits
 from .shape import ArsenalBasis, ContactModel, PitcherState, arsenal_for_state, filter_starts, parse_pitches
 from .zone import CalledStrikeModel
 from .constants import value as _const
@@ -105,7 +106,7 @@ class Engine:
         self.locations = LocationModel(pitcher_rows)
         self._snaps = {}
         if _shared is not None:                       # same league fit, different starter
-            for k in ("events", "league_swings", "league", "zone", "by_hitter", "_models", "_rates", "_group_loss"):
+            for k in ("events", "league_swings", "league", "zone", "by_hitter", "_models", "_rates", "_group_loss", "league_traits"):
                 setattr(self, k, getattr(_shared, k))
             return
         self.events = events
@@ -117,6 +118,7 @@ class Engine:
         for s in events:
             self.by_hitter[s.batter].append(s)
         self._models, self._rates, self._group_loss = {}, {}, {}
+        self.league_traits = LeagueTraits(league)
 
     def retarget(self, pitcher_rows, starter: str) -> "Engine":
         return Engine(self.events, pitcher_rows, self.date, starter, _shared=self)
@@ -138,15 +140,20 @@ class Engine:
         xwc = float(np.mean(bip)) if bip else 0.35
         return Hitter(h, name, baseline_cq=(1 - whiff) * xwc, baseline_xwobacon=xwc)
 
-    def snapshot(self, h: str, tto: int, b: int, s: int, stand: str, hitter: Hitter):
-        key = (h, tto, b, s)
+    def snapshot(self, h: str, tto: int, b: int, s: int, stand: str, hitter: Hitter, outs: int = 0,
+                 bases: tuple = (False, False, False), policy: SituationPolicy = SituationPolicy.OFF):
+        """Plan for this hitter against this starter at a count. `policy` is the coach's runner-on-third policy and only
+        applies (and only splits the cache) when a runner is on third with fewer than two outs."""
+        spot = bool(bases[2]) and outs < 2
+        key = (h, tto, b, s) if not (spot and policy is not SituationPolicy.OFF) else (h, tto, b, s, outs, bases, policy.value)
         if key not in self._snaps:
-            sit = Situation(b, s, 0, (False, False, False), 0, 1, tto)
+            sit = Situation(b, s, outs if spot else 0, bases if spot else (False, False, False), 0, 1, tto)
             state = PitcherState(tto=tto)
             ars = arsenal_for_state(self.pitcher_rows, self.date, state, ArsenalBasis.TTO, False,
                                     stand=stand, strikes=min(s, 2))
+            cfg = SituationConfig(policy, SituationPolicy.OFF, SituationPolicy.OFF)
             self._snaps[key] = build_plan(self.model(h), hitter, self.starter, ars, sit, game_id="mockup", level="GAME",
-                                          pitcher_state=state, apply_tto_effect=True, zone_model=self.zone)
+                                          pitcher_state=state, apply_tto_effect=True, zone_model=self.zone, config=cfg)
         return self._snaps[key]
 
 
@@ -218,6 +225,12 @@ def development_targets(eng: Engine, h: str, top: int = 3) -> dict:
                         "his_rate": round(r, 1), "typical_rate": round(t, 1), "n": c} for g, e, r, t, c in ranked[:top]]}
 
 
+def swing_profile(eng: Engine, h: str) -> dict:
+    """Descriptive bat-tracking profile with shrinkage (swing_traits.py). Not used in the plan until traits_test passes."""
+    ht = HitterTraits.fit([s for s in eng.by_hitter[h] if s.swing], eng.league_traits)
+    return ht.profile()
+
+
 def profile(eng: Engine, h: str) -> dict:
     sw = [s for s in eng.by_hitter[h] if s.swing]
     bip = [s for s in sw if s.xwoba is not None]
@@ -257,7 +270,7 @@ def build_board(eng: Engine, lineup: list[str], names: dict, stands: dict, start
         hit = eng.hitter(h, names.get(h, f"Hitter {h}"))
         stand = stands[h]
         rec = {"order": order, "id": h, "name": hit.name, "stand": stand, "profile": profile(eng, h),
-               "targets": development_targets(eng, h), "tto": {}}
+               "targets": development_targets(eng, h), "swing": swing_profile(eng, h), "tto": {}}
         for tto in TTOS:
             counts = {}
             for b, s in COUNTS:
