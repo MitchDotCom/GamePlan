@@ -1,0 +1,36 @@
+
+== Part 2: do the styles differ? fit before 2025-07-01, 25 real starter games after it
+  game 1/25 2025-07-25 starter 665152: 5 hitters
+  game 2/25 2025-07-13 starter 663623: 5 hitters
+  game 3/25 2025-09-28 starter 650911: 2 hitters
+  game 4/25 2025-09-10 starter 671106: 7 hitters
+  game 5/25 2025-07-04 starter 434378: 6 hitters
+  game 6/25 2025-07-22 starter 656876: 6 hitters
+  game 7/25 2025-09-22 starter 519242: 1 hitters
+  game 8/25 2025-07-03 starter 650644: 7 hitters
+  game 9/25 2025-07-19 starter 669194: 9 hitters
+  game 10/25 2025-09-06 starter 656605: 7 hitters
+  game 11/25 2025-07-22 starter 607200: 7 hitters
+  game 12/25 2025-09-19 starter 547179: 7 hitters
+  game 13/25 2025-09-23 starter 666142: 5 hitters
+  game 14/25 2025-07-23 starter 671737: 4 hitters
+  game 15/25 2025-08-22 starter 542881: 8 hitters
+  game 16/25 2025-08-13 starter 518876: 4 hitters
+  game 17/25 2025-07-09 starter 677944: 6 hitters
+  game 18/25 2025-09-26 starter 605400: 4 hitters
+  game 19/25 2025-07-11 starter 657746: 6 hitters
+  game 20/25 2025-08-11 starter 663559: 5 hitters
+  game 21/25 2025-08-24 starter 592332: 4 hitters
+  game 22/25 2025-08-27 starter 687473: 4 hitters
+  game 23/25 2025-09-27 starter 434378: 4 hitters
+  game 24/25 2025-08-08 starter 673540: 8 hitters
+  game 25/25 2025-08-23 starter 690990: 7 hitters
+
+  count     n  CONTACT differs: median [Q1,Q3]     >=5%  >=20%   HUNT differs: median [Q1,Q3]      >=5%  >=20%   value gap CONTACT / HUNT (runs per 100, median)  VALUE swing share
+  0-0     138    17.4% [12.1%, 25.8%]                    99%    43%     64.6% [61.4%, 70.1%]   96%    96%   +0.15 / -1.12                              26.8%
+  1-0     138    20.3% [12.8%, 29.3%]                    99%    51%     52.6% [48.2%, 57.1%]   84%    84%   +0.25 / -0.73                              13.9%
+  0-1     138    14.8% [9.6%, 20.8%]                     93%    28%     70.1% [64.8%, 75.9%]  100%   100%   -0.04 / -2.12                              48.0%
+  1-1     138    12.3% [7.6%, 22.5%]                     91%    32%     54.8% [52.1%, 58.0%]  100%   100%   +0.00 / -1.88                              40.7%
+  2-1     138    16.5% [9.3%, 26.9%]                     90%    39%     51.6% [48.1%, 54.3%]   93%    93%   +0.11 / -1.14                              19.7%
+  3-1     138     0.0% [0.0%, 0.0%]                       2%     0%      0.0% [0.0%, 0.0%]   22%    22%   +0.00 / +0.00                               0.0%
+  1-2     138    11.2% [7.6%, 16.8%]                     89%    16%      0.0% [0.0%, 0.0%]    0%     0%   -0.06 / +0.00                              59.1%

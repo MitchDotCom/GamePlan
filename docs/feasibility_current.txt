@@ -1,0 +1,19 @@
+== Part 1: coverage
+
+  MLB: 707391 pitches, 2430 games, 336618 swings
+    hitters with 100+ / 300+ / 800+ tracked swings: 529 / 386 / 193 (median 380 per hitter)
+    starters with 5+ / 10+ / 20+ starts: 191 / 122 / 1 (median 6 starts per starter)
+    share of pitches with full shape fields 100.0%; swings with bat tracking 97.5%; balls in play with Savant xwOBA 100.0%
+
+  MiLB: 661647 pitches, 2273 games, 314852 swings
+    hitters with 100+ / 300+ / 800+ tracked swings: 517 / 374 / 176 (median 359 per hitter)
+    starters with 5+ / 10+ / 20+ starts: 184 / 115 / 0 (median 6 starts per starter)
+    share of pitches with full shape fields 100.0%; swings with bat tracking 97.6%; balls in play with Savant xwOBA 100.0%
+
+== Part 2: plan support, fit before 2025-07-01
+
+  MLB: 25 starter games, starters had a median 15 prior starts, hitters a median 447 tracked swings before the cutoff
+    cells: GO 20.0%, NO_GO 41.0%, no call 39.0% (of which thin evidence 25.9%); effective hitter swings behind a cell: median 0.2, 25th pct 0.0
+
+  MiLB: 25 starter games, starters had a median 15 prior starts, hitters a median 455 tracked swings before the cutoff
+    cells: GO 19.6%, NO_GO 41.7%, no call 38.7% (of which thin evidence 25.6%); effective hitter swings behind a cell: median 0.2, 25th pct 0.0
