@@ -84,6 +84,7 @@ tr.sel td{background:var(--mid)}tr[data-pr]{cursor:pointer}
 <details class="proto"><summary>Prototype</summary><p>Public 2025 MLB data. Each plan is fit only on games before the game date and covers the opposing starter; relievers show without a plan. Not validated for use, not tested at Single-A.</p></details></div>
 <div class="tools noprint">
 <label class="f">Team <select id="team"></select></label>
+<label class="f">Zone view <select id="vside"><option value="catcher">Catcher view</option><option value="batter">Batter-relative</option></select></label>
 <label class="f">Runner on third, under 2 outs <select id="pol"><option value="OFF">Count plan</option><option value="CONTACT_FIRST">Contact first</option></select></label>
 </div></div>
 <div id="main"></div>
@@ -104,7 +105,7 @@ const side=h=>G.sides[h];
 $("#title").textContent=`${G.away} at ${G.home} · ${G.date}`;
 $("#views").innerHTML=[["game","Game"],["board","Pregame"],["hitters","Hitters"],["log","Log"]].map(([k,t])=>`<button data-v="${k}">${t}</button>`).join("");
 $("#team").innerHTML=`<option value="all">Both</option><option value="Top">${G.away}</option><option value="Bot">${G.home}</option>`;
-$("#team").onchange=e=>{TEAM=e.target.value;render()};$("#pol").onchange=e=>{POL=e.target.value;render()};
+$("#team").onchange=e=>{TEAM=e.target.value;render()};$("#pol").onchange=e=>{POL=e.target.value;render()};$("#vside").onchange=e=>{VIEWSIDE=e.target.value;render()};
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{VIEW=b.dataset.v;render()});
 const planOf=p=>p.plan?p.plan.policy[p.plan.spot?POL:"OFF"]:null;
 let SKIPMODE="exclude";
@@ -126,27 +127,36 @@ const PN={FF:"Four-seam fastball",SI:"Sinker",FC:"Cutter",SL:"Slider",ST:"Sweepe
 const pname=c=>PN[c]||c||"Unknown pitch";
 const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
 const KIND=d=>/swinging|missed/.test(d)?"whiff":/foul/.test(d)?"foul":/in play/.test(d)?"play":/called|automatic strike/.test(d)?"called":"ball";
-function where(r){if(!r)return "Not tracked";if(r==="off the grid")return "Far outside the zone";if(r==="middle")return "Middle of the zone";
- const [v,h]=r.split("-");return cap(v)+", "+({in:"inside",away:"away",middle:"middle"}[h]||h)}
+function where(q){if(q.x==null)return "Not tracked";
+ const zt=q.sz_top||3.5,zb=q.sz_bot||1.5,fr=(q.z-zb)/(zt-zb),ax=Math.abs(q.x);
+ const v=fr>1?"Above zone":fr<0?"Below zone":fr>2/3?"High":fr<1/3?"Low":"Middle";
+ const h=ax<=0.28?"middle":ax<=0.83?(q.x<0?"inside":"away"):(q.x<0?"off plate, inside":"off plate, away");
+ return v+", "+h}
 function basesText(b){if(b==="empty")return "Bases empty";const m={"1B":"1st","2B":"2nd","3B":"3rd"},ps=b.split("-").map(x=>m[x]);return ps.length===3?"Bases loaded":"On "+ps.join(", ")}
 const leadText=l=>l===0?"Tied":l>0?"Up "+l:"Down "+(-l);
 const doWord=q=>/bunt/.test(q.desc)?"Bunted":q.swing===undefined?"Not tracked":q.swing?"Swung":"Took";
 const callWord=c=>c==="GO"?"Swing":c==="NO_GO"?"Take":"No call";
 const REV={FOLLOWED_PLAN:["Followed plan","lab-ok"],HITTER_BEAT_MODEL:["Off plan, worked","lab-lucky"],DEVIATION_COST:["Off plan, cost","lab-bad"],UMPIRE_MISS:["Umpire miss","lab-lucky"],PLAN_SILENT:["No call",""],NO_CALL_OK:["Better option, no call",""]};
 function review(q){const pl=planOf(q);if(!pl)return null;const k=pl.call==="CONDITIONAL"&&pl.label==="FOLLOWED_PLAN"?"NO_CALL_OK":pl.label;return REV[k]||[cap(String(k).toLowerCase().replace(/_/g," ")),""]}
-function zoneSVG(codes,deltas,o={}){const W=250,H=300,pad=14,tipPlan=c=>c==="G"?"Swing":c==="x"?"Take":"No firm call";
- let s=`<svg class="zone ${o.small?"small":""}" viewBox="${-pad} ${-pad} ${W+2*pad} ${H+pad+54}" role="img" aria-label="Strike zone from the batter's view, inside on the left">`;
- for(let i=0;i<5;i++)for(let j=0;j<6;j++){const k=i*6+j,c=codes?codes[k]:".",d=deltas?deltas[k]:0,x=i*50,y=(5-j)*50;
-  const fill=c==="G"?mix(Math.abs(d)):c==="x"?mix(-Math.abs(d)):"var(--mid)";
+function zoneSVG(codes,deltas,o={}){
+ /* Feet to SVG units: 100 per foot. x runs 3.0 ft (+-1.5), z runs 0.75 to 4.25 ft. xa is feet away from the batter. */
+ const U=100,X0=-1.5,Z1=4.25,W=300,H=350,pad=14,mir=VIEWSIDE==="catcher"&&o.stand==="L";
+ const ux=xa=>((mir?-xa:xa)-X0)*U,uy=z=>(Z1-z)*U,bx=(a,b)=>Math.min(ux(a),ux(b));
+ const tipPlan=c=>c==="G"?"Swing":c==="x"?"Take":"No call";
+ let s=`<svg class="zone ${o.small?"small":""}" viewBox="${-pad} ${-pad} ${W+2*pad} ${H+pad+56}" role="img" aria-label="Strike zone, ${VIEWSIDE==="catcher"?"catcher view":"batter view"}">`;
+ s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="var(--panel)" stroke="var(--line)"/>`;
+ for(let i=0;i<5;i++)for(let j=0;j<6;j++){const k=i*6+j,c=codes?codes[k]:".",d=deltas?deltas[k]:0,a=-1.25+i*0.5,zt=1.0+(j+1)*0.5;
+  const fill=c==="G"?mix(Math.abs(d)):c==="x"?mix(-Math.abs(d)):"var(--mid)",x=bx(a,a+0.5),y=uy(zt);
   s+=`<g><title>${tipPlan(c)}${codes?"; swing minus take "+sgn(d)+" wOBA":""}</title><rect x="${x}" y="${y}" width="50" height="50" fill="${fill}" stroke="var(--panel)" stroke-width="1.5"/>${c==="G"||c==="x"?`<text x="${x+25}" y="${y+29}" text-anchor="middle" class="zl">${tipPlan(c)}</text>`:""}</g>`}
  const zt=o.szTop||3.5,zb=o.szBot||1.5;
- s+=`<rect x="42" y="${(4-zt)*100}" width="166" height="${(zt-zb)*100}" fill="none" stroke="var(--ink)" stroke-width="2.5" pointer-events="none"/>`;
- s+=`<polygon points="54,320 196,320 196,332 125,346 54,332" fill="var(--mid)" stroke="var(--ink2)" stroke-width="1.5"/><text x="0" y="336" class="zlab">Inside</text><text x="250" y="336" text-anchor="end" class="zlab">Away</text>`;
+ s+=`<rect x="${bx(-0.83,0.83)}" y="${uy(zt)}" width="166" height="${(zt-zb)*U}" fill="none" stroke="var(--ink)" stroke-width="2.5" pointer-events="none"/>`;
+ const cx0=ux(0),inL=!mir,lab=(txt,left)=>`<text x="${left?0:W}" y="${H+30}" text-anchor="${left?"start":"end"}" class="zlab">${txt}</text>`;
+ s+=`<polygon points="${cx0-71},${H+10} ${cx0+71},${H+10} ${cx0+71},${H+22} ${cx0},${H+36} ${cx0-71},${H+22}" fill="var(--mid)" stroke="var(--ink2)" stroke-width="1.5"/>`+lab("Inside"+(o.stand?" ("+o.stand+"HB)":""),inL)+lab("Away",!inL);
  (o.pitches||[]).forEach((q,idx)=>{if(q.x==null)return;if(o.showAll===false&&idx>o.sel)return;
-  const rx=(q.x+1.25)*100,ry=(4-q.z)*100,off=rx<0||rx>250||ry<0||ry>300,cx=Math.max(0,Math.min(250,rx)),cy=Math.max(0,Math.min(300,ry)),k=KIND(q.desc),cur=idx===o.sel;
-  s+=`<g class="pt" opacity="${cur||o.sel<0?1:.72}"><title>Pitch ${q.n}: ${pname(q.type)}, ${cap(q.desc)}</title>${cur?`<circle cx="${cx}" cy="${cy}" r="16" fill="none" stroke="var(--accent)" stroke-width="3"/>`:""}<circle cx="${cx}" cy="${cy}" r="11" class="k-${k}" ${off?'stroke-dasharray="3 2"':""}/><text x="${cx}" y="${cy+4}" class="pn pn-${k}">${q.n}</text></g>`});
+  const rx=ux(q.x),ry=uy(q.z),off=rx<12||rx>W-12||ry<12||ry>H-12,cx=Math.max(12,Math.min(W-12,rx)),cy=Math.max(12,Math.min(H-12,ry)),k=KIND(q.desc),cur=idx===o.sel;
+  s+=`<g class="pt" data-n="${q.n}" data-cx="${rx.toFixed(1)}" data-cy="${ry.toFixed(1)}" opacity="${cur||o.sel<0?1:.72}"><title>Pitch ${q.n}: ${pname(q.type)}, ${cap(q.desc)}</title>${cur?`<circle cx="${cx}" cy="${cy}" r="16" fill="none" stroke="var(--brand)" stroke-width="3"/>`:""}<circle cx="${cx}" cy="${cy}" r="11" class="k-${k}" ${off?'stroke-dasharray="3 2"':""}/><text x="${cx}" y="${cy+4}" class="pn pn-${k}">${q.n}</text></g>`});
  return s+"</svg>"}
-let SHOWALL=true;
+let SHOWALL=true,VIEWSIDE="catcher";
 function step(d){const p=G.pas.find(x=>x.id===SELPA);if(!p)return;SELPITCH=Math.max(0,Math.min(p.pitches.length-1,SELPITCH+d));render()}
 function innings(){const filt=p=>TEAM==="all"||p.half===TEAM;const n=Math.max(9,...G.pas.map(p=>p.inning));
  let h=`<div class="inn" style="--n:${n}"><div></div>`+Array.from({length:n},(_,i)=>`<div class="h">${i+1}</div>`).join("");
@@ -191,17 +201,17 @@ function paPanel(){const p=G.pas.find(x=>x.id===SELPA);if(!p)return "";
  const n=p.pitches.length;if(SELPITCH>=n)SELPITCH=0;const q=p.pitches[SELPITCH],pl=planOf(q),rv=review(q);
  const codes=q.plan&&q.plan.grid,deltas=q.plan&&q.plan.deltas,st=p.vs_starter?paStats(p):null;
  const chips=p.pitches.map((x,i)=>`<button class="sq k-${KIND(x.desc)} ${i===SELPITCH?"cur":""}" data-pi="${i}" title="Pitch ${x.n}: ${cap(x.desc)}">${x.n}</button>`).join("");
- const rows=p.pitches.map((x,i)=>{const l=planOf(x),r=review(x);return `<tr data-pr="${i}" class="${i===SELPITCH?"sel":""}"><td>${x.n}</td><td>${x.count}</td><td>${pname(x.type)}${x.velo?" "+x.velo.toFixed(0):""}</td><td>${where(x.region)}</td><td>${doWord(x)}, ${x.desc}</td><td>${l?callWord(l.call):"-"}</td><td class="num">${l&&l.dv!=null?sgn(l.dv):"-"}</td><td class="${r?r[1]:""}">${r?r[0]:""}</td></tr>`}).join("");
+ const rows=p.pitches.map((x,i)=>{const l=planOf(x),r=review(x);return `<tr data-pr="${i}" class="${i===SELPITCH?"sel":""}"><td>${x.n}</td><td>${x.count}</td><td>${pname(x.type)}${x.velo?" "+x.velo.toFixed(0):""}</td><td>${where(x)}</td><td>${doWord(x)}, ${x.desc}</td><td>${l?callWord(l.call):"-"}</td><td class="num">${l&&l.dv!=null?sgn(l.dv):"-"}</td><td class="${r?r[1]:""}">${r?r[0]:""}</td></tr>`}).join("");
  return `<div class="card"><div class="head"><div><div class="mut">${p.half==="Top"?"Top":"Bottom"} ${p.inning} \u00b7 ${p.team}</div><div class="name">${p.batter_name} (${p.stand}) vs. ${p.pitcher_name}</div>
  <div><span class="chip">${p.result}</span> <span class="chip">${p.vs_starter?"Starter: plan applies":"Reliever: no plan"}</span></div></div>
  ${st?`<div class="stats" style="margin:0"><span>Decision value <b>${sgn(st.dv)}</b> runs</span><span><b>${st.bad}</b> below alternative</span></div>`:""}</div>${skipBox(p)}
- <div class="zonewrap"><div class="zonecol">${zoneSVG(codes,deltas,{pitches:p.pitches,sel:SELPITCH,szTop:q.sz_top,szBot:q.sz_bot,showAll:SHOWALL})}
+ <div class="zonewrap"><div class="zonecol">${zoneSVG(codes,deltas,{stand:p.stand,pitches:p.pitches,sel:SELPITCH,szTop:q.sz_top,szBot:q.sz_bot,showAll:SHOWALL})}
   <div class="legend"><span><i class="sw" style="background:${mix(.12)}"></i>Swing</span><span><i class="sw" style="background:${mix(-.12)}"></i>Take</span><span><i class="sw" style="background:var(--mid)"></i>No call</span><span>Outline: his zone</span></div>
   <div class="legend"><span><i class="dotk" style="background:var(--panel)"></i>Ball</span><span><i class="dotk" style="background:var(--k-called)"></i>Called strike</span><span><i class="dotk" style="background:var(--k-whiff)"></i>Swinging strike</span><span><i class="dotk" style="background:var(--k-foul)"></i>Foul</span><span><i class="dotk" style="background:var(--k-play)"></i>In play</span></div>
   <div class="seq noprint">${chips}</div>
   <div class="stepper noprint"><button data-step="-1">Previous</button><button data-step="1">Next</button><label class="f"><input type="checkbox" id="showall" ${SHOWALL?"checked":""}> All pitches</label></div></div>
   <div class="detcol"><p class="big">Pitch ${q.n} of ${n}: ${pname(q.type)}${q.velo?", "+q.velo.toFixed(1)+" mph":""}</p>
-   <dl class="det"><dt>Count</dt><dd>${q.count}</dd><dt>Situation</dt><dd>${q.outs} out${q.outs===1?"":"s"}, ${basesText(q.bases)}, ${leadText(q.lead)}</dd><dt>Location</dt><dd>${where(q.region)}</dd>
+   <dl class="det"><dt>Count</dt><dd>${q.count}</dd><dt>Situation</dt><dd>${q.outs} out${q.outs===1?"":"s"}, ${basesText(q.bases)}, ${leadText(q.lead)}</dd><dt>Location</dt><dd>${where(q)}</dd>
    <dt>Plan</dt><dd>${pl?callWord(pl.call)+(pl.delta!=null?` <span class="mut" title="Swing minus take, in wOBA">(${sgn(pl.delta)})</span>`:""):"No plan (reliever)"}</dd><dt>Hitter</dt><dd>${doWord(q)}, ${q.desc}</dd>
    <dt>Value</dt><dd>${pl&&pl.dv!=null?sgn(pl.dv)+" runs":"Not scored"}${rv?` <span class="${rv[1]}">${rv[0]}</span>`:""}${pl&&pl.flags.includes("umpire_miss")&&pl.label!=="UMPIRE_MISS"?` <span class="mut">Umpire miss</span>`:""}</dd>${forHim(q,p.batter)}</dl>
    ${swingBox(q)}
@@ -229,7 +239,7 @@ function boardView(){const sd=side(HALF),B=sd.board;if(HI>=B.hitters.length)HI=0
  const key=[G.date,sd.starter,h.id,TTO,CNT].join("|");const cur=(LOG[key]||{}).path;
  const card=st=>{const s=cn.styles[st];const diff=st==="CONTACT"?cn.differ.VALUE_vs_CONTACT:st==="HUNT"?cn.differ.VALUE_vs_HUNT:null;
   return `<div class="card ${cur===st?"chosen":""}"><h3>${NAME[st]}${st==="HUNT"?" (experimental)":""}</h3><div>${s.tags.map(t=>`<span class="chip">${t}</span>`).join("")}</div>${s.target?`<div class="mut">Hunt: ${s.target}</div>`:""}
-  ${zoneSVG(s.cells[PT],cn.delta[PT],{small:true,szTop:3.5,szBot:1.5})}<div class="mut">${DESC[st]}</div>${st==="CONTACT"&&s.value_per_100>cn.styles.VALUE.value_per_100?`<div class="mut">Higher than the value plan because it also swings at near-even cells the value plan leaves open. Less certain.</div>`:""}
+  ${zoneSVG(s.cells[PT],cn.delta[PT],{small:true,stand:h.stand,szTop:3.5,szBot:1.5})}<div class="mut">${DESC[st]}</div>${st==="CONTACT"&&s.value_per_100>cn.styles.VALUE.value_per_100?`<div class="mut">Higher than the value plan because it also swings at near-even cells the value plan leaves open. Less certain.</div>`:""}
   <table style="margin-top:6px"><tr><td>Swing on</td><td class="num">${pct(s.swing_share)} of his pitches</td></tr><tr><td>Whiff on swings</td><td class="num">${pct(s.whiff)}</td></tr><tr><td>xwOBA on contact</td><td class="num">${s.contact.toFixed(3)}</td></tr>
   <tr><td>Value if followed</td><td class="num">${sgn(s.value_per_100)} runs / 100 pitches</td></tr>${diff==null?"":`<tr><td>Differs from value plan</td><td class="num">${pct(diff)} of pitches</td></tr>`}</table>
   <div class="logrow noprint"><button data-pick="${st}">Use this plan</button></div></div>`};
