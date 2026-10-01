@@ -118,7 +118,8 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
         eng = base.retarget(load_pitcher_rows(league_dir, starter, date), starter)
         stands = {}
         for h in faced:
-            st = [s.stand for s in sw_by_key.values() if s.batter == h and s.stand]
+            # side he batted from against THIS starter (a switch hitter bats from the other side against the other hand)
+            st = [r["stand"] for r in rows if r["batter"] == h and r["pitcher"] == starter and r["stand"] in ("R", "L")]
             stands[h] = Counter(st).most_common(1)[0][0] if st else "R"
         print(f"{half}: {team[half]} batting vs {pname(starter)}; {len(faced)} hitters faced the starter", flush=True)
         board = build_board(eng, faced, names, stands, pname(starter))
@@ -134,7 +135,8 @@ def build_game(league_dir: str, date: str, game_pk: str, away: str, home: str, c
         h = pa["batter"]
         is_starter = pa["pitcher"] == starter
         hit = eng.hitter(h, names.get(h, ""))
-        stand = side["stands"].get(h) or (Counter(s.stand for s in sw_by_key.values() if s.batter == h).most_common(1) or [("R", 0)])[0][0]
+        stand = Counter(r["stand"] for r in pa["pitches_raw"] if r["stand"] in ("R", "L")).most_common(1)[0][0] if any(
+            r["stand"] in ("R", "L") for r in pa["pitches_raw"]) else "R"        # the side he actually batted from in this plate appearance
         pitches, dv_total, n_bad = [], 0.0, 0
         for r in pa["pitches_raw"]:
             b, s = _int(r["balls"]), _int(r["strikes"])
