@@ -10,7 +10,8 @@ def test_launcher_serves_the_app_and_api(tmp_path):
     url, stop = start_server(tmp_path / "league", tmp_path / "app")
     try:
         assert b"GamePlan" in urllib.request.urlopen(url).read()
-        assert json.load(urllib.request.urlopen(url + "api/games"))["games"] == []
+        games = json.load(urllib.request.urlopen(url + "api/games"))["games"]
+        assert all(g["status"] == "ready" for g in games)          # only the demo games shipped with the repo; no data folder yet
         d = json.load(urllib.request.urlopen(url + "api/download"))
         assert d["running"] is False and d["files"] == 0 and d["total"] == 195
     finally:
