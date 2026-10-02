@@ -18,6 +18,13 @@ Features (his deviation from the league expectation for the same pitch and count
                                       swings) applied to his expected VBA, minus the league curve
 Feature blocks are scored alone and together: PATH (d_aa terms), SPEED (d_bs, d_sl), PERSONAL (z_pers), ALL.
 
+Added for plan v5 (WS2), gate fixed before its first run: the plane-fit blocks against this same kernel baseline.
+  z_plane_lg  the league whiff-versus-VBA curve at the league-expected angle for this pitch and count (pitch-conditional, no hitter)
+  z_plane     the same league curve at HIS expected angle (league expectation plus his shrunk deviation)
+Blocks PLANE_LG (z_plane_lg), PLANE (z_plane), PLANE+PERS (z_plane, z_pers) and ALL+PLANE. The plane-fit verdict label needs PLANE to beat
+the kernel baseline on whiffs with the interval above zero on 2025 and the sign repeated (interval above zero) on 2024. PLANE_LG tells
+us whether any gain is the pitch-conditional angle alone, with no hitter in it.
+
 Scoring. Theta is fit on other hitters only (10-fold, folds by hitter), so a hitter's own held-out swings never fit his
 coefficients. Reported: out-of-fold improvement per swing (log-loss for whiff, mean squared error for damage) with a 95% interval
 from a hitter-cluster bootstrap (2000 draws).
@@ -43,8 +50,9 @@ VBA_CENTER = 17.0
 LAMBDA_PERSONAL = 150.0      # CHOICE: swings of pull toward the league whiff-versus-VBA curve
 MIN_TRAIN = 300
 BOOT = 2000
-FEATURES = ("d_aa", "d_aa_x", "d_bs", "d_sl", "z_pers")
-BLOCKS = {"PATH": (0, 1), "SPEED": (2, 3), "PERSONAL": (4,), "ALL": (0, 1, 2, 3, 4)}
+FEATURES = ("d_aa", "d_aa_x", "d_bs", "d_sl", "z_pers", "z_plane_lg", "z_plane")
+BLOCKS = {"PATH": (0, 1), "SPEED": (2, 3), "PERSONAL": (4,), "ALL": (0, 1, 2, 3, 4),
+          "PLANE_LG": (5,), "PLANE": (6,), "PLANE+PERS": (6, 4), "ALL+PLANE": (0, 1, 2, 3, 4, 6)}
 
 
 def _fit_logit(F, y, off, lam=1.0, iters=30, prior=None):
@@ -97,6 +105,11 @@ def build_rows(batters, cutoff, start_keys=None, min_train=MIN_TRAIN):
         lg_aa = lt.predict(X, "attack_angle") if "attack_angle" in lt.coef else np.full(len(keep), VBA_CENTER)
         vba_lg = lg_aa - vaa
         z_pers = np.zeros(len(keep))
+        z_plane = np.zeros(len(keep))
+        z_plane_lg = np.zeros(len(keep))
+        if beta_lg is not None and "attack_angle" in exp:
+            z_plane = _vba_feats(exp["attack_angle"], vaa) @ beta_lg
+            z_plane_lg = _vba_feats(lg_aa, vaa) @ beta_lg
         mine = [s for s in train if s.attack_angle is not None and s.vaa is not None]
         if beta_lg is not None and "attack_angle" in exp and len(mine) >= 100:
             bh = _fit_logit(_vba_feats([s.attack_angle for s in mine], [s.vaa for s in mine]), np.array([s.whiff for s in mine], float),
@@ -104,7 +117,7 @@ def build_rows(batters, cutoff, start_keys=None, min_train=MIN_TRAIN):
             Fe = _vba_feats(exp["attack_angle"], vaa)
             Fl = _vba_feats(lg_aa, vaa)
             z_pers = (Fe @ bh - Fl @ beta_lg)
-        F = np.column_stack([d["attack_angle"], d["attack_angle"] * (vba_lg - VBA_CENTER) / 10.0, d["bat_speed"], d["swing_length"], z_pers])
+        F = np.column_stack([d["attack_angle"], d["attack_angle"] * (vba_lg - VBA_CENTER) / 10.0, d["bat_speed"], d["swing_length"], z_pers, z_plane_lg, z_plane])
         sel = np.array(keep)
         out.append({"hitter": h, "F": F, "whiff": np.array([test[k].whiff for k in keep], float),
                     "p_whiff": np.clip(hit["whiff"][sel], 1e-4, 1 - 1e-4),
@@ -171,13 +184,22 @@ def report(rows, label, blocks=BLOCKS):
     print(f"\n== {label}: {len(rows)} hitters, {n_sw} held-out swings, {int(sum((~np.isnan(r['xw'])).sum() for r in rows))} balls in play")
     print(f"   {'block':<10}{'whiff: log-loss gain per swing (95% CI)':<48}{'damage: squared-error gain per BIP (95% CI)'}")
     res = {}
+    pers = {}
     for name, cols in blocks.items():
         cols = list(cols)
-        w = _interval(_score(rows, cols, "whiff"))
+        pers[name] = _score(rows, cols, "whiff")
+        w = _interval(pers[name])
         d = _interval(_score(rows, cols, "damage"))
         res[name] = (w, d)
         mark = lambda t: "PASS" if t[1] > 0 else "no"
         print(f"   {name:<10}{w[0]:+.5f} [{w[1]:+.5f}, {w[2]:+.5f}] {mark(w):<6}  {d[0]:+.6f} [{d[1]:+.6f}, {d[2]:+.6f}] {mark(d)}")
+    if "PLANE" in pers and "PLANE_LG" in pers:     # paired increments on whiffs: what the hitter-specific part adds
+        for a, b, what in (("PLANE", "PLANE_LG", "his expected angle vs the league-expected angle"),
+                           ("PLANE+PERS", "PLANE", "his personal curve on top of the league curve at his angle")):
+            diff = pers[a].copy()
+            diff[:, 0] = pers[a][:, 0] - pers[b][:, 0]
+            e = _interval(diff)
+            print(f"   increment {a} over {b} ({what}): {e[0]:+.5f} [{e[1]:+.5f}, {e[2]:+.5f}] {'PASS' if e[1] > 0 else 'no'}")
     return res
 
 
