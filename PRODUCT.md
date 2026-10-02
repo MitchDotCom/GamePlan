@@ -13,7 +13,7 @@ Primary: hitting coaches in a pregame series meeting and a post-game review, and
 Plain, exact and brief, like a scouting report. Short labels first; a one-line explanation only where a number could be misread. No chat tone, no commentary about "him" doing things, no filler. Use baseball terms the staff already use.
 
 ## Visual direction
-Vintage Arizona Diamondbacks (the 1998 to 2006 logo), on a white background. Colors sampled from the logo: purple `#5F249F` (primary: hero cards, active tab, main buttons, the zone card), teal `#005F61` (secondary: swing, go, good outcomes), copper `#8F654D` (accent: rules, borders, take cells, labels). Display type is a heavy italic like the wordmark; small uppercase labels use a wide-tracked serif like the BACKS bar; body text is a plain system sans for dense data. Light and dark themes. No logos or marks (org approval is needed before this is shown as a club tool).
+Vintage Arizona Diamondbacks (the 1998 to 2006 logo), on a white background. Colors sampled from the logo: purple `#5F249F` (primary: hero cards, active tab, main buttons, the zone card), teal `#005F61` (secondary: swing, go, good outcomes), copper `#8F654D` (accent: rules, borders, take cells, labels). Type is JetBrains Mono throughout (the user's choice); display text is heavy italic like the wordmark and small uppercase labels are wide-tracked. Light and dark themes. No logos or marks (org approval is needed before this is shown as a club tool).
 
 ## Content rules
 - Every number carries its sample size or is flagged as thin.

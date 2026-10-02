@@ -1,6 +1,6 @@
 /* Layout: sticky header, one working column. A dark hero card leads each screen; evidence sits in white list cards below. */
 /* Look: vintage Arizona Diamondbacks (1998 to 2006 logo): purple primary, teal secondary, copper accent, on white. Pill controls, label-left value-right rows. */
-/* Colors sampled from the logo: purple #5F249F, teal #005F61, copper #8F654D. Swing is teal, take is copper. Display type is a heavy italic like the wordmark; small caps labels use a wide-tracked serif like the BACKS bar. */
+/* Colors sampled from the logo: purple #5F249F, teal #005F61, copper #8F654D. Swing is teal, take is copper. Type is JetBrains Mono throughout; display text is heavy italic like the wordmark. */
 :root{color-scheme:light;
  --bg:#fff;--panel:#fff;--ink:#1c1030;--ink2:#4a3d63;--ink3:#76698c;--line:color-mix(in srgb,#8f654d 30%,#fff);--mid:color-mix(in srgb,#5f249f 7%,#fff);
  --purple:#5f249f;--purple2:#3f1870;--teal:#005f61;--copper:#8f654d;--onpurple:#f6f0ff;--onpurple2:#cdbbe8;
@@ -9,12 +9,12 @@
  --k-called:#3f1870;--k-whiff:#d9822b;--k-foul:#e3c21f;--k-play:#2f9e6f;
  --shadow:0 1px 2px rgba(63,24,112,.08),0 10px 28px rgba(63,24,112,.10);
  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:40px;
- --t-label:12px;--t-body:14px;--t-lead:16px;--t-title:22px;--t-hero:46px;
- --display:"Rubik","Arial Black","Helvetica Neue",system-ui,sans-serif;--caps:"Libre Baskerville","Baskerville",Georgia,serif}
+ --t-label:11.5px;--t-body:13px;--t-lead:15px;--t-title:21px;--t-hero:42px;
+ --font:"JetBrains Mono","SF Mono",ui-monospace,Menlo,Consolas,monospace;--display:var(--font);--caps:var(--font)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#150b24;--panel:#1f1233;--ink:#f4eefb;--ink2:#cfc2e4;--ink3:#a698c0;--line:#3b2a57;--mid:#2a1a45;--purple:#8f5bd6;--purple2:#4a1f85;--teal:#3fc2c0;--copper:#c79a80;--brand:#a678e8;--accent:#a678e8;--pos:#3fc2c0;--neg:#c79a80;--good:#3fc2c0;--bad:#ff8a80;--shadow:0 10px 28px rgba(0,0,0,.4)}}
 :root[data-theme="dark"]{color-scheme:dark;--bg:#150b24;--panel:#1f1233;--ink:#f4eefb;--ink2:#cfc2e4;--ink3:#a698c0;--line:#3b2a57;--mid:#2a1a45;--purple:#8f5bd6;--purple2:#4a1f85;--teal:#3fc2c0;--copper:#c79a80;--brand:#a678e8;--accent:#a678e8;--pos:#3fc2c0;--neg:#c79a80;--good:#3fc2c0;--bad:#ff8a80;--shadow:0 10px 28px rgba(0,0,0,.4)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:var(--t-body)/1.45 "Helvetica Neue","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;font-variant-numeric:tabular-nums}
+body{margin:0;background:var(--bg);color:var(--ink);font:var(--t-body)/1.5 var(--font);font-variant-numeric:tabular-nums}
 ::selection{background:var(--sand);color:var(--ink)}
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .wrap{max-width:1360px;margin:0 auto;padding:0 var(--s4) var(--s6)}
