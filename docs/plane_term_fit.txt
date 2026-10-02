@@ -1,3 +1,7 @@
 fitted on 32175 held-out swings: b=-0.0334, w=+0.1888 (per sd of the curve value), mu=-1.3570, sd=0.3783
 whiff log-loss 0.45123 -> 0.44794 (in-sample for the one coefficient; out-of-fold gain is in traits_test_v2.txt)
 mean predicted whiff 0.2359 -> 0.2353, observed 0.2353
+
+Effect in a real build (BOS at ARI 2025-09-07, rebuilt with the term on vs the earlier build): 196 reviewed pitches, 0 call changes, 0 review-label changes; 2.6% of plan grid
+cells change class (151 of 5850); the swing-minus-take delta moves by +0.0015 on average (sd 0.0048, max 0.023, wOBA scale). The term is a small, calibrated whiff-risk
+correction, as the +0.003 log-loss gain predicts. It does not flip any GO to NO_GO in this game.

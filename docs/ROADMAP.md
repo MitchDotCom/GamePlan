@@ -14,6 +14,18 @@ Mission: develop hitters first, win second. For a 9-man lineup against a specifi
 
 Known limits, said out loud to coaches: the plan is silent on about half of pitches; one calibration check fails (swing value slope 1.086); nothing tested at Single-A yet.
 
+## Plan v5 progress (2026-10-02)
+
+| Item | Result |
+|---|---|
+| Field audit | Bat-tracking fields present on 98 to 99% of missed swings (2025), so angle results are not selected on contact |
+| Trait reliability | All four traits stable (split-half 0.99+, year over year 0.84 to 0.93) |
+| Plane fit with controls | U shape survives controls; expected-angle block passes in 2025 and 2024 |
+| Traits vs full kernel | Plane block passes both seasons; his personal curve shape adds nothing; damage still fails everywhere; bat speed and swing length alone still fail |
+| Plane term | Adopted in the whiff prediction (`plane_term.py`); small effect (2.6% of grid cells change class in a test game, no call flips) |
+| Plate-appearance value | `pa_value.py` reproduces the count table, max relative error 3.5% (tolerance 15%) |
+| Next | Damage baseline as strong as the kernel, path generator, path picker in the app |
+
 ## The next question: can he damage what he swings at?
 
 This is the main build now. Three layers, in the order they ship.
