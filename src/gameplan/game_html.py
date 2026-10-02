@@ -23,3 +23,14 @@ def render(game: dict | None) -> str:
     css = (VIEWER / "viewer.css").read_text(encoding="utf-8")
     js = (VIEWER / "viewer.js").read_text(encoding="utf-8").replace("__DATA__", json.dumps(game, separators=(",", ":")) if game is not None else "null")
     return page.replace("/*__CSS__*/", css).replace("/*__JS__*/", js)
+
+
+def render_bundle(games: list[dict], artifact: bool = False) -> str:
+    """One self-contained page holding several built games, with the library and every control working (builds are the only
+    thing it cannot do). Used for the shared preview. artifact=True drops the document tags a hosted page adds itself."""
+    import re
+    page = render({"bundle": games})
+    if artifact:
+        page = re.sub(r"<!doctype html>\s*<html[^>]*><head>.*?<title>[^<]*</title>", "<title>GamePlan Preview</title>", page, count=1, flags=re.S)
+        page = page.replace("</head><body>", "").replace("</body></html>", "")
+    return page

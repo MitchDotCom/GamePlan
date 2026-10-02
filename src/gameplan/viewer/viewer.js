@@ -1,4 +1,4 @@
-const EMBED=__DATA__;let G=EMBED;const SERVER=EMBED===null;
+const DATA=__DATA__;const BUNDLE=DATA&&DATA.bundle?DATA.bundle:null;const EMBED=BUNDLE?null:DATA;let G=EMBED;const SERVER=DATA===null;const LIBRARY=SERVER||!!BUNDLE;
 const $=(s,r=document)=>r.querySelector(s);
 const pct=x=>(100*x).toFixed(0)+"%";const sgn=x=>(x>=0?"+":"")+x.toFixed(2);
 const SYM={G:"G",x:"x",".":"."};
@@ -15,7 +15,7 @@ const side=h=>G.sides[h];
 function initGame(g){G=g;Object.keys(BOARDS).forEach(k=>delete BOARDS[k]);SELPA=g.pas[0].id;SELPITCH=0;TEAM="all";HALF="Top";HI=0;TTO="1";CNT="0-0";PT=null;HSEL=null;
  $("#title").textContent=`${G.away} at ${G.home} \u00b7 ${G.date}`;
  $("#team").innerHTML=`<option value="all">Both</option><option value="Top">${G.away}</option><option value="Bot">${G.home}</option>`;$("#team").value="all"}
-function buildTabs(){const tabs=(SERVER?[["library","Games"]]:[]).concat(G?[["game","Game"],["board","Pregame"],["hitters","Hitters"],["log","Log"]]:[]);
+function buildTabs(){const tabs=(LIBRARY?[["library","Games"]]:[]).concat(G?[["game","Game"],["board","Pregame"],["hitters","Hitters"],["log","Log"]]:[]);
  $("#views").innerHTML=tabs.map(([k,t])=>`<button data-v="${k}">${t}</button>`).join("");
  document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{if(b.dataset.v==="library"){location.hash="#/"}else{VIEW=b.dataset.v;render()}})}
 $("#team").onchange=e=>{TEAM=e.target.value;render()};$("#pol").onchange=e=>{POL=e.target.value;render()};$("#vside").onchange=e=>{VIEWSIDE=e.target.value;render()};
@@ -214,7 +214,7 @@ function wire(){
 document.addEventListener("keydown",e=>{if(VIEW!=="game"||["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;if(e.key==="ArrowRight")step(1);else if(e.key==="ArrowLeft")step(-1)});
 /* ---------------- game library (server mode) ---------------- */
 let LIB={games:[],ready:false,date:"",q:"",built:false,msg:"",poll:null};
-async function loadLib(){try{const r=await (await fetch("/api/games")).json();LIB.games=r.games;LIB.ready=r.ready;if(!LIB.date){const b=LIB.games.find(g=>g.status==="ready");LIB.date=(b||LIB.games[0]||{}).date||""}}catch(e){LIB.msg="Cannot reach the GamePlan server."}
+async function loadLib(){if(BUNDLE){LIB.ready=true;LIB.games=BUNDLE.map(g=>({game_pk:String(g.game_pk),date:g.date,home:g.home,away:g.away,pas:g.pas.length,status:"ready",home_starter:g.sides.Top.starter_name.split(" ").slice(-1)[0],away_starter:g.sides.Bot.starter_name.split(" ").slice(-1)[0]}));if(!LIB.date)LIB.date="";return}try{const r=await (await fetch("/api/games")).json();LIB.games=r.games;LIB.ready=r.ready;if(!LIB.date){const b=LIB.games.find(g=>g.status==="ready");LIB.date=(b||LIB.games[0]||{}).date||""}}catch(e){LIB.msg="Cannot reach the GamePlan server."}
  clearTimeout(LIB.poll);if(VIEW==="library"&&(!LIB.ready||LIB.games.some(g=>g.status==="building")))LIB.poll=setTimeout(async()=>{await loadLib();if(VIEW==="library")render()},4000)}
 function gameNo(g){const same=LIB.games.filter(x=>x.date===g.date&&x.home===g.home&&x.away===g.away).sort((a,b)=>a.game_pk-b.game_pk);return same.length>1?` (game ${same.findIndex(x=>x.game_pk===g.game_pk)+1})`:""}
 function libraryView(){const q=LIB.q.toLowerCase(),dates=[...new Set(LIB.games.map(g=>g.date))];
@@ -226,7 +226,7 @@ function libraryView(){const q=LIB.q.toLowerCase(),dates=[...new Set(LIB.games.m
  <label class="f">Search <input type="text" id="libq" value="${LIB.q.replace(/"/g,"")}" placeholder="Team or pitcher"></label><label class="f"><input type="checkbox" id="libbuilt" ${LIB.built?"checked":""}> Built only</label></div>
  ${LIB.ready?"":`<p class="hlab">Reading game files...</p>`}${LIB.ready&&!LIB.games.length?dlBox():""}${LIB.msg?`<p class="hlab">${LIB.msg}</p>`:""}</div>
  <div class="card" style="margin-top:var(--s4)">${rows.length?rows.map(g=>`<div class="grow"><div><div class="name" style="font-size:var(--t-lead)">${g.away||"?"} at ${g.home||"?"}${gameNo(g)}</div><div class="mut">${g.date} \u00b7 ${g.away_starter||"?"} vs. ${g.home_starter||"?"} \u00b7 ${g.pas} plate appearances</div></div><div>${btn(g)}</div></div>`).join(""):`<p class="mut">${LIB.ready?"No games match.":"The list appears when the data has been read."}</p>`}
- <p class="note">Building a game takes about 5 minutes; each hitter's pregame board then fills in over the next few. You can build up to 2 at a time and keep working.</p></div>`}
+ <p class="note">${BUNDLE?"This preview holds the games built so far. The desktop app builds any game of the 2025 season on demand.":"Building a game takes about 5 minutes; each hitter's pregame board then fills in over the next few. You can build up to 2 at a time and keep working."}</p></div>`}
 let DL={running:false,files:0,total:195};
 function dlBox(){return DL.running?`<p class="hlab">Downloading the 2025 season: ${DL.files} of ${DL.total} days...</p>`:`<p class="hlab">No game data yet. The 2025 season is about 200 MB and takes 10 to 20 minutes to download.</p><div class="hrow noprint"><button data-dl>Download the 2025 season</button></div>`}
 async function pollDl(){try{DL=await (await fetch("/api/download")).json()}catch(e){return}if(DL.running){if(VIEW==="library")render();setTimeout(pollDl,4000)}else{await loadLib();if(VIEW==="library")render()}}
@@ -237,6 +237,9 @@ function render(){const lib=VIEW==="library";document.querySelector(".tools").hi
  if(lib){$("#title").textContent="GamePlan";$("#main").innerHTML=libraryView();wireLib();return}
  $("#main").innerHTML=VIEW==="game"?gameView():VIEW==="board"?boardView():VIEW==="hitters"?hittersView():logView();wire()}
 async function route(){
+ if(BUNDLE){const m=location.hash.match(/^#\/game\/(\d+)/),g=m&&BUNDLE.find(x=>String(x.game_pk)===m[1]);
+  if(g){initGame(g);VIEW="game"}else{VIEW="library";G=null;await loadLib()}
+  buildTabs();render();return}
  if(!SERVER){initGame(EMBED);VIEW="game";buildTabs();render();return}
  const m=location.hash.match(/^#\/game\/(\d+)/);
  if(m){$("#main").innerHTML=`<div class="card"><p class="mut">Loading game...</p></div>`;const r=await fetch("/api/game/"+m[1]);
