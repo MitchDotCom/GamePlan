@@ -1,0 +1,38 @@
+== 2025 test: train 169845 swings, test 157563 swings, 576 test hitters; baseline M0 whiff log-loss 0.4789
+   M1 realized angle (shape, not gated)     gain per swing +0.02807 [+0.02598, +0.03009]  PASS
+   M2 expected angle (GATED)                gain per swing +0.00279 [+0.00210, +0.00351]  PASS
+   VBA     raw whiff (test)   controlled whiff (M1, angle set)   swings
+    -12--6       0.257                  0.276            3527
+     -6-0        0.242                  0.274            8730
+      0-6        0.229                  0.247           18093
+      6-12       0.194                  0.208           27541
+     12-18       0.167                  0.176           30883
+     18-24       0.180                  0.186           27201
+     24-30       0.308                  0.290           20245
+     30-36       0.527                  0.495           12349
+     36-42       0.712                  0.633            5382
+     42-48       0.832                  0.668            1412
+== 2024 confirmation: train 60674 swings, test 64048 swings, 139 test hitters; baseline M0 whiff log-loss 0.4703
+   M1 realized angle (shape, not gated)     gain per swing +0.02739 [+0.02404, +0.03078]  PASS
+   M2 expected angle (GATED)                gain per swing +0.00151 [+0.00060, +0.00243]  PASS
+   VBA     raw whiff (test)   controlled whiff (M1, angle set)   swings
+    -12--6       0.256                  0.255            1433
+     -6-0        0.237                  0.254            3907
+      0-6        0.214                  0.243            7608
+      6-12       0.186                  0.211           11323
+     12-18       0.154                  0.173           12718
+     18-24       0.173                  0.178           10997
+     24-30       0.296                  0.285            7919
+     30-36       0.517                  0.493            4783
+     36-42       0.706                  0.640            1992
+     42-48       0.810                  0.711             496
+
+Verdict label ships: YES (2025 True, 2024 True)
+
+Reading (written after the run; gate and models were fixed before it, one change noted below):
+- The U shape survives controls. With pitch family, velocity, location, count, approach angle, break and a hitter intercept held fixed, whiffs are lowest at 12 to 24 degrees VBA
+  and rise steeply past 24 (about 0.18 at 18-24, 0.29 at 24-30, 0.49 at 30-36). Controlling flattens the extremes (0.83 raw becomes 0.67 at 42+), so the raw table overstated the tails.
+- The gated result is the pre-pitch expected angle (M2): +0.0028 log-loss per swing in 2025 [+0.0021, +0.0035] and +0.0015 in 2024 [+0.0006, +0.0024]. Both intervals exclude zero, so the verdict-label gate passes.
+- Size: small. M1 (realized angle, +0.028) is about 10 times larger, but the realized angle is partly the hitter reacting to the pitch and timing, so it is a shape description, not a forecast.
+- The first run omitted approach angle and break from the controls and gave larger gains (+0.0033 and +0.0026). I added them as controls before relying on any result, because VBA contains the approach angle and the gain could have been pitch shape alone. Gains fell about 15 to 40% and still pass. That edit is the only change after seeing a result.
+- Limits: the baseline M0 is a simple logistic model, not the full kernel model that the plan uses; a pass here does not prove the angle adds beyond the kernel. The traits test (traits_test.py, PERSONAL block) already did that against the kernel and passed. Timing (contact point) is not controlled; those fields are not in our downloads. Contact quality is not scored here.
