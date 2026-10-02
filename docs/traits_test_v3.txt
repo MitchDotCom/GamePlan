@@ -1,0 +1,33 @@
+
+== 2025 test (swings vs starters from 2025-07-01): 145 hitters, 32175 held-out swings, 12269 balls in play
+   block     whiff: log-loss gain per swing (95% CI)         damage: squared-error gain per BIP (95% CI)         squared-up: log-loss gain per BIP (95% CI)
+   PATH      +0.00051 [-0.00007, +0.00107] no      +0.000070 [-0.000078, +0.000221] no      -0.00051 [-0.00080, -0.00026] no
+   SPEED     +0.00018 [-0.00016, +0.00055] no      +0.000093 [-0.000101, +0.000293] no      +0.00101 [-0.00044, +0.00258] no
+   PERSONAL  +0.00179 [+0.00088, +0.00270] PASS    +0.000005 [-0.000068, +0.000073] no      +0.00004 [-0.00053, +0.00061] no
+   ALL       +0.00164 [+0.00058, +0.00266] PASS    +0.000053 [-0.000162, +0.000275] no      +0.00047 [-0.00100, +0.00202] no
+   PLANE_LG  +0.00243 [+0.00122, +0.00364] PASS    -0.000030 [-0.000064, -0.000003] no      +0.00018 [-0.00028, +0.00065] no
+   PLANE     +0.00314 [+0.00186, +0.00447] PASS    -0.000000 [-0.000072, +0.000067] no      +0.00013 [-0.00034, +0.00063] no
+   PLANE+PERS+0.00355 [+0.00225, +0.00487] PASS    -0.000009 [-0.000098, +0.000074] no      +0.00004 [-0.00063, +0.00070] no
+   ALL+PLANE +0.00384 [+0.00237, +0.00537] PASS    +0.000027 [-0.000189, +0.000243] no      +0.00060 [-0.00103, +0.00236] no
+   increment PLANE over PLANE_LG (his expected angle vs the league-expected angle): +0.00072 [+0.00021, +0.00122] PASS
+   increment PLANE+PERS over PLANE (his personal curve on top of the league curve at his angle): +0.00041 [-0.00007, +0.00088] no
+
+== 2024 confirmation (all pitchers, from 2024-07-01; blocks need the fields that exist): 112 hitters, 56613 held-out swings, 21066 balls in play
+   block     whiff: log-loss gain per swing (95% CI)         damage: squared-error gain per BIP (95% CI)         squared-up: log-loss gain per BIP (95% CI)
+   PATH      +0.00044 [-0.00002, +0.00093] no      +0.000069 [-0.000130, +0.000265] no      -0.00010 [-0.00034, +0.00012] no
+   SPEED     +0.00024 [-0.00015, +0.00065] no      +0.000162 [-0.000006, +0.000334] no      +0.00148 [+0.00027, +0.00275] PASS
+   PERSONAL  +0.00118 [+0.00038, +0.00203] PASS    +0.000112 [-0.000055, +0.000291] no      -0.00009 [-0.00029, +0.00011] no
+   ALL       +0.00104 [+0.00016, +0.00192] PASS    +0.000175 [-0.000048, +0.000385] no      +0.00147 [+0.00027, +0.00282] PASS
+   PLANE_LG  +0.00178 [+0.00084, +0.00270] PASS    -0.000009 [-0.000051, +0.000034] no      -0.00003 [-0.00014, +0.00008] no
+   PLANE     +0.00229 [+0.00128, +0.00334] PASS    +0.000015 [-0.000047, +0.000081] no      -0.00003 [-0.00007, +0.00002] no
+   PLANE+PERS+0.00244 [+0.00124, +0.00363] PASS    +0.000091 [-0.000076, +0.000273] no      -0.00017 [-0.00037, +0.00004] no
+   ALL+PLANE +0.00254 [+0.00127, +0.00385] PASS    +0.000166 [-0.000055, +0.000380] no      +0.00141 [+0.00020, +0.00271] PASS
+   increment PLANE over PLANE_LG (his expected angle vs the league-expected angle): +0.00052 [+0.00003, +0.00096] PASS
+   increment PLANE+PERS over PLANE (his personal curve on top of the league curve at his angle): +0.00015 [-0.00029, +0.00060] no
+
+Reading (new: squared-up on balls in play as a third outcome, with the kernel's own squared-up prediction as the baseline; gate in the docstring, fixed before this run):
+- No block passes squared-up on both seasons, so the gate is not met. In 2025 nothing is above zero; PATH is significantly worse than the baseline (-0.00051 [-0.00080, -0.00026]).
+- SPEED is the only hint: +0.00148 [+0.00027, +0.00275] in 2024 and the same sign in 2025 (+0.00101) but with an interval that includes zero [-0.00044, +0.00258]. One season is not confirmation.
+  Under the stop rule SPEED stays a descriptive card. It is the one block worth retesting on 2026 data, where the sample is larger. Pre-registered for that refresh: same gate, same blocks.
+- The whiff results and the xwOBA damage results are unchanged from traits_test_v2.txt. Exit velocity as its own outcome is not scored: it follows bat speed mechanically, so it would reward SPEED for the wrong reason.
+- Net: hitter-specific swing information improves whiff-risk calls (plane term, adopted) and does not improve damage calls with this much data. Damage calls stay league-and-hitter kernel only.

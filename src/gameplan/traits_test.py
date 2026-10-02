@@ -18,6 +18,11 @@ Features (his deviation from the league expectation for the same pitch and count
                                       swings) applied to his expected VBA, minus the league curve
 Feature blocks are scored alone and together: PATH (d_aa terms), SPEED (d_bs, d_sl), PERSONAL (z_pers), ALL.
 
+Added for plan v5 (WS1.4), gate fixed before its first run: squared-up on balls in play (needs exit velocity and bat speed on the ball) as a third
+outcome, scored like whiff (log-loss gain per ball in play, same hitter-cluster bootstrap), with the kernel's own squared-up prediction as the baseline
+(ContactModel target "su", hitter term included). Same pass rule: interval above zero on 2025 and the sign repeated with interval above zero on 2024. This
+is the sharper damage test: a binary outcome driven by the swing, not by launch angle luck as xwOBA is.
+
 Added for plan v5 (WS2), gate fixed before its first run: the plane-fit blocks against this same kernel baseline.
   z_plane_lg  the league whiff-versus-VBA curve at the league-expected angle for this pitch and count (pitch-conditional, no hitter)
   z_plane     the same league curve at HIS expected angle (league expectation plus his shrunk deviation)
@@ -122,7 +127,9 @@ def build_rows(batters, cutoff, start_keys=None, min_train=MIN_TRAIN):
         out.append({"hitter": h, "F": F, "whiff": np.array([test[k].whiff for k in keep], float),
                     "p_whiff": np.clip(hit["whiff"][sel], 1e-4, 1 - 1e-4),
                     "xw": np.array([test[k].xwoba if test[k].xwoba is not None else np.nan for k in keep], float),
-                    "p_xw": hit["xw"][sel]})
+                    "p_xw": hit["xw"][sel],
+                    "su": np.array([float(test[k].squared_up) if test[k].squared_up is not None else np.nan for k in keep], float),
+                    "p_su": np.clip(hit["su"][sel], 1e-4, 1 - 1e-4)})
     return out
 
 
@@ -144,6 +151,12 @@ def _score(rows, cols, outcome, k=10):
             y = np.concatenate([r["whiff"] for r in tr])
             off = np.concatenate([np.log(r["p_whiff"] / (1 - r["p_whiff"])) for r in tr])
             w = _fit_logit((Ftr - mu) / sd, y, off, lam=1.0)
+        elif outcome == "su":
+            ok = [~np.isnan(r["su"]) for r in tr]
+            o = np.concatenate(ok)
+            y = np.concatenate([r["su"][k] for r, k in zip(tr, ok)])
+            off = np.concatenate([np.log(r["p_su"][k] / (1 - r["p_su"][k])) for r, k in zip(tr, ok)])
+            w = _fit_logit(((Ftr - mu) / sd)[o], y, off, lam=1.0)
         else:
             ok = [~np.isnan(r["xw"]) for r in tr]
             y = np.concatenate([r["xw"][o] - r["p_xw"][o] for r, o in zip(tr, ok)])
@@ -151,7 +164,16 @@ def _score(rows, cols, outcome, k=10):
             w = np.linalg.solve(Fb.T @ Fb + 1.0 * np.eye(len(cols)), Fb.T @ y)
         for i, r in te:
             Fz = (r["F"][:, cols] - mu) / sd
-            if outcome == "whiff":
+            if outcome == "su":
+                ok = ~np.isnan(r["su"])
+                if not ok.any():
+                    continue
+                lo = np.log(r["p_su"][ok] / (1 - r["p_su"][ok]))
+                p1 = 1 / (1 + np.exp(-(lo + Fz[ok] @ w)))
+                p0 = r["p_su"][ok]
+                ll = lambda p: -(r["su"][ok] * np.log(np.clip(p, 1e-6, 1)) + (1 - r["su"][ok]) * np.log(np.clip(1 - p, 1e-6, 1)))
+                per[i] = ((ll(p0) - ll(p1)).sum(), ok.sum())
+            elif outcome == "whiff":
                 lo = np.log(r["p_whiff"] / (1 - r["p_whiff"]))
                 p1 = 1 / (1 + np.exp(-(lo + Fz @ w)))
                 p0 = r["p_whiff"]
@@ -182,7 +204,7 @@ def _interval(per, seed=3):
 def report(rows, label, blocks=BLOCKS):
     n_sw = sum(len(r["whiff"]) for r in rows)
     print(f"\n== {label}: {len(rows)} hitters, {n_sw} held-out swings, {int(sum((~np.isnan(r['xw'])).sum() for r in rows))} balls in play")
-    print(f"   {'block':<10}{'whiff: log-loss gain per swing (95% CI)':<48}{'damage: squared-error gain per BIP (95% CI)'}")
+    print(f"   {'block':<10}{'whiff: log-loss gain per swing (95% CI)':<48}{'damage: squared-error gain per BIP (95% CI)':<52}{'squared-up: log-loss gain per BIP (95% CI)'}")
     res = {}
     pers = {}
     for name, cols in blocks.items():
@@ -190,9 +212,10 @@ def report(rows, label, blocks=BLOCKS):
         pers[name] = _score(rows, cols, "whiff")
         w = _interval(pers[name])
         d = _interval(_score(rows, cols, "damage"))
-        res[name] = (w, d)
+        q = _interval(_score(rows, cols, "su"))
+        res[name] = (w, d, q)
         mark = lambda t: "PASS" if t[1] > 0 else "no"
-        print(f"   {name:<10}{w[0]:+.5f} [{w[1]:+.5f}, {w[2]:+.5f}] {mark(w):<6}  {d[0]:+.6f} [{d[1]:+.6f}, {d[2]:+.6f}] {mark(d)}")
+        print(f"   {name:<10}{w[0]:+.5f} [{w[1]:+.5f}, {w[2]:+.5f}] {mark(w):<6}  {d[0]:+.6f} [{d[1]:+.6f}, {d[2]:+.6f}] {mark(d):<6}  {q[0]:+.5f} [{q[1]:+.5f}, {q[2]:+.5f}] {mark(q)}")
     if "PLANE" in pers and "PLANE_LG" in pers:     # paired increments on whiffs: what the hitter-specific part adds
         for a, b, what in (("PLANE", "PLANE_LG", "his expected angle vs the league-expected angle"),
                            ("PLANE+PERS", "PLANE", "his personal curve on top of the league curve at his angle")):
