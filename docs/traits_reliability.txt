@@ -1,0 +1,12 @@
+Floor 0.4 (split-half, Spearman-Brown, hitters with 300+ swings), fixed before the run.
+trait           2025 raw  2025 adj    n  2024 raw  2024 adj    n  yoy adj    n  verdict
+bat_speed           0.99      0.99  145      0.99      0.99  133     0.90  133  PASS
+swing_length        1.00      1.00  145      0.99      1.00  133     0.93  133  PASS
+attack_angle        0.99      0.99  145      0.99      0.99  133     0.84  133  PASS
+tilt                1.00      1.00  145      1.00      1.00  133     0.92  133  PASS
+
+Reading: all four traits are stable as hitter means (that is what these numbers measure; between-hitter spread dwarfs swing-to-swing noise at 300+ swings).
+So the traits pass the stability floor and the earlier failures are not a reliability problem. They say a trait is measurable, not that it adds
+information about the outcome beyond the hitter model, which already carries each hitter's overall level. Next: test the part that is NOT his
+mean (his change with pitch height and count), and re-score with sharper outcomes (WS1.3 to WS1.5). The PATH whiff block on 2025 was close
+(+0.00051 [-0.00007, +0.00107]), so it is worth the sharper re-test before the stop rule applies.

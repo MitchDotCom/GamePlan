@@ -1,0 +1,22 @@
+== 2025 (data/b3): swings by result: whiff 35384, foul 63864, in_play 61035
+   field                                            whiff      foul   in_play
+   bat_speed                                        0.989     0.982     0.959
+   swing_length                                     0.989     0.982     0.959
+   attack_angle                                     0.989     0.982     0.959
+   attack_direction                                 0.989     0.982     0.959
+   swing_path_tilt                                  0.989     0.982     0.959
+   intercept_ball_minus_batter_pos_x_inches         0.000     0.000     0.000
+   intercept_ball_minus_batter_pos_y_inches         0.000     0.000     0.000
+== 2024 (data/b24): swings by result: whiff 29814, foul 54316, in_play 50296
+   field                                            whiff      foul   in_play
+   bat_speed                                        0.933     0.941     0.920
+   swing_length                                     0.933     0.941     0.920
+   attack_angle                                     0.933     0.941     0.920
+   attack_direction                                 0.933     0.941     0.920
+   swing_path_tilt                                  0.933     0.941     0.920
+   intercept_ball_minus_batter_pos_x_inches         0.000     0.000     0.000
+   intercept_ball_minus_batter_pos_y_inches         0.000     0.000     0.000
+
+Reading: bat speed, swing length, attack angle, attack direction and tilt are present on 98 to 99% of missed swings in 2025 (93% in 2024), the same as on
+contact. Attack angle is not contact-only, so VBA results are not selected on the outcome. The ball-bat intercept fields (contact point, for the timing
+check in WS2.3) are not in our downloaded columns; they are not in the pulls, so the timing proxy needs a re-pull with those columns added.
