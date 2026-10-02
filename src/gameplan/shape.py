@@ -146,6 +146,7 @@ class ContactModel:
         lg = list(league)
         self.k_global = {"whiff": k_global_whiff, "xw": k_global_xw}
         self.offset = {"whiff": 0.0, "xw": 0.0, "foul": 0.0, "su": 0.0}
+        self.plane = None          # (PlaneTerm, HitterTraits, zone) set by the engine; shifts the whiff logit (plane_term.py)
         self._g = {
             "whiff": float(np.mean([s.whiff for s in lg])) if lg else 0.25,
             "foul": float(np.mean([(not s.whiff and s.xwoba is None) for s in lg])) if lg else 0.35,
@@ -222,11 +223,19 @@ class ContactModel:
                 out[t] = (hs + self.k[t] * prior_h) / (hw + self.k[t])
             else:
                 out[t] = prior
+        out["whiff"] = self._plane(raw, out["whiff"], use_hitter)
         over = np.maximum(out["whiff"] + out["foul"] - 0.98, 0.0)  # keep p_bip positive
         if over.any():
             scale = 1.0 - over / (out["whiff"] + out["foul"])
             out["whiff"], out["foul"] = out["whiff"] * scale, out["foul"] * scale
         return out
+
+    def _plane(self, raw, whiff, hitter: bool):
+        """Whiff-risk shift from the plane term (league curve at his expected angle); identity when no term is attached."""
+        if self.plane is None or self.mode != "shapecount":
+            return whiff
+        term, traits, zone = self.plane
+        return term.apply(whiff, term.shift(raw, traits if hitter else None, zone))
 
     def support(self, Q) -> dict[str, np.ndarray]:
         """Kernel-weighted count of the hitter's own swings near each query (whiff target: all swings;
@@ -249,6 +258,7 @@ class ContactModel:
                 prior = prior + adj[t]
             hs, hw = self._h[t].sums(Qs)
             lg[t], hit[t] = prior, (hs + self.k[t] * (prior + self.offset.get(t, 0.0))) / (hw + self.k[t])
+        lg["whiff"], hit["whiff"] = self._plane(raw, lg["whiff"], False), self._plane(raw, hit["whiff"], True)
         for d in (lg, hit):
             over = np.maximum(d["whiff"] + d["foul"] - 0.98, 0.0)
             if over.any():

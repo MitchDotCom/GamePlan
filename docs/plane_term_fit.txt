@@ -1,0 +1,3 @@
+fitted on 32175 held-out swings: b=-0.0334, w=+0.1888 (per sd of the curve value), mu=-1.3570, sd=0.3783
+whiff log-loss 0.45123 -> 0.44794 (in-sample for the one coefficient; out-of-fold gain is in traits_test_v2.txt)
+mean predicted whiff 0.2359 -> 0.2353, observed 0.2353

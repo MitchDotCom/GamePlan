@@ -27,6 +27,7 @@ from .opportunity import LocationModel, SwingRateModel
 from .path_variants import all_styles, call_difference, cell_region, style_cells
 from .savant import SwingRow, fetch_csv, parse_swings
 from .swing_traits import HitterTraits, LeagueTraits
+from .plane_term import PlaneTerm
 from .shape import ArsenalBasis, ContactModel, PitcherState, arsenal_for_state, filter_starts, parse_pitches
 from .zone import CalledStrikeModel
 from .constants import value as _const
@@ -106,7 +107,7 @@ class Engine:
         self.locations = LocationModel(pitcher_rows)
         self._snaps = {}
         if _shared is not None:                       # same league fit, different starter
-            for k in ("events", "league_swings", "league", "zone", "by_hitter", "_models", "_rates", "_group_loss", "league_traits"):
+            for k in ("events", "league_swings", "league", "zone", "by_hitter", "_models", "_rates", "_group_loss", "league_traits", "plane_term"):
                 setattr(self, k, getattr(_shared, k))
             return
         self.events = events
@@ -119,13 +120,21 @@ class Engine:
             self.by_hitter[s.batter].append(s)
         self._models, self._rates, self._group_loss = {}, {}, {}
         self.league_traits = LeagueTraits(league)
+        self.plane_term = PlaneTerm.load(self.league_traits)
 
     def retarget(self, pitcher_rows, starter: str) -> "Engine":
         return Engine(self.events, pitcher_rows, self.date, starter, _shared=self)
 
     def model(self, h: str) -> ContactModel:
         if h not in self._models:
-            self._models[h] = ContactModel.for_hitter([s for s in self.by_hitter[h] if s.swing], self.league)
+            sw = [s for s in self.by_hitter[h] if s.swing]
+            m = ContactModel.for_hitter(sw, self.league)
+            if self.plane_term is not None:
+                bots = [s.sz_bot for s in sw if s.sz_bot]
+                tops = [s.sz_top for s in sw if s.sz_top]
+                zone = (float(np.mean(bots)), float(np.mean(tops))) if bots and tops else (1.5, 3.5)
+                m.plane = (self.plane_term, HitterTraits.fit(sw, self.league_traits), zone)
+            self._models[h] = m
         return self._models[h]
 
     def rate(self, h: str) -> SwingRateModel:
