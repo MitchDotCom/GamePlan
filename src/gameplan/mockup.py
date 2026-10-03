@@ -28,7 +28,7 @@ from .path_variants import all_styles, call_difference, cell_region, style_cells
 from .savant import SwingRow, fetch_csv, parse_swings
 from .swing_traits import HitterTraits, LeagueTraits
 from .plane_term import PlaneTerm
-from .paths import path_report
+from .paths import COUNTS as PATH_COUNTS, full_policy, items_from_snap, path_report
 from .shape import ArsenalBasis, ContactModel, PitcherState, arsenal_for_state, filter_starts, parse_pitches
 from .zone import CalledStrikeModel
 from .constants import value as _const
@@ -107,6 +107,7 @@ class Engine:
         self.pitcher_rows = pitcher_rows
         self.locations = LocationModel(pitcher_rows)
         self._snaps = {}
+        self._full_done = set()
         if _shared is not None:                       # same league fit, different starter
             for k in ("events", "league_swings", "league", "zone", "by_hitter", "_models", "_rates", "_group_loss", "league_traits", "plane_term"):
                 setattr(self, k, getattr(_shared, k))
@@ -150,7 +151,7 @@ class Engine:
         xwc = float(np.mean(bip)) if bip else 0.35
         return Hitter(h, name, baseline_cq=(1 - whiff) * xwc, baseline_xwobacon=xwc)
 
-    def snapshot(self, h: str, tto: int, b: int, s: int, stand: str, hitter: Hitter, outs: int = 0,
+    def _raw_snapshot(self, h: str, tto: int, b: int, s: int, stand: str, hitter: Hitter, outs: int = 0,
                  bases: tuple = (False, False, False), policy: SituationPolicy = SituationPolicy.OFF):
         """Plan for this hitter against this starter at a count. `policy` is the coach's runner-on-third policy and only
         applies (and only splits the cache) when a runner is on third with fewer than two outs."""
@@ -165,6 +166,21 @@ class Engine:
             self._snaps[key] = build_plan(self.model(h), hitter, self.starter, ars, sit, game_id="mockup", level="GAME",
                                           pitcher_state=state, apply_tto_effect=True, zone_model=self.zone, config=cfg)
         return self._snaps[key]
+
+
+    def snapshot(self, h: str, tto: int, b: int, s: int, stand: str, hitter: Hitter, outs: int = 0,
+                 bases: tuple = (False, False, False), policy: SituationPolicy = SituationPolicy.OFF):
+        """The per-pitch plan (see _raw_snapshot), with each cell also carrying the FULL path's call in cell["full"]. The FULL calls need
+        the value of every count, so the first request for a hitter at a time through the order builds all 12 counts."""
+        snap = self._raw_snapshot(h, tto, b, s, stand, hitter, outs, bases, policy)
+        if not (bool(bases[2]) and outs < 2 and policy is not SituationPolicy.OFF) and (h, tto) not in self._full_done:
+            self._full_done.add((h, tto))
+            raws = {c: self._raw_snapshot(h, tto, c[0], c[1], stand, hitter) for c in PATH_COUNTS}
+            items = {c: items_from_snap(self, h, raws[c], c[1], stand) for c in PATH_COUNTS}
+            for c, cls in full_policy(items).items():
+                for k, v in zip(items[c]["keys"], cls):
+                    raws[c].cells[k]["full"] = str(v)
+        return snap
 
 
 # ---------------------------------------------------------------- hitter profile and development targets
@@ -297,7 +313,8 @@ def build_board(eng: Engine, lineup: list[str], names: dict, stands: dict, start
                                     "value_per_100": round(sm.value_per_100, 2), "target": sm.hunt_target}
                                for st, sm in styles.items()},
                     "differ": {"VALUE_vs_CONTACT": round(call_difference(snap, "VALUE", "CONTACT", eng.locations, stand), 3),
-                               "VALUE_vs_HUNT": round(call_difference(snap, "VALUE", "HUNT", eng.locations, stand), 3)},
+                               "VALUE_vs_HUNT": round(call_difference(snap, "VALUE", "HUNT", eng.locations, stand), 3),
+                               "VALUE_vs_FULL": round(call_difference(snap, "VALUE", "FULL", eng.locations, stand), 3)},
                     "plan_id": snap.plan_id,
                 }
             rec["tto"][str(tto)] = counts

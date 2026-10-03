@@ -140,8 +140,8 @@ function gameView(){
  <div class="hrow" style="margin-top:var(--s4)">${skipCtl}</div></div>
  <div class="card" style="margin-top:var(--s4)">${innings()}<p class="note">Click a plate appearance. Faded: reliever, no plan. Dashed: skipped.</p></div><div style="margin-top:var(--s4)">${paPanel()}</div>`}
 /* ---------------- pregame board ---------------- */
-const NAME={VALUE:"Value plan",CONTACT:"Contact-capped",HUNT:"Hunt a spot"};
-const DESC={VALUE:"Swing where swinging beats taking.",CONTACT:"Fewer swings that miss; adds near-even contact swings.",HUNT:"Sit on one pitch type. Experimental: the model cannot value anticipation."};
+const NAME={VALUE:"Value plan",CONTACT:"Contact-capped",HUNT:"Hunt a spot",FULL:"Decide every pitch"};
+const DESC={VALUE:"Swing where swinging beats taking.",CONTACT:"Fewer swings that miss; adds near-even contact swings.",HUNT:"Sit on one pitch type. Experimental: the model cannot value anticipation.",FULL:"Calls every cell where swinging or taking is better at all, thin evidence included. Higher modeled value, less certain."};
 function viable(cn){return cn.differ.VALUE_vs_CONTACT>=0.05&&(cn.styles.CONTACT.value_per_100-cn.styles.VALUE.value_per_100)>=-0.5}
 const BOARDS={};
 async function ensureBoard(h){if(!SERVER||BOARDS[h.id]==="loading")return;BOARDS[h.id]="loading";
@@ -158,9 +158,9 @@ function boardView(){const sd=side(HALF),B=sd.board;if(HI>=B.hitters.length)HI=0
  let cnts="";for(let s=0;s<3;s++)for(let b=0;b<4;b++){const k=b+"-"+s;cnts+=`<button class="${k===CNT?"on":""}" data-c="${k}">${k}</button>`}
  const chips=types.map(t=>`<button class="${t===PT?"on":""}" data-pt="${t}">${t} ${pct(cn.arsenal[t].usage)}</button>`).join("");
  const P=TTO==="1"&&h.paths?h.paths:null;
- const show=P?P.shown[CNT].concat(EXP&&!P.shown[CNT].includes("HUNT")?["HUNT"]:[]):["VALUE"].concat(viable(cn)?["CONTACT"]:[]).concat(EXP?["HUNT"]:[]);
+ const show=P?P.shown[CNT].concat(EXP&&!P.shown[CNT].includes("HUNT")?["HUNT"]:[]):["VALUE"].concat(viable(cn)?["CONTACT"]:[]).concat(cn.differ.VALUE_vs_FULL>=0.10?["FULL"]:[]).concat(EXP?["HUNT"]:[]);
  const key=[G.date,sd.starter,h.id,TTO,CNT].join("|");const cur=(LOG[key]||{}).path;
- const card=st=>{const s=cn.styles[st];const diff=st==="CONTACT"?cn.differ.VALUE_vs_CONTACT:st==="HUNT"?cn.differ.VALUE_vs_HUNT:null;
+ const card=st=>{const s=cn.styles[st];const diff=st==="CONTACT"?cn.differ.VALUE_vs_CONTACT:st==="HUNT"?cn.differ.VALUE_vs_HUNT:st==="FULL"?cn.differ.VALUE_vs_FULL:null;
   return `<div class="card ${cur===st?"chosen":""}"><h3>${NAME[st]}${st==="HUNT"?" (experimental)":""}</h3><div>${s.tags.map(t=>`<span class="chip">${t}</span>`).join("")}</div>${s.target?`<div class="mut">Hunt: ${s.target}</div>`:""}
   ${zoneSVG(s.cells[PT],cn.delta[PT],{small:true,stand:h.stand,szTop:3.5,szBot:1.5})}<div class="mut">${DESC[st]}</div>${st==="CONTACT"&&s.value_per_100>cn.styles.VALUE.value_per_100?`<div class="mut">Higher than the value plan because it also swings at near-even cells the value plan leaves open. Less certain.</div>`:""}
   <table style="margin-top:6px"><tr><td>Swing on</td><td class="num">${pct(s.swing_share)} of his pitches</td></tr><tr><td>Whiff on swings</td><td class="num">${pct(s.whiff)}</td></tr><tr><td>xwOBA on contact</td><td class="num">${s.contact.toFixed(3)}</td></tr>
@@ -168,7 +168,7 @@ function boardView(){const sd=side(HALF),B=sd.board;if(HI>=B.hitters.length)HI=0
   <div class="logrow noprint"><button data-pick="${st}">Use this plan</button></div></div>`};
  const styles=show.map(card).join("")+(show.length===1?`<div class="card"><h3>One viable plan here</h3><div class="mut">${CNT.endsWith("-2")?"Two strikes: protect the plate.":cn.styles.VALUE.swing_share===0?"No pitch is worth swinging at in this count.":(P?"No other plan differs on 10% of pitches while staying within 1.5 runs per 100 plate appearances of the value plan.":"The alternative plan differs on under 5% of pitches or costs over half a run per 100.")}</div></div>`:"");
  const L=LOG[key]||{};
- const logBox=`<div class="card noprint" style="margin-top:12px"><h3>Your call: ${h.name}, ${CNT}, ${TTO==='1'?'1st':TTO==='2'?'2nd':'3rd+'} time through</h3><div class="logrow"><select id="lg-path"><option value="">Plan chosen</option><option value="VALUE">Value plan</option><option value="CONTACT">Contact-capped</option><option value="OWN">My own plan</option></select>
+ const logBox=`<div class="card noprint" style="margin-top:12px"><h3>Your call: ${h.name}, ${CNT}, ${TTO==='1'?'1st':TTO==='2'?'2nd':'3rd+'} time through</h3><div class="logrow"><select id="lg-path"><option value="">Plan chosen</option><option value="VALUE">Value plan</option><option value="CONTACT">Contact-capped</option><option value="FULL">Decide every pitch</option><option value="OWN">My own plan</option></select>
   <select id="lg-why"><option value="">Reason</option><option>hitter feel/recent form</option><option>scouting report</option><option>game situation</option><option>development goal</option><option>model looks wrong</option><option>other</option></select><input type="text" id="lg-note" placeholder="note" size="28"><button id="lg-save">Save</button></div></div>`;
  const tg=(h.targets.groups||[]).map(g=>`<li>${FAMN[g.family]||g.family}, ${g.zone} zone, ${g.count}: ${g.his_rate.toFixed(1)} runs lost per 100 vs. ${g.typical_rate.toFixed(1)} typical (${g.n} pitches)</li>`).join("")||"<li class='mut'>not enough tracked pitches</li>";
  return `<div class="top"><label class="mut">Hitter: ${sel}</label></div>

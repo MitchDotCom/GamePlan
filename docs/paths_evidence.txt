@@ -1,29 +1,55 @@
-Path generator v1 evidence: BOS at ARI 2025-09-07, 18 hitters, TTO 1. Values are runs per 100 plate appearances vs the VALUE path (mean ± SD over 100 cell-noise draws).
-Thresholds are placeholders for a coach to set: viable within 1.5 runs per 100 PA of VALUE; calls differ on at least 10% of pitches. HUNT is scored but never shown (no anticipation term).
+Path generator evidence: BOS at ARI 2025-09-07, 18 hitters, first time through the order. Values are runs per 100 plate appearances vs the VALUE path (mean ± SD over 100 cell-noise draws).
+Placeholders for a coach to set: viable = within 1.5 runs per 100 PA of VALUE; calls must differ on at least 10% of pitches. HUNT is scored but never shown (no anticipation term).
 
-Top 807799: CONTACT vs value +0.11±0.09; HUNT vs value -0.72±0.17; one path in 9 of 12 counts
-Top 608324: CONTACT vs value +0.09±0.11; HUNT vs value -1.23±0.18; one path in 9 of 12 counts
-Top 680776: CONTACT vs value -0.21±0.05; HUNT vs value -1.96±0.14 (not viable); one path in 11 of 12 counts
-Top 596115: CONTACT vs value -0.36±0.06; HUNT vs value -2.24±0.14 (not viable); one path in 11 of 12 counts
-Top 663993: CONTACT vs value -0.26±0.06; HUNT vs value -1.45±0.14; one path in 11 of 12 counts
-Top 608701: CONTACT vs value -0.50±0.06; HUNT vs value -2.36±0.14 (not viable); one path in 12 of 12 counts
-Top 666152: CONTACT vs value +0.31±0.09; HUNT vs value -0.82±0.13; one path in 9 of 12 counts
-Top 678882: CONTACT vs value +0.04±0.07; HUNT vs value -1.86±0.15 (not viable); one path in 10 of 12 counts
-Top 657136: CONTACT vs value +0.29±0.09; HUNT vs value -1.04±0.15; one path in 9 of 12 counts
-Bot 672695: CONTACT vs value +0.10±0.16; HUNT vs value -0.81±0.22; one path in 8 of 12 counts
-Bot 606466: CONTACT vs value -0.15±0.07; HUNT vs value -2.25±0.18 (not viable); one path in 10 of 12 counts
-Bot 682998: CONTACT vs value -0.36±0.03; HUNT vs value -3.15±0.20 (not viable); one path in 12 of 12 counts
-Bot 672515: CONTACT vs value +0.04±0.11; HUNT vs value -1.26±0.21; one path in 9 of 12 counts
-Bot 664983: CONTACT vs value +0.39±0.13; HUNT vs value -1.36±0.20; one path in 9 of 12 counts
-Bot 677942: CONTACT vs value -0.37±0.03; HUNT vs value -2.21±0.16 (not viable); one path in 12 of 12 counts
-Bot 677950: CONTACT vs value -0.02±0.06; HUNT vs value -2.11±0.16 (not viable); one path in 10 of 12 counts
-Bot 682988: CONTACT vs value -0.05±0.06; HUNT vs value -1.75±0.17 (not viable); one path in 11 of 12 counts
-Bot 691783: CONTACT vs value +0.11±0.09; HUNT vs value -1.36±0.17; one path in 10 of 12 counts
+1. Policy iteration with the plan's confidence rule does not help (validation of the change you approved, run before installing it)
+Replacing the per-pitch Value path with a policy-iterated one (each cell decided with his own plate-appearance continuation, same z = 1.28 confidence bound):
+Top 807799: PAOPT vs value +0.41±0.08, calls changed on 8.3% of pitches
+Top 608324: PAOPT vs value +0.25±0.08, calls changed on 8.7% of pitches
+Top 680776: PAOPT vs value -0.47±0.09, calls changed on 9.0% of pitches
+Top 596115: PAOPT vs value -0.39±0.08, calls changed on 7.4% of pitches
+Top 663993: PAOPT vs value -0.27±0.09, calls changed on 8.3% of pitches
+Top 608701: PAOPT vs value -0.45±0.08, calls changed on 7.1% of pitches
+Top 666152: PAOPT vs value +0.39±0.05, calls changed on 6.3% of pitches
+Top 678882: PAOPT vs value +0.10±0.06, calls changed on 8.2% of pitches
+Top 657136: PAOPT vs value +0.16±0.05, calls changed on 5.1% of pitches
+Bot 672695: PAOPT vs value +0.81±0.08, calls changed on 8.1% of pitches
+Bot 606466: PAOPT vs value +0.03±0.12, calls changed on 10.8% of pitches
+Bot 682998: PAOPT vs value -0.18±0.12, calls changed on 12.6% of pitches
+Bot 672515: PAOPT vs value +0.46±0.10, calls changed on 9.5% of pitches
+Bot 664983: PAOPT vs value +0.54±0.03, calls changed on 5.9% of pitches
+Bot 677942: PAOPT vs value -0.16±0.07, calls changed on 6.2% of pitches
+Bot 677950: PAOPT vs value -0.08±0.09, calls changed on 7.3% of pitches
+Bot 682988: PAOPT vs value +0.07±0.07, calls changed on 5.6% of pitches
+Bot 691783: PAOPT vs value +0.27±0.02, calls changed on 3.9% of pitches
+Result: -0.47 to +0.41 per hitter, mixed signs. Not installed. Debugging four hitters showed why: the confidence bound, not the continuation, sets the value. Plate-appearance optimum under the model's own estimates
+(swing wherever swinging beats taking, no bound) vs the current Value path: +1.12, +1.07, +1.78, +1.67 runs per 100 PA for the four hitters tried; the plan's rule leaves about a run per 100 PA unclaimed because
+it leaves thin-evidence cells at "no call".
 
-counts showing one path: 182 of 216 (84%)
+2. What shipped instead: a distinct "Decide every pitch" path (FULL)
+FULL = continuation from that optimum, calls with the plan's GO/NO_GO margins (+/-0.02) and no confidence bound; cells inside the margins keep his tendency.
+Top 807799: CONTACT vs value +0.11±0.09; HUNT vs value -0.72±0.17; FULL vs value +1.44±0.07; one path in 4 of 12 counts
+Top 608324: CONTACT vs value +0.09±0.11; HUNT vs value -1.23±0.18; FULL vs value +1.34±0.10; one path in 5 of 12 counts
+Top 680776: CONTACT vs value -0.21±0.05; HUNT vs value -1.96±0.14 (not viable); FULL vs value +0.89±0.04; one path in 8 of 12 counts
+Top 596115: CONTACT vs value -0.36±0.06; HUNT vs value -2.24±0.14 (not viable); FULL vs value +0.83±0.06; one path in 8 of 12 counts
+Top 663993: CONTACT vs value -0.26±0.06; HUNT vs value -1.45±0.14; FULL vs value +0.95±0.05; one path in 8 of 12 counts
+Top 608701: CONTACT vs value -0.50±0.06; HUNT vs value -2.36±0.14 (not viable); FULL vs value +0.75±0.05; one path in 8 of 12 counts
+Top 666152: CONTACT vs value +0.31±0.09; HUNT vs value -0.82±0.13; FULL vs value +1.47±0.09; one path in 4 of 12 counts
+Top 678882: CONTACT vs value +0.04±0.07; HUNT vs value -1.86±0.15 (not viable); FULL vs value +1.18±0.07; one path in 6 of 12 counts
+Top 657136: CONTACT vs value +0.29±0.09; HUNT vs value -1.04±0.15; FULL vs value +1.28±0.08; one path in 5 of 12 counts
+Bot 672695: CONTACT vs value +0.10±0.16; HUNT vs value -0.81±0.22; FULL vs value +1.93±0.12; one path in 3 of 12 counts
+Bot 606466: CONTACT vs value -0.15±0.07; HUNT vs value -2.25±0.18 (not viable); FULL vs value +1.27±0.08; one path in 4 of 12 counts
+Bot 682998: CONTACT vs value -0.36±0.03; HUNT vs value -3.15±0.20 (not viable); FULL vs value +1.21±0.08; one path in 4 of 12 counts
+Bot 672515: CONTACT vs value +0.04±0.11; HUNT vs value -1.26±0.21; FULL vs value +1.66±0.08; one path in 4 of 12 counts
+Bot 664983: CONTACT vs value +0.39±0.13; HUNT vs value -1.36±0.20; FULL vs value +1.60±0.11; one path in 3 of 12 counts
+Bot 677942: CONTACT vs value -0.37±0.03; HUNT vs value -2.21±0.16 (not viable); FULL vs value +0.88±0.05; one path in 8 of 12 counts
+Bot 677950: CONTACT vs value -0.02±0.06; HUNT vs value -2.11±0.16 (not viable); FULL vs value +1.02±0.04; one path in 6 of 12 counts
+Bot 682988: CONTACT vs value -0.05±0.06; HUNT vs value -1.75±0.17 (not viable); FULL vs value +1.09±0.05; one path in 8 of 12 counts
+Bot 691783: CONTACT vs value +0.11±0.09; HUNT vs value -1.36±0.17; FULL vs value +1.23±0.08; one path in 6 of 12 counts
+
+counts showing one path: 102 of 216 (47%), up from 84% before FULL existed.
 
 Reading:
-- 84% of hitter-counts show one path. The second path (CONTACT) shows up in 16% of counts, mostly for hitters whose CONTACT score is at or above VALUE. This matches the earlier mock-up evidence that most cells collapse to one path.
-- CONTACT is within about half a run per 100 PA of VALUE for every hitter, and above it for 8 of 18 (up to +0.39 ± 0.13). Above-VALUE means VALUE is not the plate-appearance optimum: it picks swing or take pitch by pitch with the league count table as the future. The next step is policy iteration (recompute each pitch's choice using the hitter's own plate-appearance continuation value), which would make VALUE the real optimum for him.
-- HUNT is 0.7 to 3.2 runs per 100 PA worse than VALUE with no anticipation benefit modelled. It stays off until the anticipation test.
-- Uncertainty is cell-level noise on contact quality only (approximation). The SDs say how far the numbers move if the cell estimates are off by their standard errors; they do not include model error.
+- FULL is above VALUE for all 18 hitters, +0.75 to +1.93 runs per 100 PA. It changes calls on roughly 12 to 17% of pitches. This is the modeled gain and it is an upper bound: FULL is chosen from the same estimates it is scored on (winner's curse), and the extra calls are the thin-evidence ones. Scorecard criterion 7 shows thin-support calls separate swing from take less well than confident ones (still a positive separation), so expect a real but smaller gain.
+- That is why it is a separate path and not the default: Value is the confident plan, Decide every pitch is the higher-modeled-value, less-certain alternative. The coach chooses.
+- CONTACT is within about half a run per 100 PA of VALUE and above it for 8 of 18 hitters. HUNT is 0.7 to 3.2 runs per 100 PA worse than VALUE with no anticipation benefit modelled; it stays off.
+- Uncertainty is cell-level noise on contact quality only (approximation). The SDs do not include model error or the winner's-curse bias.

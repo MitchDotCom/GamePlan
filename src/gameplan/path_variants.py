@@ -19,7 +19,7 @@ from .decision import CONTACT_FIRST_MAX_WHIFF
 from .matchup import CELL_IN, X_RANGE, Z_RANGE, PlanSnapshot
 from .opportunity import LocationModel, SwingRateModel, plan_opportunity
 
-STYLES = ("VALUE", "CONTACT", "HUNT")
+STYLES = ("VALUE", "CONTACT", "HUNT", "FULL")
 CONTACT_MAX_WHIFF = CONTACT_FIRST_MAX_WHIFF
 CONTACT_ADD_WHIFF = 0.15          # CHOICE for the mock-up, not fit
 CONTACT_ADD_DELTA = -0.02         # swing minus take, wOBA scale; the edge of the "no strong call" band
@@ -45,6 +45,10 @@ def style_cells(snap: PlanSnapshot, style: str, hunt_cells: int = HUNT_CELLS) ->
     """The snapshot's cells with `cls` rewritten for this style. Cells keep their numbers."""
     cells = {k: dict(v) for k, v in snap.cells.items()}
     if style == "VALUE":
+        return cells
+    if style == "FULL":                                   # decided on every cell with the plate-appearance continuation (paths.full_policy)
+        for c in cells.values():
+            c["cls"] = c.get("full", c["cls"])
         return cells
     if style == "CONTACT":
         for c in cells.values():
@@ -143,7 +147,7 @@ def all_styles(snap: PlanSnapshot, locations: LocationModel, swing_rate: SwingRa
     base = summarize(snap, "VALUE", locations, swing_rate, stand)
     out = {"VALUE": replace(base, tags=_tags(base.swing_share, base.whiff_on_swings, base.contact_on_swings,
                                              _go_type_mass(snap, locations, stand), None))}
-    for st in ("CONTACT", "HUNT"):
+    for st in ("CONTACT", "HUNT", "FULL"):
         out[st] = summarize(snap, st, locations, swing_rate, stand, base_swing_share=base.swing_share)
     return out
 

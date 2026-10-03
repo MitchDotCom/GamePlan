@@ -23,6 +23,7 @@ import argparse
 import numpy as np
 
 from .constants import value as _const
+from .decision import DEFAULT, GO_DELTA, NO_GO_DELTA
 from .pa_value import solve
 from .path_variants import STYLES, style_cells
 
@@ -35,13 +36,19 @@ SCALE = _const("WOBA_SCALE_2025")
 
 
 def _items(eng, h, tto, b, s, stand, hit):
-    snap = eng.snapshot(h, tto, b, s, stand, hit)
+    return items_from_snap(eng, h, eng.snapshot(h, tto, b, s, stand, hit), s, stand)
+
+
+def items_from_snap(eng, h, snap, s, stand):
+    """Arrays over every (pitch type, cell) of one count: weight, his swing tendency, outcome rates, called-strike share, standard error,
+    and the swing probability each style implies."""
     cells = {st: style_cells(snap, st) for st in STYLES}
     locs, rate = eng.locations, eng.rate(h)
     xs = np.array([c[2] for c in locs.cells])
     zs = np.array([c[3] for c in locs.cells])
     cols = {k: [] for k in ("m", "psw", "whiff", "foul", "xw", "pcs", "se")}
     cls = {st: [] for st in STYLES}
+    keys = []
     for pt, a in snap.arsenal.items():
         mass = locs.mass(pt, stand, min(s, 2)) * a["usage"]
         psw = rate.p(xs, zs, pt, s)
@@ -49,6 +56,7 @@ def _items(eng, h, tto, b, s, stand, hit):
             c = snap.cells.get(f"{pt}|{i}|{j}")
             if c is None or mass[n] <= 0:
                 continue
+            keys.append(f"{pt}|{i}|{j}")
             cols["m"].append(mass[n])
             cols["psw"].append(psw[n])
             cols["whiff"].append(c["whiff"])
@@ -59,11 +67,49 @@ def _items(eng, h, tto, b, s, stand, hit):
             for st in STYLES:
                 cls[st].append(cells[st][f"{pt}|{i}|{j}"]["cls"])
     out = {k: np.array(v, float) for k, v in cols.items()}
+    out["keys"] = keys
     out["m"] = out["m"] / out["m"].sum()
     out["ps"] = {"BASE": out["psw"]}
     for st in STYLES:
         c = np.array(cls[st])
         out["ps"][st] = np.where(c == "GO", 1.0, np.where(c == "NO_GO", 0.0, out["psw"]))
+    return out
+
+
+def _continuation(V, b, s):
+    return (0.0 if s + 1 >= 3 else V[(b, s + 1)], DEFAULT.walk if b + 1 >= 4 else V[(b + 1, s)], V[(b, s)] if s >= 2 else V[(b, s + 1)])
+
+
+def _solve_ps(items, ps):
+    return solve({c: {"m": it["m"], "ps": ps[c], "whiff": it["whiff"], "foul": it["foul"], "xw": it["xw"], "pcs": it["pcs"]}
+                  for c, it in items.items()})
+
+
+def full_policy(items: dict, iters: int = 10) -> dict:
+    """The FULL path: decide every cell, thin evidence included. Step 1: the plate-appearance optimum under the model's own estimates
+    (swing wherever swinging beats taking, valued with the optimal rest of the plate appearance; policy iteration, converges in 2 or 3
+    rounds). Step 2: the displayed calls, using that continuation, with the plan's GO_DELTA / NO_GO_DELTA margins but no confidence bound
+    (z = 0). Cells inside the margins keep his tendency. Returns {(b, s): array of "GO" / "NO_GO" / "CONDITIONAL"}.
+    Why a separate path: with the confidence bound (z = 1.28) the same iteration does no better than the per-pitch plan; the bound is what
+    keeps thin-evidence cells at "no call" and costs about a run per 100 plate appearances in the model (docs/paths_evidence.txt)."""
+    cur = {c: it["ps"]["VALUE"].copy() for c, it in items.items()}
+    for _ in range(iters):
+        V = _solve_ps(items, cur)
+        new = {}
+        for (b, s), it in items.items():
+            vs, vb, vf = _continuation(V, b, s)
+            bip = np.maximum(1.0 - it["whiff"] - it["foul"], 0.0)
+            d = (it["whiff"] * vs + it["foul"] * vf + bip * it["xw"]) - (it["pcs"] * vs + (1.0 - it["pcs"]) * vb)
+            new[(b, s)] = (d > 0).astype(float)
+        if all(np.array_equal(new[c], cur[c]) for c in items):
+            break
+        cur = new
+    out = {}
+    for (b, s), it in items.items():
+        vs, vb, vf = _continuation(V, b, s)
+        bip = np.maximum(1.0 - it["whiff"] - it["foul"], 0.0)
+        d = (it["whiff"] * vs + it["foul"] * vf + bip * it["xw"]) - (it["pcs"] * vs + (1.0 - it["pcs"]) * vb)
+        out[(b, s)] = np.where(d >= GO_DELTA, "GO", np.where(d <= NO_GO_DELTA, "NO_GO", "CONDITIONAL"))
     return out
 
 
