@@ -24,7 +24,9 @@ Known limits, said out loud to coaches: the plan is silent on about half of pitc
 | Traits vs full kernel | Plane block passes both seasons; his personal curve shape adds nothing; damage still fails everywhere; bat speed and swing length alone still fail |
 | Plane term | Adopted in the whiff prediction (`plane_term.py`); small effect (2.6% of grid cells change class in a test game, no call flips) |
 | Plate-appearance value | `pa_value.py` reproduces the count table, max relative error 3.5% (tolerance 15%) |
-| Next | Damage baseline as strong as the kernel, path generator, path picker in the app |
+| Damage (squared-up, kernel baseline) | No block passes both seasons. Bat speed hints in 2024 only; retest on 2026 data |
+| Path generator v1 | `paths.py`: whole plate-appearance value of each path, uncertainty, shown-path rule. Policy iteration with the confidence rule did not help; a separate "Decide every pitch" path is +0.75 to +1.93 runs per 100 PA in the model (upper bound). One path in 47% of hitter-counts |
+| Next | Coach session on the path picker and its thresholds; anticipation test (decides Hunt); 2026 data refresh; Mac first run |
 
 ## The next question: can he damage what he swings at?
 
