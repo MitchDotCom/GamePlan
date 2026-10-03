@@ -106,3 +106,22 @@ def test_pending_board_loads_when_ready(server):
         pg.wait_for_selector("text=Value plan", timeout=15000)
         assert not errors, errors[:3]
         b.close()
+
+
+def test_game_built_by_an_older_model_is_out_of_date(server):
+    """A finished game carries stamp.txt with the model hash. A different (or missing) stamp marks it out of date; the same stamp does not."""
+    import time
+    url, app = server
+    for _ in range(100):
+        if app.index_ready:
+            break
+        time.sleep(0.1)
+    d = app.games_dir / "900001"
+    d.mkdir(parents=True)
+    (d / "game.json").write_text("{}")
+    assert app.status("900001") == "stale"                     # no stamp: built before stamps existed
+    (d / "stamp.txt").write_text("deadbeef0000")
+    assert app.status("900001") == "stale"                     # another model's stamp
+    (d / "stamp.txt").write_text(app.stamp)
+    assert app.status("900001") == "ready"
+    assert app.refresh_status()["stale"] == 0

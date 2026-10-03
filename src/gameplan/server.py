@@ -24,6 +24,7 @@ import glob
 import json
 import pathlib
 import re
+import shutil
 import multiprocessing
 import os
 import sys
@@ -32,6 +33,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .game_html import render_app, VIEWER
+from .version import model_stamp
 
 MAX_BUILDS = 2
 SEASON_DAYS = 195
@@ -69,6 +71,9 @@ class App:
         self.index: list[dict] = []
         self.index_ready = False
         self.jobs: dict[str, dict] = {}
+        self.stamp = model_stamp()
+        self.queue: list[str] = []            # out-of-date games waiting for a build slot
+        self.refreshing: dict[str, dict] = {}  # pk -> running rebuild (built in staging, swapped in when it succeeds)
         self.dl = None
         self.import_bundled()
         threading.Thread(target=self.build_index, daemon=True).start()
@@ -141,6 +146,8 @@ class App:
     # ---- status
     def status(self, pk: str) -> str:
         if (self.games_dir / pk / "game.json").exists():
+            if self._stale(pk):
+                return "stale"
             return "ready"
         j = self.jobs.get(pk)
         if j and j["proc"].poll() is None:
@@ -149,7 +156,72 @@ class App:
             return "failed"
         return "new"
 
+    def _stale(self, pk: str) -> bool:
+        """Built by an older model (or never finished) and rebuildable from this data folder. A first build in progress is not stale."""
+        j = self.jobs.get(pk)
+        if j and j["proc"].poll() is None:
+            return False
+        sf = self.games_dir / pk / "stamp.txt"
+        if sf.exists() and sf.read_text().strip() == self.stamp:
+            return False
+        return any(g["game_pk"] == pk and g["home"] and g["away"] for g in self.index)
+
+    # ---- keeping built games current
+    def queue_stale(self) -> dict:
+        """Queue every out-of-date built game for a rebuild. Safe to call repeatedly; the work list is recomputed from disk each time, so a
+        restart or a killed build just picks up what is still out of date."""
+        with self.lock:
+            for p in sorted(self.games_dir.iterdir()):
+                if (p / "game.json").exists() and p.name not in self.queue and p.name not in self.refreshing and self._stale(p.name):
+                    self.queue.append(p.name)
+        self._pump()
+        return self.refresh_status()
+
+    def _pump(self):
+        self._reap()
+        with self.lock:
+            running = sum(1 for j in list(self.jobs.values()) + list(self.refreshing.values()) if j["proc"].poll() is None)
+            while self.queue and running < MAX_BUILDS:
+                pk = self.queue.pop(0)
+                g = next((x for x in self.index if x["game_pk"] == pk), None)
+                if not g:
+                    continue
+                stage = self.dir / "staging" / pk
+                shutil.rmtree(stage, ignore_errors=True)
+                stage.mkdir(parents=True)
+                argv = ["--league", str(self.league), "--date", g["date"], "--game", pk, "--away", g["away"], "--home", g["home"],
+                        "--out", str(stage), "--lazy-boards", "--cache-dir", str(self.dir / "cache")]
+                self.refreshing[pk] = {"proc": Job(_run_build, (argv, str(stage / "build.log"))), "started": time.time(), "stage": stage}
+                running += 1
+        if self.queue or self.refreshing:
+            t = threading.Timer(5.0, self._pump)
+            t.daemon = True
+            t.start()
+
+    def _reap(self):
+        """Swap in finished rebuilds; keep the old version when one fails."""
+        for pk, j in list(self.refreshing.items()):
+            if j["proc"].poll() is None:
+                continue
+            stage = j["stage"]
+            if j["proc"].returncode == 0 and (stage / "stamp.txt").exists():
+                live, old = self.games_dir / pk, self.dir / "staging" / (pk + ".old")
+                shutil.rmtree(old, ignore_errors=True)
+                if live.exists():
+                    live.replace(old)
+                stage.replace(live)
+                shutil.rmtree(old, ignore_errors=True)
+            with self.lock:
+                self.refreshing.pop(pk, None)
+
+    def refresh_status(self) -> dict:
+        self._reap()
+        with self.lock:
+            stale = [g for g in (p.name for p in self.games_dir.iterdir()) if (self.games_dir / g / "game.json").exists() and self._stale(g)]
+            return {"stale": len(stale), "queued": len(self.queue), "updating": sorted(self.refreshing)}
+
     def games(self) -> dict:
+        self._reap()
         with self.lock:
             idx, ready = list(self.index), self.index_ready
         built = {p.name for p in self.games_dir.iterdir() if (p / "game.json").exists()}
@@ -160,6 +232,7 @@ class App:
             pk0 = g["game_pk"]
             bd = self.games_dir / pk0 / "boards"
             rows.append({**g, "status": self.status(pk0), "boards_running": bool(self.jobs.get(pk0) and self.jobs[pk0]["proc"].poll() is None),
+                         "updating": pk0 in self.refreshing or pk0 in self.queue,
                          "boards_done": len(list(bd.glob("*.json"))) if bd.exists() else 0,
                          "home_starter": self.names.get(g["starters"].get("Top", ""), g["starters"].get("Top", "")),
                          "away_starter": self.names.get(g["starters"].get("Bot", ""), g["starters"].get("Bot", ""))})
@@ -171,11 +244,17 @@ class App:
             rows.append({"game_pk": pk, "date": g["date"], "home": g["home"], "away": g["away"], "pas": len(g["pas"]), "pitches": sum(len(p["pitches"]) for p in g["pas"]),
                          "status": "ready", "home_starter": g["sides"]["Top"]["starter_name"], "away_starter": g["sides"]["Bot"]["starter_name"], "starters": {}})
         rows.sort(key=lambda r: (r["date"], r["game_pk"]), reverse=True)
-        return {"ready": ready, "games": rows}
+        return {"ready": ready, "games": rows, "stale": sum(1 for r in rows if r["status"] == "stale"), "updating": len(self.refreshing) + len(self.queue)}
 
     def start_build(self, pk: str):
         if not re.fullmatch(r"\d+", pk):
             return 400, {"error": "bad game id"}
+        if self.status(pk) == "stale":                # built by an older model: rebuild in the background, keep the old one until the new is ready
+            with self.lock:
+                if pk not in self.queue and pk not in self.refreshing:
+                    self.queue.append(pk)
+            self._pump()
+            return 200, {"status": "stale", "updating": True}
         if self.status(pk) in ("ready", "building"):
             return 200, {"status": self.status(pk)}
         if sum(1 for j in self.jobs.values() if j["proc"].poll() is None) >= MAX_BUILDS:
@@ -275,6 +354,8 @@ def make_handler(app: App):
         def do_POST(self):
             if self.path == "/api/download":
                 return self._send(200, app.start_download())
+            if self.path == "/api/refresh":
+                return self._send(200, app.queue_stale())
             if self.path == "/api/build":
                 code, body = app.start_build(str(self._body().get("game_pk", "")))
                 return self._send(code, body)

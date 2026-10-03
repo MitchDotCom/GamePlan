@@ -25,6 +25,7 @@ from .path_variants import cell_region
 from .arsenal_fit import band_personal, classify, hitter_fit, league_baseline, zone_bucket
 from .savant import parse_swings
 from .swing_traits import HitterTraits, _design
+from .version import model_stamp
 
 STEP = CELL_IN / 12.0
 TRAIT_KEY = {"bat_speed": "bs", "swing_length": "sl", "attack_angle": "aa", "tilt": "tilt"}
@@ -312,6 +313,7 @@ def main(argv=None) -> int:
             tmp.replace(out / "boards" / f"{h}.json")
             tick(f"board ready: {names.get(h, h)}")
         print("all boards ready", flush=True)
+    (out / "stamp.txt").write_text(model_stamp(), encoding="utf-8")        # marks the build complete and which model made it
     return 0
 
 
