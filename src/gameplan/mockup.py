@@ -28,6 +28,7 @@ from .path_variants import all_styles, call_difference, cell_region, style_cells
 from .savant import SwingRow, fetch_csv, parse_swings
 from .swing_traits import HitterTraits, LeagueTraits
 from .plane_term import PlaneTerm
+from .paths import path_report
 from .shape import ArsenalBasis, ContactModel, PitcherState, arsenal_for_state, filter_starts, parse_pitches
 from .zone import CalledStrikeModel
 from .constants import value as _const
@@ -280,6 +281,7 @@ def build_board(eng: Engine, lineup: list[str], names: dict, stands: dict, start
         stand = stands[h]
         rec = {"order": order, "id": h, "name": hit.name, "stand": stand, "profile": profile(eng, h),
                "targets": development_targets(eng, h), "swing": swing_profile(eng, h), "tto": {}}
+        rec["paths"] = path_report(eng, h, 1, stand, hit)             # whole plate-appearance value of each style, 1st time through
         for tto in TTOS:
             counts = {}
             for b, s in COUNTS:
