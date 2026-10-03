@@ -1,0 +1,29 @@
+Path generator v1 evidence: BOS at ARI 2025-09-07, 18 hitters, TTO 1. Values are runs per 100 plate appearances vs the VALUE path (mean ± SD over 100 cell-noise draws).
+Thresholds are placeholders for a coach to set: viable within 1.5 runs per 100 PA of VALUE; calls differ on at least 10% of pitches. HUNT is scored but never shown (no anticipation term).
+
+Top 807799: CONTACT vs value +0.11±0.09; HUNT vs value -0.72±0.17; one path in 9 of 12 counts
+Top 608324: CONTACT vs value +0.09±0.11; HUNT vs value -1.23±0.18; one path in 9 of 12 counts
+Top 680776: CONTACT vs value -0.21±0.05; HUNT vs value -1.96±0.14 (not viable); one path in 11 of 12 counts
+Top 596115: CONTACT vs value -0.36±0.06; HUNT vs value -2.24±0.14 (not viable); one path in 11 of 12 counts
+Top 663993: CONTACT vs value -0.26±0.06; HUNT vs value -1.45±0.14; one path in 11 of 12 counts
+Top 608701: CONTACT vs value -0.50±0.06; HUNT vs value -2.36±0.14 (not viable); one path in 12 of 12 counts
+Top 666152: CONTACT vs value +0.31±0.09; HUNT vs value -0.82±0.13; one path in 9 of 12 counts
+Top 678882: CONTACT vs value +0.04±0.07; HUNT vs value -1.86±0.15 (not viable); one path in 10 of 12 counts
+Top 657136: CONTACT vs value +0.29±0.09; HUNT vs value -1.04±0.15; one path in 9 of 12 counts
+Bot 672695: CONTACT vs value +0.10±0.16; HUNT vs value -0.81±0.22; one path in 8 of 12 counts
+Bot 606466: CONTACT vs value -0.15±0.07; HUNT vs value -2.25±0.18 (not viable); one path in 10 of 12 counts
+Bot 682998: CONTACT vs value -0.36±0.03; HUNT vs value -3.15±0.20 (not viable); one path in 12 of 12 counts
+Bot 672515: CONTACT vs value +0.04±0.11; HUNT vs value -1.26±0.21; one path in 9 of 12 counts
+Bot 664983: CONTACT vs value +0.39±0.13; HUNT vs value -1.36±0.20; one path in 9 of 12 counts
+Bot 677942: CONTACT vs value -0.37±0.03; HUNT vs value -2.21±0.16 (not viable); one path in 12 of 12 counts
+Bot 677950: CONTACT vs value -0.02±0.06; HUNT vs value -2.11±0.16 (not viable); one path in 10 of 12 counts
+Bot 682988: CONTACT vs value -0.05±0.06; HUNT vs value -1.75±0.17 (not viable); one path in 11 of 12 counts
+Bot 691783: CONTACT vs value +0.11±0.09; HUNT vs value -1.36±0.17; one path in 10 of 12 counts
+
+counts showing one path: 182 of 216 (84%)
+
+Reading:
+- 84% of hitter-counts show one path. The second path (CONTACT) shows up in 16% of counts, mostly for hitters whose CONTACT score is at or above VALUE. This matches the earlier mock-up evidence that most cells collapse to one path.
+- CONTACT is within about half a run per 100 PA of VALUE for every hitter, and above it for 8 of 18 (up to +0.39 ± 0.13). Above-VALUE means VALUE is not the plate-appearance optimum: it picks swing or take pitch by pitch with the league count table as the future. The next step is policy iteration (recompute each pitch's choice using the hitter's own plate-appearance continuation value), which would make VALUE the real optimum for him.
+- HUNT is 0.7 to 3.2 runs per 100 PA worse than VALUE with no anticipation benefit modelled. It stays off until the anticipation test.
+- Uncertainty is cell-level noise on contact quality only (approximation). The SDs say how far the numbers move if the cell estimates are off by their standard errors; they do not include model error.
