@@ -407,6 +407,7 @@ def direct_test(P, early_arr, fam, zr, split, matched=False):
 # ------------------------------------------------------------------ main
 
 def main(argv=None) -> int:
+    global MIN_HITTER_PITCHES
     ap = argparse.ArgumentParser()
     ap.add_argument("--league", required=True)
     ap.add_argument("--eval-start", required=True)
@@ -416,7 +417,6 @@ def main(argv=None) -> int:
     ap.add_argument("--min-hitter-pitches", type=int, default=MIN_HITTER_PITCHES, help="earlier pitches a hitter needs before his calls count (150 for the Single-A-size stress test)")
     ap.add_argument("--extras", action="store_true", help="post-hoc controls only: usage-only path U and the endpoint-matched look-alike test")
     a = ap.parse_args(argv)
-    global MIN_HITTER_PITCHES
     MIN_HITTER_PITCHES = a.min_hitter_pitches
     t0 = time.time()
     say(f"Gate 0 run: league {a.league}, eval from {a.eval_start}, direct-test split {a.split}, hitter history {MIN_HITTER_PITCHES}+ pitches")

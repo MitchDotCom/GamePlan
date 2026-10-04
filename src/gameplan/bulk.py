@@ -129,6 +129,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--start", default="2025-03-18")
     ap.add_argument("--end", default="2025-09-28")
     a = ap.parse_args(argv)
+    if a.league and a.minors:
+        raise SystemExit("--minors is disabled: the minor-league endpoint returns MLB games when its level filter is not recognised, and every "
+                         "request with the level filter returned no rows when checked on 2026-10-04. Verify game_pk values against a known minor-league game first.")
     if a.league:
         fetch_league_days(season_days(a.start, a.end), a.league, minors=a.minors)
     if a.pitchers:

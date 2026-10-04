@@ -47,7 +47,7 @@ A "mistake" is a swing or take that the average-hitter model says was the worse 
 ## Limits
 
 - The referee is a model of the average hitter, not truth. "Mistake" means worse than the average-hitter model's better option.
-- MLB starters and hitters; the Triple-A and Florida State League run is pending (download in progress).
+- All data is MLB. The planned Triple-A and Florida State League stress test was **not run**: the minor-league download returned MLB games, not minor-league games (every game ID on a checked day matched the MLB file), and requests with Savant's level filter returned no rows. The nearest substitute is the MLB run with a 150-pitch history requirement above. The same mistake also invalidates the earlier "MiLB" sample-size numbers in `docs/feasibility_current.txt` and `docs/G1_EVIDENCE.md` section 3; both now carry a correction notice. The owner's own Triple-A or Single-A upload is the way to run this.
 - Nothing here tests whether video training improves recognition or whether recognition is the problem. That needs clips and hitters.
 - The look-alike measure reads early-flight position at 23.8 feet from a linear trajectory; a better measure (release point, spin, seams) could behave differently.
 - The sample is MLB 2024 and 2025 with 24,000+ hitter-starts per season; a coach-sized claim for one hitter needs weeks of games.

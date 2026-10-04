@@ -1,3 +1,7 @@
+!! CORRECTION 2026-10-04: the "MiLB" sections below are NOT minor-league data. The download used `bulk --minors`, which on this endpoint silently returns
+!! MLB games when it does not recognise the level filter (checked: every game_pk of 2025-06-10 matched the MLB file). The MiLB figures are an MLB subset
+!! (2025-04-01 to 2025-09-21). Do not use them as evidence about Single-A or Triple-A sample sizes. Real minor-league data has not been obtained.
+
 == Part 1: coverage
 
   MLB: 707391 pitches, 2430 games, 336618 swings

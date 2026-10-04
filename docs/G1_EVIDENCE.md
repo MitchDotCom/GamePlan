@@ -1,5 +1,8 @@
 # Decision gate G1: evidence (2025 MLB, public Savant data; fit before 2025-07-01)
 
+> **Correction 2026-10-04.** Section 3 (and point 5 under "What this says") compared MLB with a file that was labelled minor-league but was MLB data (the `bulk --minors` download returned MLB games). Those minor-league sample-size findings are invalid. The California League is still not in public Statcast, and no real Triple-A or Florida State League sample has been checked.
+
+
 Raw output: `relevance_ablation.txt`, `relevance_paths.txt`, `feasibility_current.txt`. Nothing here is adopted automatically.
 
 ## 1. Which inputs change calls (138,076 held-out starter pitches)

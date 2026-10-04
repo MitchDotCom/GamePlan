@@ -94,3 +94,11 @@ Not done, in priority order:
 ## 8. Where to read next
 
 `docs/ROADMAP.md` (shipped and next), `docs/CODE_REVIEW.md` (ranked findings), `docs/RESEARCH_PROMPT_v2.md` (research agenda and the owner's answers), `reports/Hitting approach intent and success.md` (unverified synthesis), `docs/scorecard.md`, `docs/traits_test_v3.txt`, `docs/plane_fit.txt`, `docs/paths_evidence.txt`, `docs/G1_EVIDENCE.md`, `docs/COACH_WALKTHROUGH.md`, `PRODUCT.md` (voice and visual direction). `README.md` still describes the earliest core (v0.3) and is out of date.
+
+## 9. Update, 2026-10-04 evening
+
+- **New direction:** `docs/GAMEPLAN_V2_PLAN.md` (owner's V2: one video loop that trains pitch recognition and drives the plan). Locked: two calls per hitter by pitch shape and zone, locked pregame, automatic receipt (execution only), no Hunt, no hitter leaderboard. Open: whether recognition is the Visalia problem, video feasibility (Gate V), org approval. The existing app is on hold until the plan is settled; nothing was removed.
+- **Gate 0 on public MLB data** (pre-registered in `docs/GATE0_PREREGISTRATION.md`, results in `docs/GATE0_READOUT.md` and `docs/gate0_results_*.txt`, code `src/gameplan/recognition_paths.py`): two focus pitches come up 2 to 4 times a game on coarse shapes and the flagged pitches cost 25 to 50% more than his others, but they hold only about a third of his mistakes; the personal edge over a starter-level ranking is small; the "looks like his fastball" weighting is not supported once pitches are matched on where they end up. Recommended working definition: pitch type by height in his zone.
+- **Data correction:** the earlier "MiLB" feasibility numbers were MLB data (the `bulk --minors` pull returned MLB games). `--minors` is now disabled. No real minor-league sample has been tested; the owner will upload one later.
+- **Evidence ledger:** `docs/V2_EVIDENCE.md`. Six of the V2 plan's evidence rows have no source in this repository; none of its 18 claims is verified here.
+- **Still no coach-facing change since the pivot:** the code review findings (HTML escaping, write-endpoint checks, intent-to-outcome loop) are open.
