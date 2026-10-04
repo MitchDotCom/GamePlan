@@ -1,6 +1,6 @@
 # Deep research prompt v2: capturing intent and measuring success in a hitting decision tool
 
-Paste this to a research agent or run it through the deep-research skill. Written 2026-10-04. Scope questions at the end are open; answers change which parts run first.
+Paste this to a research agent or run it through the deep-research skill. Written 2026-10-04; scope settled by the product owner at the end.
 
 ---
 
@@ -10,7 +10,7 @@ You are researching how a baseball hitting-development tool should capture a coa
 
 ## The product (so you can judge relevance)
 
-GamePlan is a laptop and tablet tool for minor-league hitting coaches and staff (first target: Single-A, California League). For a lineup against a specific starter it shows, per hitter and count, where to swing and where to take, 1 to 3 distinguishable approach paths (a confident "value" plan, a contact-first plan, a "decide every pitch" plan), and reviews each pitch afterwards against the plan. The mission is to develop hitters first and win second. Hitters only, starters only. Public MLB and minor-league data first; TrackMan and Hawk-Eye data later. The coach picks a path or overrides; the choice is logged.
+GamePlan is a laptop and tablet tool for minor-league hitting coaches and staff (first target: Single-A, California League; used mainly in the dugout on a tablet, then pregame on a laptop, then postgame with video). For a lineup against a specific starter it shows, per hitter and count, where to swing and where to take, 1 to 3 distinguishable approach paths (a confident "value" plan, a contact-first plan, a "decide every pitch" plan), and reviews each pitch afterwards against the plan. The mission is to develop hitters first and win second. Hitters only, starters only. Public MLB and minor-league data first; TrackMan and Hawk-Eye data later. The coach picks a path or overrides; the choice is logged.
 
 What exists: a swing-versus-take value model validated on 2025 MLB data, a plate-appearance value calculation, a path generator, a game library with per-game pages, a skip control for non-representative at-bats, a decision log, and a post-game review that labels each pitch (followed plan, hitter beat model, deviation cost, umpire miss, plan silent).
 
@@ -64,9 +64,13 @@ A report with these sections:
 
 Length: thorough but scannable. Tables where items are parallel, short prose elsewhere.
 
-## Scope questions to settle before running (answers change the order)
+## Settled by the product owner (2026-10-04), treat as fixed
 
-1. Is the tool judged mainly by hitter development, by coach adoption, or by wins in the first season?
-2. Where will it be used most: a pregame meeting on a laptop, the dugout on a tablet, or a postgame video session?
-3. Does Visalia currently write down an approach for each hitter before a series, and in what form?
-4. Is automated ball-strike calling used in the California League? (If you know, it settles section 4.1.)
+1. **Success** in the first season is hitter development: process metrics (chase, zone contact, swing decisions) moving for hitters who used the plans, plus coach feedback. Not wins, not adoption alone.
+2. **Where it is used**, in priority order: the dugout on a tablet (short glances, one-tap input), then the pregame meeting on a laptop, then the postgame video session.
+3. **Current practice**: approach is mostly verbal and not written down. Capturing intent is new work for coaches, so capture must cost seconds and give something back immediately.
+4. **Umpires**: the California League uses human umpires (owner's statement). Still cite a source if one exists; do not spend research time disputing it.
+
+## Still open for coaches (put on the interview list)
+
+How an approach is said out loud today, and in what words; what a coach would write down if it took five seconds; who sees the plan besides the hitting coach.
