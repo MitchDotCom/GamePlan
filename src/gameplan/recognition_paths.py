@@ -171,7 +171,7 @@ def _pick_top2(score):
     return [int(i) for i in j if np.isfinite(score[i]) and score[i] > 0]
 
 
-def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start):
+def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, paths=PATHS):
     dates = np.array([s.date for s in P])
     game = np.array([s.game_pk for s in P])
     pit = np.array([s.pitcher for s in P])
@@ -183,8 +183,8 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start):
     fbs = defaultdict(lambda: np.zeros(3))
     starts = defaultdict(set)
     hp = defaultdict(int)
-    acc = {(p, d): defaultdict(lambda: np.zeros(6)) for p in PATHS for d in DEFS}
-    touches = {(p, d): [] for p in PATHS for d in DEFS}
+    acc = {(p, d): defaultdict(lambda: np.zeros(6)) for p in paths for d in DEFS}
+    touches = {(p, d): [] for p in paths for d in DEFS}
     nstart = 0
     uniq = sorted(set(dates[order]))
     pos = {d: [] for d in uniq}
@@ -221,9 +221,13 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start):
                     w = np.where(np.isfinite(sep), 1.0 / (1.0 + sep / SEP_SCALE), 0.0)
                     focus = {"P": _pick_take_swing(usage * Hm, usage, take), "L": _pick_take_swing(usage * Lm, usage, take),
                              "D": _pick_top2(np.where(~isfb[d] & (usage > 0), usage * Lm * w, -np.inf))}
+                    if "U" in paths:       # post-hoc control: the starter's most-used take cell and swing cell, ignoring loss
+                        focus["U"] = _pick_take_swing(usage, usage, take)
+                    if "N" in paths:       # post-hoc control: D without the closeness weight (non-fastball cells by usage x league loss)
+                        focus["N"] = _pick_top2(np.where(~isfb[d] & (usage > 0), usage * Lm, -np.inf))
                     cg, lg = cells[d][gi], loss[gi]
                     for path, fc in focus.items():
-                        if not fc:
+                        if not fc or path not in paths:
                             continue
                         m = np.isin(cg, fc)
                         a = acc[(path, d)][b]
@@ -258,7 +262,7 @@ def b1(M):
     return (M[:, 1].sum() / M[:, 0].sum()) / (M[:, 3].sum() / M[:, 2].sum())
 
 
-def report_paths(acc, touches, nstart):
+def report_paths(acc, touches, nstart, paths=PATHS, b2=True):
     rng = np.random.default_rng(SEED)
     say(f"\nHitter-starts evaluated: {nstart}")
     mats = {}
@@ -269,7 +273,7 @@ def report_paths(acc, touches, nstart):
     say(f"{'def':4s} {'path':4s} {'hitter-starts':>13s} {'median touches':>14s} {'mean':>6s} {'zero share':>10s}  {'B1 lift [95% CI]':>22s}  {'loss share':>10s} {'pitch share':>11s}  A / B1 / C")
     boots = {}
     for d in DEFS:
-        for p in PATHS:
+        for p in paths:
             if (p, d) not in mats:
                 continue
             hs, M = mats[(p, d)]
@@ -287,6 +291,8 @@ def report_paths(acc, touches, nstart):
             b = "PASS" if (lift >= 1.25 and lo > 1.0) else "no"
             c = "PASS" if (lshare >= 0.30 and lshare >= 1.5 * pshare) else "no"
             say(f"{d:4s} {p:4s} {len(t):13d} {med:14.1f} {t.mean():6.2f} {(t == 0).mean():10.2f}  {lift:7.2f} [{lo:5.2f}, {hi:5.2f}] {lshare:10.3f} {pshare:11.3f}  {a} / {b} / {c}")
+    if not b2:
+        return
     say("\nTEST B2 (is it him): B1 of P minus B1 of L, same hitters, same resamples. PASS = lower bound above 0.")
     for d in DEFS:
         if ("P", d) in mats and ("L", d) in mats:
@@ -343,7 +349,7 @@ def reliability(P, loss, cells, ncell):
 
 # ------------------------------------------------------------------ direct look-alike test
 
-def direct_test(P, early_arr, fam, zr, split):
+def direct_test(P, early_arr, fam, zr, split, matched=False):
     say("\nD-DIRECT: does early-flight closeness to the starter's fastball predict more whiffs / chase, after controls? Non-fastball pitches; fit before the split date, scored after.")
     dates = np.array([s.date for s in P])
     pit = np.array([s.pitcher for s in P])
@@ -356,7 +362,17 @@ def direct_test(P, early_arr, fam, zr, split):
             fbm[p] = early_arr[m].mean(0)
     keep = np.array([(fam[i] in (1, 2)) and (pit[i] in fbm) for i in range(len(P))])
     idx = np.where(keep)[0]
-    sep = np.array([math.hypot(early_arr[i, 0] - fbm[pit[i]][0], early_arr[i, 1] - fbm[pit[i]][1]) for i in idx])
+    if matched:
+        # expected early position of THIS pitcher's fastball that ends at this pitch's plate location (linear in plate x and z, fit on his
+        # training-period fastballs): separation then measures same endpoint, different early path
+        reg = {}
+        for p in fbm:
+            m = train & (fam == 0) & (pit == p)
+            A = np.column_stack([np.ones(m.sum()), [P[i].x for i in np.where(m)[0]], [P[i].z for i in np.where(m)[0]]])
+            reg[p] = np.linalg.lstsq(A, early_arr[m], rcond=None)[0]
+        sep = np.array([math.hypot(*(early_arr[i] - np.array([1.0, P[i].x, P[i].z]) @ reg[pit[i]])) for i in idx])
+    else:
+        sep = np.array([math.hypot(early_arr[i, 0] - fbm[pit[i]][0], early_arr[i, 1] - fbm[pit[i]][1]) for i in idx])
     pitchers = {p: j for j, p in enumerate(sorted(set(pit[idx])))}
     gi = np.array([pitchers[pit[i]] for i in idx])
     S = [P[i] for i in idx]
@@ -397,6 +413,7 @@ def main(argv=None) -> int:
     ap.add_argument("--split", required=True)
     ap.add_argument("--end", default=None, help="last day to load (quick tests)")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--extras", action="store_true", help="post-hoc controls only: usage-only path U and the endpoint-matched look-alike test")
     a = ap.parse_args(argv)
     t0 = time.time()
     say(f"Gate 0 run: league {a.league}, eval from {a.eval_start}, direct-test split {a.split}")
@@ -421,10 +438,17 @@ def main(argv=None) -> int:
     say(f"mean loss {loss.mean() * 100:.2f} runs per 100 pitches; share of pitches with any loss {(loss > 0).mean():.2f}")
     early_arr = np.array([early[(s.game_pk, s.at_bat, s.pitch_no)] for s in P])
     cells, ncell, isfb, fam, zr = build_cells(P)
-    acc, touches, nstart = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start)
-    report_paths(acc, touches, nstart)
-    reliability(P, loss, cells, ncell)
-    direct_test(P, early_arr, fam, zr, a.split)
+    if a.extras:
+        say("POST-HOC CONTROLS (not pre-registered; run after the primary results were seen)")
+        paths = PATHS + ("U", "N")
+        acc, touches, nstart = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start, paths)
+        report_paths(acc, touches, nstart, paths, b2=False)
+        direct_test(P, early_arr, fam, zr, a.split, matched=True)
+    else:
+        acc, touches, nstart = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start)
+        report_paths(acc, touches, nstart)
+        reliability(P, loss, cells, ncell)
+        direct_test(P, early_arr, fam, zr, a.split)
     say(f"\ntotal time {time.time() - t0:.0f}s")
     if a.out:
         pathlib.Path(a.out).write_text("\n".join(_OUT) + "\n", encoding="utf-8")
