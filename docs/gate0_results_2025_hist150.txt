@@ -1,0 +1,61 @@
+Gate 0 run: league data/league, eval from 2025-05-01, direct-test split 2025-07-01, hitter history 150+ pitches
+loaded 707391 pitches, 4860 starter-games, 709906 with early-flight position (41s)
+referee fit on 336546 swings and 370773 takes (50s)
+411769 starter pitches with complete data
+  referee 40000/411769 (68s)
+  referee 80000/411769 (84s)
+  referee 120000/411769 (100s)
+  referee 160000/411769 (117s)
+  referee 200000/411769 (133s)
+  referee 240000/411769 (149s)
+  referee 280000/411769 (166s)
+  referee 320000/411769 (182s)
+  referee 360000/411769 (199s)
+  referee 400000/411769 (215s)
+  referee 411769/411769 (219s)
+mean loss 2.21 runs per 100 pitches; share of pitches with any loss 0.31
+  rolling 2025-03-18 (1/184), hitter-starts evaluated so far 0, 0s
+  rolling 2025-04-14 (21/184), hitter-starts evaluated so far 0, 0s
+  rolling 2025-05-04 (41/184), hitter-starts evaluated so far 671, 1s
+  rolling 2025-05-24 (61/184), hitter-starts evaluated so far 4149, 4s
+  rolling 2025-06-13 (81/184), hitter-starts evaluated so far 7849, 7s
+  rolling 2025-07-03 (101/184), hitter-starts evaluated so far 11783, 10s
+  rolling 2025-07-27 (121/184), hitter-starts evaluated so far 16179, 14s
+  rolling 2025-08-16 (141/184), hitter-starts evaluated so far 20192, 17s
+  rolling 2025-09-05 (161/184), hitter-starts evaluated so far 24304, 20s
+  rolling 2025-09-25 (181/184), hitter-starts evaluated so far 28488, 24s
+
+Hitter-starts evaluated: 29201
+
+TEST A (coverage), B1 (real weak spot), C (concentration). B1 = loss per pitch on focus cells / loss per pitch on his other cells.
+def  path hitter-starts median touches   mean zero share        B1 lift [95% CI]  loss share pitch share  A / B1 / C
+S1   P            29201            4.0   3.91       0.04     1.17 [ 1.15,  1.20]      0.442       0.403  PASS / no / no
+S1   L            29201            4.0   3.98       0.04     1.15 [ 1.13,  1.17]      0.445       0.410  PASS / no / no
+S1   D            29201            3.0   2.99       0.09     1.46 [ 1.42,  1.50]      0.395       0.309  PASS / PASS / no
+S2   P            29201            1.0   1.77       0.24     1.31 [ 1.28,  1.34]      0.226       0.183  WIDEN / PASS / no
+S2   L            29201            1.0   1.79       0.24     1.27 [ 1.24,  1.30]      0.223       0.185  WIDEN / PASS / no
+S2   D            29201            1.0   1.64       0.27     1.48 [ 1.43,  1.52]      0.231       0.169  WIDEN / PASS / no
+S3   P            29201            3.0   2.86       0.12     1.27 [ 1.25,  1.30]      0.347       0.295  PASS / PASS / no
+S3   L            29201            3.0   2.92       0.11     1.26 [ 1.23,  1.28]      0.352       0.301  PASS / PASS / no
+S3   D            29201            2.0   2.46       0.15     1.51 [ 1.47,  1.55]      0.338       0.253  PASS / PASS / no
+S4   P            29201            2.0   2.07       0.25     1.27 [ 1.24,  1.30]      0.257       0.214  PASS / PASS / no
+S4   L            29201            2.0   2.12       0.24     1.25 [ 1.22,  1.27]      0.259       0.219  PASS / no / no
+S4   D            29201            2.0   2.18       0.18     1.43 [ 1.39,  1.47]      0.293       0.225  PASS / PASS / no
+
+TEST B2 (is it him): B1 of P minus B1 of L, same hitters, same resamples. PASS = lower bound above 0.
+S1: P 1.172 - L 1.153 = +0.019 [+0.005, +0.033]  PASS  (490 hitters)
+S2: P 1.308 - L 1.269 = +0.039 [+0.019, +0.058]  PASS  (490 hitters)
+S3: P 1.274 - L 1.259 = +0.015 [-0.003, +0.031]  no  (490 hitters)
+S4: P 1.270 - L 1.247 = +0.023 [+0.006, +0.040]  PASS  (490 hitters)
+
+TEST B3 (reliability): odd-game vs even-game mean loss per (hitter, cell), cells with at least 10 pitches in each half, hitters with 300+ pitches. Spearman-Brown corrected. PASS >= 0.40
+S1: 3367 hitter-cells, split-half r +0.362, corrected +0.531  PASS
+S2: 5705 hitter-cells, split-half r +0.334, corrected +0.501  PASS
+S3: 4986 hitter-cells, split-half r +0.271, corrected +0.427  PASS
+S4: 5220 hitter-cells, split-half r +0.288, corrected +0.447  PASS
+
+D-DIRECT: does early-flight closeness to the starter's fastball predict more whiffs / chase, after controls? Non-fastball pitches; fit before the split date, scored after.
+whiff per swing: 45659 train, 36386 test; log-loss gain per pitch +0.00099 [+0.00060, +0.00140]; coefficient on separation (standardized) -0.1576 (closer to the fastball path = more whiffs)  PASS
+chase (swing at out-of-zone pitches): 59007 train, 46480 test; log-loss gain per pitch +0.01648 [+0.01437, +0.01855]; coefficient on separation (standardized) -0.7821 (closer to the fastball path = more chase)  PASS
+
+total time 257s
