@@ -1,0 +1,58 @@
+Gate 0 run: league data/league24, eval from 2024-05-01, direct-test split 2024-07-01
+loaded 706940 pitches, 4858 starter-games, 709227 with early-flight position (42s)
+referee fit on 338047 swings and 368893 takes (52s)
+413664 starter pitches with complete data
+  referee 40000/413664 (70s)
+  referee 80000/413664 (87s)
+  referee 120000/413664 (104s)
+  referee 160000/413664 (120s)
+  referee 200000/413664 (136s)
+  referee 240000/413664 (153s)
+  referee 280000/413664 (170s)
+  referee 320000/413664 (186s)
+  referee 360000/413664 (203s)
+  referee 400000/413664 (220s)
+  referee 413664/413664 (225s)
+mean loss 2.14 runs per 100 pitches; share of pitches with any loss 0.31
+POST-HOC CONTROLS (not pre-registered; run after the primary results were seen)
+  rolling 2024-03-20 (1/185), hitter-starts evaluated so far 0, 0s
+  rolling 2024-04-15 (21/185), hitter-starts evaluated so far 0, 0s
+  rolling 2024-05-05 (41/185), hitter-starts evaluated so far 280, 1s
+  rolling 2024-05-25 (61/185), hitter-starts evaluated so far 2391, 4s
+  rolling 2024-06-14 (81/185), hitter-starts evaluated so far 5380, 8s
+  rolling 2024-07-04 (101/185), hitter-starts evaluated so far 8718, 12s
+  rolling 2024-07-28 (121/185), hitter-starts evaluated so far 12535, 16s
+  rolling 2024-08-17 (141/185), hitter-starts evaluated so far 16276, 20s
+  rolling 2024-09-06 (161/185), hitter-starts evaluated so far 20150, 25s
+  rolling 2024-09-26 (181/185), hitter-starts evaluated so far 23982, 29s
+
+Hitter-starts evaluated: 24633
+
+TEST A (coverage), B1 (real weak spot), C (concentration). B1 = loss per pitch on focus cells / loss per pitch on his other cells.
+def  path hitter-starts median touches   mean zero share        B1 lift [95% CI]  loss share pitch share  A / B1 / C
+S1   P            24633            4.0   3.93       0.04     1.14 [ 1.11,  1.16]      0.429       0.398  PASS / no / no
+S1   L            24633            4.0   4.02       0.04     1.10 [ 1.08,  1.12]      0.430       0.406  PASS / no / no
+S1   D            24633            3.0   2.96       0.10     1.50 [ 1.45,  1.54]      0.390       0.299  PASS / PASS / no
+S1   U            24633            4.0   4.18       0.03     0.95 [ 0.93,  0.97]      0.410       0.423  PASS / no / no
+S1   N            24633            3.0   2.96       0.10     1.49 [ 1.45,  1.53]      0.390       0.300  PASS / PASS / no
+S2   P            24633            1.0   1.78       0.25     1.30 [ 1.27,  1.34]      0.222       0.180  WIDEN / PASS / no
+S2   L            24633            1.0   1.81       0.24     1.27 [ 1.24,  1.31]      0.222       0.183  WIDEN / PASS / no
+S2   D            24633            1.0   1.62       0.27     1.52 [ 1.48,  1.57]      0.230       0.164  WIDEN / PASS / no
+S2   U            24633            2.0   1.96       0.21     1.06 [ 1.03,  1.09]      0.207       0.198  PASS / no / no
+S2   N            24633            1.0   1.63       0.27     1.52 [ 1.48,  1.57]      0.232       0.165  WIDEN / PASS / no
+S3   P            24633            3.0   2.91       0.11     1.27 [ 1.24,  1.30]      0.346       0.295  PASS / PASS / no
+S3   L            24633            3.0   2.96       0.11     1.26 [ 1.23,  1.28]      0.349       0.299  PASS / PASS / no
+S3   D            24633            2.0   2.45       0.16     1.53 [ 1.49,  1.57]      0.336       0.248  PASS / PASS / no
+S3   U            24633            3.0   3.18       0.09     1.02 [ 1.00,  1.05]      0.327       0.322  PASS / no / no
+S3   N            24633            2.0   2.47       0.16     1.52 [ 1.48,  1.57]      0.336       0.250  PASS / PASS / no
+S4   P            24633            2.0   2.04       0.27     1.21 [ 1.19,  1.24]      0.240       0.207  PASS / no / no
+S4   L            24633            2.0   2.05       0.28     1.21 [ 1.18,  1.24]      0.240       0.207  PASS / no / no
+S4   D            24633            2.0   2.13       0.20     1.44 [ 1.40,  1.48]      0.284       0.215  PASS / PASS / no
+S4   U            24633            2.0   2.21       0.27     1.04 [ 1.01,  1.06]      0.230       0.223  PASS / no / no
+S4   N            24633            2.0   2.14       0.20     1.45 [ 1.41,  1.49]      0.286       0.217  PASS / PASS / no
+
+D-DIRECT: does early-flight closeness to the starter's fastball predict more whiffs / chase, after controls? Non-fastball pitches; fit before the split date, scored after.
+whiff per swing: 45926 train, 37025 test; log-loss gain per pitch +0.00007 [-0.00008, +0.00024]; coefficient on separation (standardized) +0.1006 (farther = more)  no
+chase (swing at out-of-zone pitches): 58969 train, 47796 test; log-loss gain per pitch -0.00014 [-0.00030, +0.00000]; coefficient on separation (standardized) -0.0918 (closer to the fastball path = more chase)  no
+
+total time 266s

@@ -413,10 +413,13 @@ def main(argv=None) -> int:
     ap.add_argument("--split", required=True)
     ap.add_argument("--end", default=None, help="last day to load (quick tests)")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--min-hitter-pitches", type=int, default=MIN_HITTER_PITCHES, help="earlier pitches a hitter needs before his calls count (150 for the Single-A-size stress test)")
     ap.add_argument("--extras", action="store_true", help="post-hoc controls only: usage-only path U and the endpoint-matched look-alike test")
     a = ap.parse_args(argv)
+    global MIN_HITTER_PITCHES
+    MIN_HITTER_PITCHES = a.min_hitter_pitches
     t0 = time.time()
-    say(f"Gate 0 run: league {a.league}, eval from {a.eval_start}, direct-test split {a.split}")
+    say(f"Gate 0 run: league {a.league}, eval from {a.eval_start}, direct-test split {a.split}, hitter history {MIN_HITTER_PITCHES}+ pitches")
     rows, early, starters = load(a.league, a.end)
     say(f"loaded {len(rows)} pitches, {len(starters)} starter-games, {len(early)} with early-flight position ({time.time() - t0:.0f}s)")
     ok = lambda s: s.x_away is not None and s.z is not None and None not in (s.velo, s.ivb, s.hb, s.vaa)
