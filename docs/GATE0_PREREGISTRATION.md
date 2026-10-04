@@ -84,3 +84,65 @@ The separation measure (distance between a secondary pitch and the same pitcher'
 ## 9. Outputs
 
 Three tables (A, B, C) for each of the five definitions, plus the chosen-definition confirmation and stress test. Then stop and wait for the owner.
+
+---
+
+# Addendum 2026-10-04 (23:05 UTC), written before any test was run: three candidate paths, tested head to head
+
+The owner asked for three possible approaches to be tested, with answers that can be checked, because pitch recognition is the north star and the output feeds both game-plan prep and the nightly video. This addendum replaces sections 4 and 7 where they differ and makes the evaluation rolling instead of half-season.
+
+## The question, in plain baseball terms
+
+For tonight's starter and a given hitter, which pitches should the prep and the video focus on so that the focus lands on pitches where hitters actually make costly mistakes? Three ways to choose, each tested on real games using only data from before the game.
+
+## The three paths
+
+| Path | How it picks the two focus pitches | What it says about the idea |
+|---|---|---|
+| **P, personal** | The starter's pitch types and locations ranked by how often he throws them, times how much this hitter has lost on them in earlier games (his loss shrunk toward the league, K=40 pitches) | The V2 plan as written |
+| **L, starter-level** | The same ranking using the league's loss on each pitch, so every hitter gets the same two calls against this starter | The simple alternative: the prep is about the starter, not the hitter |
+| **D, look-alike** | The starter's non-fastball pitches ranked by usage x league loss x how closely they follow the starter's fastball path early in flight (distance at 23.8 ft from the plate; closeness = 1 / (1 + distance in feet / 0.5)) | The recognition idea: train on the pitches that look like the fastball and still cost hitters |
+
+P and L pick one take pitch and one swing pitch (the cell where the league's better option is to take, and the cell where it is to swing). D picks the top two non-fastball cells.
+
+## Shape definitions run for every path
+
+S1 pitch family x zone third in his own zone; S2 S1 x side (in, middle, away, split at 0.28 ft from the middle of the plate); S3 pitch type code x zone third; S4 data-driven shape cluster (k-means, k=8, on velocity, vertical break, horizontal break, approach angle) x zone third. S5 (starter-relative) is dropped from this round because it would label most pitches the same as S1; it is run only if S1 to S4 give a reason.
+
+Zone thirds: height as a fraction of his own zone (bottom to top of that pitch's zone), below 1/3 low, 1/3 to 2/3 middle, above 2/3 high; pitches outside the zone count in the nearest third.
+
+## Protocol
+
+- **Data:** 2025 regular season, every pitch, from the league files already in the repository. 2024 full season downloaded from Savant for confirmation.
+- **Referee for "mistake":** per pitch, the runs lost against the better option under the average-hitter model (the existing decision-loss calculation). The referee is fit on the full season; that is allowed because it defines truth, not a prediction. The calls never use data from the same game or later.
+- **Rolling:** for every hitter-start from 2025-05-01 on, the two focus cells are chosen using only that season's earlier games. The hitter needs at least 300 earlier pitches seen, and the starter at least 2 earlier starts.
+- **Tests, per path and shape definition:**
+  1. **Coverage (A).** Pitches the starter throws to the hitter in that game that fall in his two focus cells. PASS: median at least 2.0. WIDEN: 1.0 to 2.0. FAIL: under 1.0.
+  2. **Real weak spot (B1).** Mean loss per pitch on the focus cells divided by mean loss per pitch on his other cells, in the same game. PASS: at least 1.25 with the 95% hitter-cluster bootstrap lower bound above 1.0 (1,000 draws, fixed seed).
+  3. **Is it him (B2).** B1 of path P minus B1 of path L. PASS: above zero with the lower bound above zero. This is the only test that supports "per hitter".
+  4. **Reliability (B3).** Odd-game versus even-game correlation of the hitter's cell-level mean loss across hitters, Spearman-Brown corrected, cells with at least 10 pitches in each half. PASS: at least 0.4.
+  5. **Concentration (C).** Share of the hitter's total loss in that game that falls in the two focus cells, next to the share of his pitches that fall there. PASS: loss share at least 30% and at least 1.5 times the pitch share.
+- **Direct look-alike test (D-direct).** Does early-flight closeness to the starter's fastball predict more whiffs and more chase, after controlling for location, velocity, movement, approach angle, count, pitch family and the pitcher? Non-fastball pitches only. Fit on games before 2025-07-01, scored after; log-loss gain with a 95% hitter-cluster bootstrap interval; smaller distance must mean more whiffs/chase. PASS: lower bound above zero in the right direction, on 2025 and on 2024.
+
+## How the results are read
+
+| Result | Meaning |
+|---|---|
+| P passes A, B1, B2 | Per-hitter calls are supported. The V2 plan stands as written |
+| L passes A, B1; P fails B2 | The prep should be about the starter, same for the lineup, and personal data should only set emphasis |
+| D passes A, B1 and D-direct | Look-alike pitches are the right recognition target, and the video clips should be built around them |
+| D-direct fails | Closeness to the fastball does not predict mistakes. Drop the disguise idea for now; plain cues |
+| Nothing passes A | Two focus pitches a game is too thin at this level. Widen the focus (three calls or pitch groups) before building |
+| A pass but B1 fails for all | The flagged pitches are not where mistakes are. Do not build prep on this |
+
+If two paths pass, the simpler one wins unless the harder one beats it by the B2 test.
+
+## Predictions on record
+
+- P vs L: the repository's earlier results found hitter-specific terms add little. I expect B2 to be small or to fail, and L to be competitive.
+- D: the earlier research found no public evidence that tunneling explains performance. I expect D-direct to be small. It could still pass at this sample size.
+- A: coverage could land between 1 and 2 on the coarse shapes and below 1 on the fine shapes.
+
+## Limits stated now
+
+The referee is a model, not truth. Mistakes are measured against the average hitter, not against the best choice for this hitter. MLB pitchers and hitters are better than Single-A, so a pass on MLB is not a pass at Visalia; the public Triple-A and Florida State League stress test comes after this round. Nothing here tests that watching video improves recognition. That needs hitters and clips.
