@@ -109,7 +109,7 @@ def test1(bat, date, game, swing, loss, delta, xa, zr, strikes, split):
     say(f"separate from zone control: correlation of g with his out-of-zone swing rate {rz:+.3f}  ({'separate skills' if abs(rz) < 0.5 else 'overlapping'})")
 
 
-def test2(bat, date, game, swing, whiff, xa, zr, velo, ivb, hb, vaa, strikes, balls, fam, ext, pit, split):
+def test2(bat, date, game, swing, whiff, xa, zr, velo, ivb, hb, vaa, strikes, balls, fam, ext, pit, split, no_pitcher_fe=False):
     say("\nTEST 2: extension-adjusted velocity and hitter-specific sensitivities (whiff per swing)")
     D = 60.5 - ext - 17.0 / 12.0
     adj = velo * np.nanmean(D) / D
@@ -118,6 +118,10 @@ def test2(bat, date, game, swing, whiff, xa, zr, velo, ivb, hb, vaa, strikes, ba
     ids, inv = np.unique(bat, return_inverse=True)
     pids = {p: j for j, p in enumerate(sorted(set(pit)))}
     gi = np.array([pids[p] for p in pit])
+    if no_pitcher_fe:       # post-hoc: extension is mostly a pitcher trait, so a pitcher intercept can absorb it
+        pids = {0: 0}
+        gi = np.zeros(len(pit), int)
+        say('(post-hoc variant: no pitcher intercept)')
     def design(mask):
         mu = lambda a: (a[mask & tr_all].mean(), a[mask & tr_all].std() + 1e-9)
         z = lambda a: (a - mu(a)[0]) / mu(a)[1]
@@ -134,6 +138,8 @@ def test2(bat, date, game, swing, whiff, xa, zr, velo, ivb, hb, vaa, strikes, ba
             res[lab] = (_logloss(whiff[b], _sigmoid(X[b] @ beta + off[gi[b]])), beta)
         gain, lo, hi = _boot(list(bat[b]), res["base"][0] - res["+adj velo"][0])
         say(f"{label}: {a.sum()} train, {b.sum()} test swings; extension-adjusted velocity log-loss gain {gain:+.5f} [{lo:+.5f}, {hi:+.5f}], coefficient {res['+adj velo'][1][-1]:+.3f} per sd  {'PASS' if lo > 0 else 'no'}")
+    if no_pitcher_fe:
+        return
     # hitter-specific sensitivities
     order = np.lexsort((game, date))
     par = np.zeros(len(bat), int)
@@ -175,6 +181,7 @@ def main(argv=None) -> int:
     ap.add_argument("--split", required=True)
     ap.add_argument("--end", default=None)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--only-ext", action="store_true", help="post-hoc: extension test without a pitcher intercept only")
     a = ap.parse_args(argv)
     t0 = time.time()
     say(f"Gate 0b run: league {a.league}, split {a.split}")
@@ -186,10 +193,12 @@ def main(argv=None) -> int:
     P.sort(key=lambda s: (s.date, s.game_pk, s.at_bat, s.pitch_no))
     loss, delta = [], []
     for i in range(0, len(P), 40000):
+        if a.only_ext:
+            break
         l, d = rp.referee(league, zone, P[i:i + 40000])
         loss.append(l)
         delta.append(d)
-    loss, delta = np.concatenate(loss), np.concatenate(delta)
+    loss, delta = (np.zeros(len(P)), np.zeros(len(P))) if a.only_ext else (np.concatenate(loss), np.concatenate(delta))
     ext_map = load_ext(a.league, a.end)
     say(f"{len(P)} starter pitches; extension for {sum((s.game_pk, s.at_bat, s.pitch_no) in ext_map for s in P)} ({time.time() - t0:.0f}s)")
     arr = lambda f, dt=float: np.array([f(s) for s in P], dt)
@@ -201,8 +210,11 @@ def main(argv=None) -> int:
     strikes, balls = arr(lambda s: s.strikes, int), arr(lambda s: s.balls, int)
     fam = arr(lambda s: rp.FAM_IDX.get(rp.FAMILY_OF.get(s.pitch_type, "OTH"), 3), int)
     ext = arr(lambda s: ext_map.get((s.game_pk, s.at_bat, s.pitch_no), np.nan))
-    test1(bat, date, game, swing, loss, delta, xa, zr, strikes, a.split)
-    test2(bat, date, game, swing, whiff, xa, zr, velo, ivb, hb, vaa, strikes, balls, fam, ext, pit, a.split)
+    if a.only_ext:
+        test2(bat, date, game, swing, whiff, xa, zr, velo, ivb, hb, vaa, strikes, balls, fam, ext, pit, a.split, no_pitcher_fe=True)
+    else:
+        test1(bat, date, game, swing, loss, delta, xa, zr, strikes, a.split)
+        test2(bat, date, game, swing, whiff, xa, zr, velo, ivb, hb, vaa, strikes, balls, fam, ext, pit, a.split)
     say(f"\ntotal time {time.time() - t0:.0f}s")
     if a.out:
         pathlib.Path(a.out).write_text("\n".join(rp._OUT) + "\n", encoding="utf-8")
