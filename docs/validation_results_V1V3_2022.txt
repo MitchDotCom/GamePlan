@@ -1,0 +1,94 @@
+Gate 0 run: league data/league2022, eval from 2022-05-01, direct-test split 2022-07-01, hitter history 300+ pitches
+loaded 705884 pitches, 4860 starter-games, 708116 with early-flight position (37s)
+referee fit on 336879 swings and 368985 takes (47s)
+411179 starter pitches with complete data
+  referee 40000/411179 (84s)
+  referee 80000/411179 (121s)
+  referee 120000/411179 (159s)
+  referee 160000/411179 (196s)
+  referee 200000/411179 (232s)
+  referee 240000/411179 (268s)
+  referee 280000/411179 (299s)
+  referee 320000/411179 (331s)
+  referee 360000/411179 (363s)
+  referee 400000/411179 (398s)
+  referee 411179/411179 (408s)
+mean loss 2.13 runs per 100 pitches; share of pitches with any loss 0.31
+  rolling 2022-04-07 (1/179), hitter-starts evaluated so far 0, 0s
+  rolling 2022-04-27 (21/179), hitter-starts evaluated so far 0, 0s
+  rolling 2022-05-17 (41/179), hitter-starts evaluated so far 279, 1s
+  rolling 2022-06-06 (61/179), hitter-starts evaluated so far 2447, 6s
+  rolling 2022-06-26 (81/179), hitter-starts evaluated so far 5636, 12s
+  rolling 2022-07-16 (101/179), hitter-starts evaluated so far 9251, 20s
+  rolling 2022-08-08 (121/179), hitter-starts evaluated so far 12841, 27s
+  rolling 2022-08-28 (141/179), hitter-starts evaluated so far 16735, 35s
+  rolling 2022-09-17 (161/179), hitter-starts evaluated so far 20452, 42s
+24069 hitter-starts evaluated
+
+V1 RAW-OUTCOME COST LIFT (runs per 100 pitches; positive = the flagged pitches cost him more in actual run value; bar: interval above 0)
+S1 L: cost lift -0.001 [-0.195, +0.197]  no   (flagged pitches 97253)
+S1 P: cost lift +0.053 [-0.127, +0.239]  no   (flagged pitches 96812)
+S1 E: cost lift +0.119 [-0.119, +0.359]  no   (flagged pitches 62682)
+S1 W: cost lift -0.095 [-0.323, +0.152]  no   (flagged pitches 57426)
+S1 U: cost lift +0.069 [-0.121, +0.257]  no   (flagged pitches 101597)
+S1 B1: cost lift +0.304 [+0.096, +0.538]  PASS   (flagged pitches 52869)
+S1 B3: cost lift +0.265 [+0.077, +0.468]  PASS   (flagged pitches 72185)
+V2 S1: model paths vs the best naive baseline (difference in cost lift; bar: interval above 0 and at least 25% larger)
+S1 P vs best baseline B1: -0.252 [-0.536, +0.051], relative -83%  no
+S1 L vs best baseline B1: -0.305 [-0.598, -0.002], relative -100%  no
+S1 E vs best baseline B1: -0.185 [-0.497, +0.155], relative -61%  no
+S1 W vs best baseline B1: -0.400 [-0.714, -0.082], relative -131%  no
+V3 S1 P: 4.0 flagged pitches per start; +0.002 runs per hitter-start; about +0.3 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 403,161
+V3 S1 L: 4.0 flagged pitches per start; -0.000 runs per hitter-start; about -0.0 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: inf
+V3 S1 E: 2.7 flagged pitches per start; +0.003 runs per hitter-start; about +0.5 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 115,583
+V3 S1 W: 2.5 flagged pitches per start; -0.002 runs per hitter-start; about -0.4 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: inf
+S2 L: cost lift +0.334 [+0.119, +0.551]  PASS   (flagged pitches 46226)
+S2 P: cost lift +0.435 [+0.229, +0.653]  PASS   (flagged pitches 45660)
+S2 E: cost lift +0.121 [-0.146, +0.371]  no   (flagged pitches 33886)
+S2 W: cost lift -0.014 [-0.293, +0.235]  no   (flagged pitches 32254)
+S2 U: cost lift +0.448 [+0.256, +0.661]  PASS   (flagged pitches 48641)
+S2 B1: cost lift +0.600 [+0.259, +0.939]  PASS   (flagged pitches 23978)
+S2 B3: cost lift +0.467 [+0.245, +0.675]  PASS   (flagged pitches 37578)
+V2 S2: model paths vs the best naive baseline (difference in cost lift; bar: interval above 0 and at least 25% larger)
+S2 P vs best baseline B1: -0.166 [-0.557, +0.227], relative -28%  no
+S2 L vs best baseline B1: -0.266 [-0.689, +0.137], relative -44%  no
+S2 E vs best baseline B1: -0.479 [-0.894, -0.043], relative -80%  no
+S2 W vs best baseline B1: -0.614 [-1.011, -0.219], relative -102%  no
+V3 S2 P: 1.9 flagged pitches per start; +0.008 runs per hitter-start; about +1.2 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 9,828
+V3 S2 L: 1.9 flagged pitches per start; +0.006 runs per hitter-start; about +1.0 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 16,586
+V3 S2 E: 1.4 flagged pitches per start; +0.002 runs per hitter-start; about +0.3 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 195,016
+V3 S2 W: 1.4 flagged pitches per start; -0.000 runs per hitter-start; about -0.0 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: inf
+S3 L: cost lift +0.046 [-0.152, +0.251]  no   (flagged pitches 73878)
+S3 P: cost lift +0.060 [-0.132, +0.267]  no   (flagged pitches 73186)
+S3 E: cost lift +0.179 [-0.043, +0.420]  no   (flagged pitches 49208)
+S3 W: cost lift +0.194 [-0.032, +0.443]  no   (flagged pitches 45396)
+S3 U: cost lift -0.036 [-0.242, +0.159]  no   (flagged pitches 78194)
+S3 B1: cost lift +0.503 [+0.197, +0.780]  PASS   (flagged pitches 25864)
+S3 B3: cost lift +0.248 [-0.000, +0.487]  no   (flagged pitches 52334)
+V2 S3: model paths vs the best naive baseline (difference in cost lift; bar: interval above 0 and at least 25% larger)
+S3 P vs best baseline B1: -0.443 [-0.767, -0.062], relative -88%  no
+S3 L vs best baseline B1: -0.457 [-0.804, -0.095], relative -91%  no
+S3 E vs best baseline B1: -0.324 [-0.654, +0.038], relative -64%  no
+S3 W vs best baseline B1: -0.309 [-0.626, +0.073], relative -61%  no
+V3 S3 P: 3.0 flagged pitches per start; +0.002 runs per hitter-start; about +0.3 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 368,262
+V3 S3 L: 3.1 flagged pitches per start; +0.001 runs per hitter-start; about +0.2 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 609,923
+V3 S3 E: 2.1 flagged pitches per start; +0.004 runs per hitter-start; about +0.6 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 63,296
+V3 S3 W: 2.0 flagged pitches per start; +0.004 runs per hitter-start; about +0.6 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 55,519
+S4 L: cost lift -0.063 [-0.277, +0.156]  no   (flagged pitches 53607)
+S4 P: cost lift -0.037 [-0.276, +0.206]  no   (flagged pitches 52324)
+S4 E: cost lift +0.235 [-0.047, +0.489]  no   (flagged pitches 37572)
+S4 W: cost lift +0.226 [-0.044, +0.492]  no   (flagged pitches 34395)
+S4 U: cost lift -0.097 [-0.333, +0.130]  no   (flagged pitches 56411)
+S4 B1: cost lift -0.017 [-0.333, +0.336]  no   (flagged pitches 25491)
+S4 B3: cost lift +0.152 [-0.097, +0.382]  no   (flagged pitches 42332)
+V2 S4: model paths vs the best naive baseline (difference in cost lift; bar: interval above 0 and at least 25% larger)
+S4 P vs best baseline B3: -0.189 [-0.480, +0.101], relative -124%  no
+S4 L vs best baseline B3: -0.216 [-0.474, +0.050], relative -141%  no
+S4 E vs best baseline B3: +0.082 [-0.266, +0.423], relative +54%  no
+S4 W vs best baseline B3: +0.073 [-0.275, +0.436], relative +48%  no
+V3 S4 P: 2.2 flagged pitches per start; -0.001 runs per hitter-start; about -0.1 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: inf
+V3 S4 L: 2.2 flagged pitches per start; -0.001 runs per hitter-start; about -0.2 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: inf
+V3 S4 E: 1.6 flagged pitches per start; +0.004 runs per hitter-start; about +0.5 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 49,814
+V3 S4 W: 1.5 flagged pitches per start; +0.003 runs per hitter-start; about +0.5 runs per hitter over 150 starts; games to detect it in one hitter at 80% power: 57,695
+
+total time 465s
