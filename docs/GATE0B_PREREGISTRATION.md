@@ -41,3 +41,7 @@ At the same location and count, a hitter who reads the pitch swings more when th
 ## Not testable here
 
 When to surface what (pregame, night before, morning after). That needs hitters and coaches: a staggered pilot. A proposed design is in the readout of this gate.
+
+## Amendment (2026-10-06, before the full runs)
+
+A short-window development run (March to early June 2025, not a result) showed that the league slope of swinging on the type signal is slightly **negative** (about -0.08): on average hitters swing a little less when the pitch type makes swinging the better choice (for example they take more offspeed pitches than the average-hitter model says they should). Dividing a hitter's slope by that league slope, as written above, flips the sign and produces extreme values. The measure is therefore changed to the **raw hitter slope** (no division). Higher means he uses the type signal more. Everything else is unchanged, and the expected relationship with later mistakes is now: higher slope, less second-half loss on high-type-signal pitches (correlation below 0). The negative league slope is itself a finding: hitters do not track the average-hitter model's type signal, which is what we would expect if recognition is limited.
