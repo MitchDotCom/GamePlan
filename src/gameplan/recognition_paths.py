@@ -171,7 +171,10 @@ def _pick_top2(score):
     return [int(i) for i in j if np.isfinite(score[i]) and score[i] > 0]
 
 
-def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, paths=PATHS):
+def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, paths=PATHS, raw_out=None, strat=None):
+    """raw_out (dict) switches on the validation-plan V1/V2 tally: for each path and shape, per hitter
+    [flagged n, flagged sum, other n, other sum, flagged sum of squares] of his raw run value (Statcast delta_run_exp, hitter side)
+    minus the earlier-games league mean for the same stratum (strat). Paths B1 and B3 are the naive baselines."""
     dates = np.array([s.date for s in P])
     game = np.array([s.game_pk for s in P])
     pit = np.array([s.pitcher for s in P])
@@ -187,6 +190,10 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
     touches = {(p, d): [] for p in paths for d in DEFS}
     hb = {(p, d): [0, 0] for p in paths for d in DEFS}      # calls, calls on cells where his shrunk loss is at or below the league's
     nstart = 0
+    raw = np.array([np.nan if s.run_exp is None else s.run_exp for s in P]) if raw_out is not None else None
+    rawexc = np.full(len(P), np.nan)
+    sl_n, sl_s = np.zeros(144), np.zeros(144)               # league raw run value by stratum, earlier games only
+    hr = defaultdict(lambda: {d: [np.zeros(ncell[d]), np.zeros(ncell[d])] for d in DEFS})   # his raw excess by cell: n, sum
     uniq = sorted(set(dates[order]))
     pos = {d: [] for d in uniq}
     for i in order:
@@ -194,6 +201,9 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
     t0 = time.time()
     for day_no, day in enumerate(uniq):
         idx = np.array(pos[day])
+        if raw is not None:
+            sm = np.where(sl_n > 0, sl_s / np.maximum(sl_n, 1), 0.0)
+            rawexc[idx] = raw[idx] - sm[strat[idx]]
         groups = defaultdict(list)
         for i in idx:
             groups[(game[i], pit[i], bat[i])].append(i)
@@ -232,6 +242,19 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                         focus["U"] = _pick_take_swing(usage, usage, take)
                     if "N" in paths:       # post-hoc control: D without the closeness weight (non-fastball cells by usage x league loss)
                         focus["N"] = _pick_top2(np.where(~isfb[d] & (usage > 0), usage * Lm, -np.inf))
+                    if raw_out is not None:
+                        rn, rs = hr[b][d]
+                        Rm = -(rs / (rn + K_SHRINK))            # his shrunk cost per pitch in each cell (positive = he loses runs there)
+                        okr = rn >= 10
+                        if "B1" in paths:    # baseline 1: his two costliest cells to date, ignoring the starter
+                            sc = np.where(okr & (Rm > 0), Rm, -np.inf)
+                            focus["B1"] = [int(j) for j in np.argsort(-sc)[:2] if np.isfinite(sc[j])]
+                        if "B3" in paths:    # baseline 3: his costliest cell plus the starter's most-used non-fastball cell
+                            sc = np.where(okr & (Rm > 0), Rm, -np.inf)
+                            j1 = int(np.argmax(sc))
+                            us = np.where(~isfb[d] & (usage > 0), usage, -np.inf)
+                            j2 = int(np.argmax(us))
+                            focus["B3"] = ([j1] if np.isfinite(sc[j1]) else []) + ([j2] if np.isfinite(us[j2]) else [])
                     cg, lg = cells[d][gi], loss[gi]
                     exc = lg - Lm[cg]          # his loss on each pitch minus the league's average loss on that kind of pitch (post-hoc excess measure)
                     for path, fc in focus.items():
@@ -243,7 +266,17 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                         a = acc[(path, d)][b]
                         a += (m.sum(), lg[m].sum(), (~m).sum(), lg[~m].sum(), len(gi), lg.sum(), exc[m].sum(), exc[~m].sum())
                         touches[(path, d)].append(int(m.sum()))
+                        if raw_out is not None:
+                            xr = rawexc[gi]
+                            ok = ~np.isnan(xr)
+                            fm, um = m & ok, ~m & ok
+                            ra = raw_out.setdefault((path, d), defaultdict(lambda: np.zeros(5)))[b]
+                            ra += (fm.sum(), xr[fm].sum(), um.sum(), xr[um].sum(), (xr[fm] ** 2).sum())
         # update stats with today's pitches
+        if raw is not None:
+            ok = ~np.isnan(rawexc[idx])
+            np.add.at(sl_n, strat[idx][ok], 1)
+            np.add.at(sl_s, strat[idx][ok], raw[idx][ok])
         for d in DEFS:
             c = cells[d][idx]
             np.add.at(league[d][0], c, 1)
@@ -260,6 +293,10 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                 c = cells[d][gi]
                 np.add.at(hit[d][b][0], c, 1)
                 np.add.at(hit[d][b][1], c, loss[gi])
+                if raw is not None:
+                    okg = ~np.isnan(rawexc[gi])
+                    np.add.at(hr[b][d][0], c[okg], 1)
+                    np.add.at(hr[b][d][1], c[okg], rawexc[gi][okg])
                 np.add.at(sta[d][p][0], c, 1)
                 np.add.at(sta[d][p][1], c, ex)
                 np.add.at(sta[d][p][2], c, ez)
@@ -363,6 +400,59 @@ def report_excess_lift(acc, hb=None):
             bs = [lift(M[rng.integers(0, len(M), len(M))]) for _ in range(BOOT)]
             lo, hi = np.percentile(bs, [2.5, 97.5])
             say(f"{d} {p}: excess lift {lift(M):+.3f} [{lo:+.3f}, {hi:+.3f}]  {'PASS' if lo > 0 else 'no'}")
+
+
+def report_raw(raw_out, touches, paths):
+    """Validation plan V1 (raw outcome), V2 (naive baselines), V3 (effect size). Cost lift = how many more runs per 100 pitches the flagged
+    pitches cost him than his other pitches, in actual Statcast run value net of the earlier-games league mean for the same kind of pitch."""
+    rng = np.random.default_rng(SEED + 5)
+    base = [b for b in ("B1", "B3", "U") if b in paths]
+    def lift(M):
+        return -(M[:, 1].sum() / M[:, 0].sum() - M[:, 3].sum() / M[:, 2].sum()) * 100
+    say("\nV1 RAW-OUTCOME COST LIFT (runs per 100 pitches; positive = the flagged pitches cost him more in actual run value; bar: interval above 0)")
+    boots = {}
+    for d in DEFS:
+        mats = {}
+        for p in paths:
+            v = raw_out.get((p, d))
+            if v:
+                mats[p] = {h: v[h] for h in v}
+        if not mats:
+            continue
+        hitters = sorted(set().union(*[set(m) for m in mats.values()]))
+        zero = np.zeros(5)
+        full = {p: np.array([m.get(h, zero) for h in hitters]) for p, m in mats.items()}
+        draws = [rng.integers(0, len(hitters), len(hitters)) for _ in range(BOOT)]
+        for p, M in full.items():
+            bs = np.array([lift(M[ix]) for ix in draws])
+            lo, hi = np.percentile(bs, [2.5, 97.5])
+            boots[(p, d)] = bs
+            say(f"{d} {p}: cost lift {lift(M):+.3f} [{lo:+.3f}, {hi:+.3f}]  {'PASS' if lo > 0 else 'no'}   (flagged pitches {int(M[:, 0].sum())})")
+        say(f"V2 {d}: model paths vs the best naive baseline (difference in cost lift; bar: interval above 0 and at least 25% larger)")
+        bl = [b for b in base if b in full]
+        if not bl:
+            continue
+        best = max(bl, key=lambda b: lift(full[b]))
+        for p in ("P", "L", "E", "W"):
+            if p not in full:
+                continue
+            diff = np.array([lift(full[p][ix]) - lift(full[best][ix]) for ix in draws])
+            lo, hi = np.percentile(diff, [2.5, 97.5])
+            rel = lift(full[p]) / lift(full[best]) - 1 if lift(full[best]) > 0 else float("nan")
+            say(f"{d} {p} vs best baseline {best}: {lift(full[p]) - lift(full[best]):+.3f} [{lo:+.3f}, {hi:+.3f}], relative {rel:+.0%}  {'PASS' if lo > 0 and rel >= 0.25 else 'no'}")
+        for p in ("P", "L", "E", "W"):
+            if p not in full:
+                continue
+            M = full[p]
+            tl = touches[(p, d)]
+            per_start = float(np.mean(tl)) if tl else 0.0
+            lf = lift(M)
+            n_f = M[:, 0].sum()
+            mf = M[:, 1].sum() / n_f
+            sd = math.sqrt(max(M[:, 4].sum() / n_f - mf * mf, 0.0))
+            need = (2.8 * sd / (lf / 100)) ** 2 if lf > 0 else float("inf")
+            say(f"V3 {d} {p}: {per_start:.1f} flagged pitches per start; {lf / 100 * per_start:+.3f} runs per hitter-start; about {lf / 100 * per_start * 150:+.1f} runs per hitter over 150 starts; "
+                f"games to detect it in one hitter at 80% power: {need / max(per_start, 1e-9):,.0f}")
 
 
 def reliability(P, loss, cells, ncell):
@@ -469,6 +559,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default=None)
     ap.add_argument("--min-hitter-pitches", type=int, default=MIN_HITTER_PITCHES, help="earlier pitches a hitter needs before his calls count (150 for the Single-A-size stress test)")
     ap.add_argument("--excess", action="store_true", help="addendum 2: paths L, P, E (excess loss) and W (standing weak spots)")
+    ap.add_argument("--raw", action="store_true", help="validation plan V1 to V3: raw run value, naive baselines, effect size")
     ap.add_argument("--extras", action="store_true", help="post-hoc controls only: usage-only path U and the endpoint-matched look-alike test")
     a = ap.parse_args(argv)
     MIN_HITTER_PITCHES = a.min_hitter_pitches
@@ -495,7 +586,18 @@ def main(argv=None) -> int:
     say(f"mean loss {loss.mean() * 100:.2f} runs per 100 pitches; share of pitches with any loss {(loss > 0).mean():.2f}")
     early_arr = np.array([early[(s.game_pk, s.at_bat, s.pitch_no)] for s in P])
     cells, ncell, isfb, fam, zr = build_cells(P)
-    if a.excess:
+    if a.raw:
+        paths = ("L", "P", "E", "W", "U", "B1", "B3")
+        sb = np.array([x.sz_bot or 1.5 for x in P])
+        st = np.array([x.sz_top or 3.5 for x in P])
+        zrr = (np.array([x.z for x in P]) - sb) / np.maximum(st - sb, 0.5)
+        third = (zrr >= 1 / 3).astype(int) + (zrr >= 2 / 3).astype(int)
+        strat = (fam * 3 + third) * 12 + np.array([min(x.balls, 3) * 3 + min(x.strikes, 2) for x in P])
+        raw_out = {}
+        acc, touches, nstart, hb = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start, paths, raw_out=raw_out, strat=strat)
+        say(f"{nstart} hitter-starts evaluated")
+        report_raw(raw_out, touches, paths)
+    elif a.excess:
         paths = ("L", "P", "E", "W")
         acc, touches, nstart, hb = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start, paths)
         report_paths(acc, touches, nstart, paths, b2=False)
