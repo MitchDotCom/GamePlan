@@ -164,7 +164,7 @@ def main(argv=None) -> int:
            "Each example is a real hitter-start. The card uses only games before that date. The receipt is how he handled the call pitches that night. "
            "The next card is for his next start, with the receipt on top. Judge one thing: **do these two calls make baseball sense for this hitter against this starter?**", "",
            f"Selection: fixed seed {SEED}, September 2025 starts, hitters with at least 600 earlier pitches seen against starters, one example per hitter; "
-           f"{a.n_arizona} Diamondbacks hitters (code AZ), {a.n_other} others.", "",
+           f"{sum(1 for k, _ in picked if team.get((k[1], k[3])) == 'AZ')} Diamondbacks hitters (code AZ) and {sum(1 for k, _ in picked if team.get((k[1], k[3])) != 'AZ')} others (asked for {a.n_arizona} and {a.n_other}).", "",
            f"How personal are the calls? Across {tot} September hitter-starts picked at random, {same / max(tot, 1) * 100:.0f}% got exactly the same two calls as the starter-level ranking "
            "(the same two for every hitter against that starter). The rest differ in at least one call because of the hitter's own history.", "",
            "Definitions: a *take call* is a pitch type and height where the average-hitter model says taking is usually the better choice and this hitter has lost the most "
