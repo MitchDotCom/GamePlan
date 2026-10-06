@@ -185,6 +185,7 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
     hp = defaultdict(int)
     acc = {(p, d): defaultdict(lambda: np.zeros(6)) for p in paths for d in DEFS}
     touches = {(p, d): [] for p in paths for d in DEFS}
+    hb = {(p, d): [0, 0] for p in paths for d in DEFS}      # calls, calls on cells where his shrunk loss is at or below the league's
     nstart = 0
     uniq = sorted(set(dates[order]))
     pos = {d: [] for d in uniq}
@@ -221,6 +222,12 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                     w = np.where(np.isfinite(sep), 1.0 / (1.0 + sep / SEP_SCALE), 0.0)
                     focus = {"P": _pick_take_swing(usage * Hm, usage, take), "L": _pick_take_swing(usage * Lm, usage, take),
                              "D": _pick_top2(np.where(~isfb[d] & (usage > 0), usage * Lm * w, -np.inf))}
+                    excess = Hm - Lm
+                    okn = hn >= 10
+                    if "E" in paths:       # addendum 2: usage x his excess loss over the league, only where he is worse than the league
+                        focus["E"] = _pick_take_swing(np.where(okn & (excess > 0) & (usage > 0), usage * excess, -np.inf), usage, take)
+                    if "W" in paths:       # addendum 2: his standing weak spots (excess loss alone) on pitches the starter throws at least 5% of the time
+                        focus["W"] = _pick_take_swing(np.where(okn & (excess > 0) & (usage >= 0.05), excess, -np.inf), usage, take)
                     if "U" in paths:       # post-hoc control: the starter's most-used take cell and swing cell, ignoring loss
                         focus["U"] = _pick_take_swing(usage, usage, take)
                     if "N" in paths:       # post-hoc control: D without the closeness weight (non-fastball cells by usage x league loss)
@@ -230,6 +237,8 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                         if not fc or path not in paths:
                             continue
                         m = np.isin(cg, fc)
+                        hb[(path, d)][0] += len(fc)
+                        hb[(path, d)][1] += int(sum(1 for j in fc if Hm[j] <= Lm[j]))
                         a = acc[(path, d)][b]
                         a += (m.sum(), lg[m].sum(), (~m).sum(), lg[~m].sum(), len(gi), lg.sum())
                         touches[(path, d)].append(int(m.sum()))
@@ -255,7 +264,7 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                 np.add.at(sta[d][p][2], c, ez)
         if day_no % 20 == 0:
             say(f"  rolling {day} ({day_no + 1}/{len(uniq)}), hitter-starts evaluated so far {nstart}, {time.time() - t0:.0f}s")
-    return acc, touches, nstart
+    return acc, touches, nstart, hb
 
 
 def b1(M):
@@ -310,6 +319,31 @@ def report_paths(acc, touches, nstart, paths=PATHS, b2=True):
                 bs.append(b1(Mp[i]) - b1(Ml[i]))
             lo, hi = np.percentile(bs, [2.5, 97.5])
             say(f"{d}: P {b1(Mp):.3f} - L {b1(Ml):.3f} = {diff:+.3f} [{lo:+.3f}, {hi:+.3f}]  {'PASS' if lo > 0 else 'no'}  ({len(common)} hitters)")
+
+
+def report_excess(acc, touches, nstart, hb):
+    rng = np.random.default_rng(SEED + 2)
+    mats = {k: (sorted(v), np.array([v[h] for h in sorted(v)])) for k, v in acc.items() if v}
+    say("\nADDENDUM 2: share of hitter-starts that get a call, share of calls on pitches he handles at least as well as the league, and B2 against the starter-level ranking (L).")
+    for d in DEFS:
+        for p in ("P", "E", "W", "L"):
+            if (p, d) not in mats:
+                continue
+            c, h = hb[(p, d)]
+            say(f"{d} {p}: flagged {len(touches[(p, d)]) / nstart * 100:5.1f}% of hitter-starts; calls on pitches he handles at least as well as the league {h / max(c, 1) * 100:5.1f}%")
+        for p in ("P", "E", "W"):
+            if (p, d) not in mats or ("L", d) not in mats:
+                continue
+            hp_, Mp = mats[(p, d)]
+            hl_, Ml = mats[("L", d)]
+            common = sorted(set(hp_) & set(hl_))
+            Mp, Ml = Mp[[hp_.index(h) for h in common]], Ml[[hl_.index(h) for h in common]]
+            bs = []
+            for _ in range(BOOT):
+                i = rng.integers(0, len(Mp), len(Mp))
+                bs.append(b1(Mp[i]) - b1(Ml[i]))
+            lo, hi = np.percentile(bs, [2.5, 97.5])
+            say(f"{d} B2 {p} minus L: {b1(Mp):.3f} - {b1(Ml):.3f} = {b1(Mp) - b1(Ml):+.3f} [{lo:+.3f}, {hi:+.3f}]  {'PASS' if lo > 0 else 'no'}  ({len(common)} hitters)")
 
 
 def reliability(P, loss, cells, ncell):
@@ -415,6 +449,7 @@ def main(argv=None) -> int:
     ap.add_argument("--end", default=None, help="last day to load (quick tests)")
     ap.add_argument("--out", default=None)
     ap.add_argument("--min-hitter-pitches", type=int, default=MIN_HITTER_PITCHES, help="earlier pitches a hitter needs before his calls count (150 for the Single-A-size stress test)")
+    ap.add_argument("--excess", action="store_true", help="addendum 2: paths L, P, E (excess loss) and W (standing weak spots)")
     ap.add_argument("--extras", action="store_true", help="post-hoc controls only: usage-only path U and the endpoint-matched look-alike test")
     a = ap.parse_args(argv)
     MIN_HITTER_PITCHES = a.min_hitter_pitches
@@ -441,14 +476,19 @@ def main(argv=None) -> int:
     say(f"mean loss {loss.mean() * 100:.2f} runs per 100 pitches; share of pitches with any loss {(loss > 0).mean():.2f}")
     early_arr = np.array([early[(s.game_pk, s.at_bat, s.pitch_no)] for s in P])
     cells, ncell, isfb, fam, zr = build_cells(P)
-    if a.extras:
+    if a.excess:
+        paths = ("L", "P", "E", "W")
+        acc, touches, nstart, hb = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start, paths)
+        report_paths(acc, touches, nstart, paths, b2=False)
+        report_excess(acc, touches, nstart, hb)
+    elif a.extras:
         say("POST-HOC CONTROLS (not pre-registered; run after the primary results were seen)")
         paths = PATHS + ("U", "N")
-        acc, touches, nstart = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start, paths)
+        acc, touches, nstart, hb = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start, paths)
         report_paths(acc, touches, nstart, paths, b2=False)
         direct_test(P, early_arr, fam, zr, a.split, matched=True)
     else:
-        acc, touches, nstart = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start)
+        acc, touches, nstart, hb = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start)
         report_paths(acc, touches, nstart)
         reliability(P, loss, cells, ncell)
         direct_test(P, early_arr, fam, zr, a.split)
