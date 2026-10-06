@@ -1,0 +1,96 @@
+Gate 0 run: league data/league2022, eval from 2022-05-01, direct-test split 2022-07-01, hitter history 300+ pitches
+loaded 705884 pitches, 4860 starter-games, 708116 with early-flight position (33s)
+referee fit on 336879 swings and 368985 takes (42s)
+411179 starter pitches with complete data
+  referee 40000/411179 (69s)
+  referee 80000/411179 (95s)
+  referee 120000/411179 (122s)
+  referee 160000/411179 (151s)
+  referee 200000/411179 (186s)
+  referee 240000/411179 (219s)
+  referee 280000/411179 (256s)
+  referee 320000/411179 (293s)
+  referee 360000/411179 (330s)
+  referee 400000/411179 (365s)
+  referee 411179/411179 (375s)
+mean loss 2.13 runs per 100 pitches; share of pitches with any loss 0.31
+  rolling 2022-04-07 (1/179), hitter-starts evaluated so far 0, 0s
+  rolling 2022-04-27 (21/179), hitter-starts evaluated so far 0, 0s
+  rolling 2022-05-17 (41/179), hitter-starts evaluated so far 279, 1s
+  rolling 2022-06-06 (61/179), hitter-starts evaluated so far 2447, 3s
+  rolling 2022-06-26 (81/179), hitter-starts evaluated so far 5636, 7s
+  rolling 2022-07-16 (101/179), hitter-starts evaluated so far 9251, 11s
+  rolling 2022-08-08 (121/179), hitter-starts evaluated so far 12841, 15s
+  rolling 2022-08-28 (141/179), hitter-starts evaluated so far 16735, 20s
+  rolling 2022-09-17 (161/179), hitter-starts evaluated so far 20452, 24s
+
+Hitter-starts evaluated: 24069
+
+TEST A (coverage), B1 (real weak spot), C (concentration). B1 = loss per pitch on focus cells / loss per pitch on his other cells.
+def  path hitter-starts median touches   mean zero share        B1 lift [95% CI]  loss share pitch share  A / B1 / C
+S1   L            24069            4.0   4.04       0.04     1.19 [ 1.17,  1.22]      0.449       0.406  PASS / no / no
+S1   P            24069            4.0   4.02       0.04     1.21 [ 1.19,  1.24]      0.452       0.405  PASS / no / no
+S1   E            23583            2.0   2.66       0.16     1.13 [ 1.09,  1.17]      0.292       0.268  PASS / no / no
+S1   W            22668            2.0   2.53       0.17     1.11 [ 1.07,  1.16]      0.276       0.255  PASS / no / no
+S2   L            24069            2.0   1.92       0.23     1.33 [ 1.29,  1.37]      0.242       0.193  PASS / PASS / no
+S2   P            24069            2.0   1.90       0.23     1.35 [ 1.31,  1.39]      0.242       0.191  PASS / PASS / no
+S2   E            24059            1.0   1.41       0.33     1.23 [ 1.18,  1.27]      0.168       0.142  WIDEN / no / no
+S2   W            23337            1.0   1.38       0.34     1.21 [ 1.17,  1.25]      0.163       0.139  WIDEN / no / no
+S3   L            24069            3.0   3.07       0.10     1.33 [ 1.30,  1.36]      0.373       0.309  PASS / PASS / no
+S3   P            24069            3.0   3.04       0.10     1.31 [ 1.28,  1.34]      0.366       0.306  PASS / PASS / no
+S3   E            23874            2.0   2.06       0.24     1.14 [ 1.11,  1.18]      0.230       0.207  PASS / no / no
+S3   W            22851            2.0   1.99       0.24     1.14 [ 1.11,  1.18]      0.222       0.200  PASS / no / no
+S4   L            24069            2.0   2.23       0.26     1.17 [ 1.14,  1.20]      0.253       0.224  PASS / no / no
+S4   P            24069            2.0   2.17       0.27     1.18 [ 1.15,  1.21]      0.248       0.219  PASS / no / no
+S4   E            24063            1.0   1.56       0.36     1.15 [ 1.11,  1.18]      0.176       0.157  WIDEN / no / no
+S4   W            23143            1.0   1.49       0.39     1.14 [ 1.10,  1.17]      0.167       0.150  WIDEN / no / no
+
+ADDENDUM 2: share of hitter-starts that get a call, share of calls on pitches he handles at least as well as the league, and B2 against the starter-level ranking (L).
+S1 P: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league  44.8%
+S1 E: flagged  98.0% of hitter-starts; calls on pitches he handles at least as well as the league   0.0%
+S1 W: flagged  94.2% of hitter-starts; calls on pitches he handles at least as well as the league   0.0%
+S1 L: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league  53.1%
+S1 B2 P minus L: 1.214 - 1.193 = +0.022 [+0.006, +0.038]  PASS  (418 hitters)
+S1 B2 E minus L: 1.132 - 1.193 = -0.061 [-0.102, -0.020]  no  (416 hitters)
+S1 B2 W minus L: 1.114 - 1.193 = -0.079 [-0.121, -0.038]  no  (415 hitters)
+S2 P: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league  37.7%
+S2 E: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league   0.0%
+S2 W: flagged  97.0% of hitter-starts; calls on pitches he handles at least as well as the league   0.0%
+S2 L: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league  55.0%
+S2 B2 P minus L: 1.352 - 1.332 = +0.021 [-0.001, +0.043]  no  (418 hitters)
+S2 B2 E minus L: 1.226 - 1.332 = -0.106 [-0.157, -0.054]  no  (418 hitters)
+S2 B2 W minus L: 1.209 - 1.332 = -0.123 [-0.171, -0.070]  no  (418 hitters)
+S3 P: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league  43.5%
+S3 E: flagged  99.2% of hitter-starts; calls on pitches he handles at least as well as the league   0.0%
+S3 W: flagged  94.9% of hitter-starts; calls on pitches he handles at least as well as the league   0.0%
+S3 L: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league  54.4%
+S3 B2 P minus L: 1.309 - 1.330 = -0.021 [-0.040, -0.003]  no  (418 hitters)
+S3 B2 E minus L: 1.143 - 1.330 = -0.188 [-0.229, -0.146]  no  (418 hitters)
+S3 B2 W minus L: 1.142 - 1.330 = -0.188 [-0.230, -0.145]  no  (418 hitters)
+S4 P: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league  40.4%
+S4 E: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league   0.0%
+S4 W: flagged  96.2% of hitter-starts; calls on pitches he handles at least as well as the league   0.0%
+S4 L: flagged 100.0% of hitter-starts; calls on pitches he handles at least as well as the league  54.6%
+S4 B2 P minus L: 1.181 - 1.171 = +0.010 [-0.009, +0.028]  no  (418 hitters)
+S4 B2 E minus L: 1.148 - 1.171 = -0.023 [-0.063, +0.019]  no  (418 hitters)
+S4 B2 W minus L: 1.136 - 1.171 = -0.036 [-0.078, +0.003]  no  (418 hitters)
+
+POST-HOC EXCESS LIFT (runs per 100 pitches; positive = the flagged pitches cost him more than the league on the same kind of pitch)
+S1 P: excess lift +0.258 [+0.216, +0.301]  PASS
+S1 E: excess lift +0.274 [+0.219, +0.331]  PASS
+S1 W: excess lift +0.226 [+0.162, +0.285]  PASS
+S1 L: excess lift +0.168 [+0.123, +0.216]  PASS
+S2 P: excess lift +0.290 [+0.216, +0.366]  PASS
+S2 E: excess lift +0.358 [+0.286, +0.428]  PASS
+S2 W: excess lift +0.359 [+0.282, +0.434]  PASS
+S2 L: excess lift +0.225 [+0.156, +0.294]  PASS
+S3 P: excess lift +0.229 [+0.177, +0.280]  PASS
+S3 E: excess lift +0.248 [+0.189, +0.310]  PASS
+S3 W: excess lift +0.235 [+0.178, +0.290]  PASS
+S3 L: excess lift +0.224 [+0.170, +0.280]  PASS
+S4 P: excess lift +0.170 [+0.116, +0.228]  PASS
+S4 E: excess lift +0.291 [+0.233, +0.353]  PASS
+S4 W: excess lift +0.264 [+0.201, +0.327]  PASS
+S4 L: excess lift +0.125 [+0.067, +0.183]  PASS
+
+total time 411s
