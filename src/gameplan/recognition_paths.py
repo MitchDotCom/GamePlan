@@ -183,7 +183,7 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
     fbs = defaultdict(lambda: np.zeros(3))
     starts = defaultdict(set)
     hp = defaultdict(int)
-    acc = {(p, d): defaultdict(lambda: np.zeros(6)) for p in paths for d in DEFS}
+    acc = {(p, d): defaultdict(lambda: np.zeros(8)) for p in paths for d in DEFS}
     touches = {(p, d): [] for p in paths for d in DEFS}
     hb = {(p, d): [0, 0] for p in paths for d in DEFS}      # calls, calls on cells where his shrunk loss is at or below the league's
     nstart = 0
@@ -233,6 +233,7 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                     if "N" in paths:       # post-hoc control: D without the closeness weight (non-fastball cells by usage x league loss)
                         focus["N"] = _pick_top2(np.where(~isfb[d] & (usage > 0), usage * Lm, -np.inf))
                     cg, lg = cells[d][gi], loss[gi]
+                    exc = lg - Lm[cg]          # his loss on each pitch minus the league's average loss on that kind of pitch (post-hoc excess measure)
                     for path, fc in focus.items():
                         if not fc or path not in paths:
                             continue
@@ -240,7 +241,7 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                         hb[(path, d)][0] += len(fc)
                         hb[(path, d)][1] += int(sum(1 for j in fc if Hm[j] <= Lm[j]))
                         a = acc[(path, d)][b]
-                        a += (m.sum(), lg[m].sum(), (~m).sum(), lg[~m].sum(), len(gi), lg.sum())
+                        a += (m.sum(), lg[m].sum(), (~m).sum(), lg[~m].sum(), len(gi), lg.sum(), exc[m].sum(), exc[~m].sum())
                         touches[(path, d)].append(int(m.sum()))
         # update stats with today's pitches
         for d in DEFS:
@@ -344,6 +345,24 @@ def report_excess(acc, touches, nstart, hb):
                 bs.append(b1(Mp[i]) - b1(Ml[i]))
             lo, hi = np.percentile(bs, [2.5, 97.5])
             say(f"{d} B2 {p} minus L: {b1(Mp):.3f} - {b1(Ml):.3f} = {b1(Mp) - b1(Ml):+.3f} [{lo:+.3f}, {hi:+.3f}]  {'PASS' if lo > 0 else 'no'}  ({len(common)} hitters)")
+
+
+def report_excess_lift(acc, hb=None):
+    """Post-hoc (not pre-registered): do the flagged pitches cost HIM more than they cost other hitters on the same kind of pitch?
+    Excess lift = his mean excess loss on the called pitches minus on his other pitches, in runs per 100 pitches."""
+    rng = np.random.default_rng(SEED + 3)
+    say("\nPOST-HOC EXCESS LIFT (runs per 100 pitches; positive = the flagged pitches cost him more than the league on the same kind of pitch)")
+    def lift(M):
+        return (M[:, 6].sum() / M[:, 0].sum() - M[:, 7].sum() / M[:, 2].sum()) * 100
+    for d in DEFS:
+        for p in ("P", "E", "W", "L"):
+            v = acc.get((p, d))
+            if not v:
+                continue
+            M = np.array([v[h] for h in sorted(v)])
+            bs = [lift(M[rng.integers(0, len(M), len(M))]) for _ in range(BOOT)]
+            lo, hi = np.percentile(bs, [2.5, 97.5])
+            say(f"{d} {p}: excess lift {lift(M):+.3f} [{lo:+.3f}, {hi:+.3f}]  {'PASS' if lo > 0 else 'no'}")
 
 
 def reliability(P, loss, cells, ncell):
@@ -481,6 +500,7 @@ def main(argv=None) -> int:
         acc, touches, nstart, hb = rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, a.eval_start, paths)
         report_paths(acc, touches, nstart, paths, b2=False)
         report_excess(acc, touches, nstart, hb)
+        report_excess_lift(acc)
     elif a.extras:
         say("POST-HOC CONTROLS (not pre-registered; run after the primary results were seen)")
         paths = PATHS + ("U", "N")
