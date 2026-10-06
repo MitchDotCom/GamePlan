@@ -1,0 +1,9 @@
+Gate 0b run: league data/league24, split 2024-07-01
+413664 starter pitches; extension for 413119 (82s)
+
+TEST 2: extension-adjusted velocity and hitter-specific sensitivities (whiff per swing)
+(post-hoc variant: no pitcher intercept)
+all pitches: 103241 train, 94838 test swings; extension-adjusted velocity log-loss gain +0.00010 [+0.00001, +0.00020], coefficient +0.275 per sd  PASS
+fastballs only: 57260 train, 52755 test swings; extension-adjusted velocity log-loss gain +0.00005 [-0.00010, +0.00020], coefficient +0.181 per sd  no
+
+total time 95s
