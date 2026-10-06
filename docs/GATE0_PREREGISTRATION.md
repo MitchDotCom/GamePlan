@@ -179,3 +179,21 @@ If a hitter has no cell with excess above zero against that starter, there is no
 ## Prediction on record
 
 E and W will lift B1 over P and L, because they are chosen on how much worse than the league the hitter is, while P and L include cells where he is better. B2 may pass for the first time with a meaningful margin. Coverage will drop, because W and E call fewer cells and sometimes none.
+
+---
+
+# Addendum 3 (2026-10-06), written before the 2023 and 2022 data were downloaded or analyzed: multi-year rule
+
+The owner asked for testing over at least three years. Seasons 2025 and 2024 are done. 2023 and 2022 will be added, giving four seasons: 2022 (before the pitch clock), 2023 to 2025 (pitch clock). Same code, same bars, same eligibility, same dates (calls from May 1, direct-test split July 1) for every season. No parameter is changed between seasons.
+
+## Rule for "holds across years" (fixed now)
+
+- A result is **confirmed** if it passes its pre-registered bar in at least 3 of the 4 seasons and no season shows the opposite sign with its interval excluding zero.
+- A result is **not confirmed** if it passes in 2 or fewer seasons, or a season shows a significant opposite sign.
+- Results are reported per season in a table; no pooling is used to rescue a failing season.
+
+This applies to: coverage, weak-spot lift (B1) and personalization (B2) for each pitch definition; reliability (B3); the look-alike test (pre-registered and the endpoint-matched post-hoc version); pitch-type blindness (reliability and prediction); extension-adjusted velocity; hitter-specific sensitivities (ride, extension-adjusted velocity, breaking-ball run); the excess-loss paths (E, W) and the post-hoc excess lift.
+
+## Known differences between seasons (reported, not adjusted for)
+
+The 2023 pitch clock and larger bases changed pace and stolen-base behavior; the 2022 season has no pitch clock. Bat-tracking fields are not used by these tests. Referee models are fit on each season's own data.
