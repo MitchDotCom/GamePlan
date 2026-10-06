@@ -107,3 +107,31 @@ Metric: V1 raw-outcome lift per flagged pitch, plus coverage (flagged pitches pe
 ## Final readout format
 
 One table per season and a combined grade per test, then a plain-language paragraph: which card elements reached which level, what is dropped, and what the pilot must test.
+
+---
+
+## Amendment 1 (2026-10-06), written after a 20-day smoke test of V1 to V3 and before any full run
+
+1. **V1 bar changed.** The "effect at least half the model-predicted lift" clause is removed. The model's loss is regret against the better option in modeled runs and the raw outcome is realized run value, so the ratio has no meaning. The V1 bar is now: raw cost lift interval above zero. V2, V3 and the season rule are unchanged.
+2. **V9 added: hitter-specific referee.** The referee grades every pitch against an average-hitter model, so a hitter whose best decision differs from the league's is charged a loss for being himself. V9 refits the referee with his own whiff and contact skill (out of fold, shrunk toward the league) and reruns V1 and V2. Bar: the flagged-pitch cost lift keeps its sign and interval above zero under the hitter-specific referee. If it does not, the calls are labeled "differs from league-average decisions" and never "mistakes."
+3. **Wording rule.** Until V8 reports, the card says "decision cost," never "recognition."
+
+## V8 specified: recognition measurement for the pilot
+
+Source of the design: the ABCA/uHIT case report (graded C, ledger row 13) used a fixed 120-pitch go/no-go assessment before and after training. The idea is kept; the product is not, and its claims are not.
+
+**Assessment (same form pre, mid, post):**
+- 120 video clips, half from left-handed and half from right-handed pitchers, cut off at a fixed point after release (occlusion), same cutoffs each time.
+- **Pitch recognition:** go/no-go on pitch type, e.g. "swing at the fastball, take the offspeed," scored for accuracy and decision speed.
+- **Zone recognition:** ball or strike, same format.
+- **Zone tendencies:** the same clips tagged by location third and side, so each hitter gets accuracy by region (up and in, down and away, and so on). This is the blind-spot map and is the same grid the game plan uses.
+- **Starter-specific block:** 30 of the 120 clips are the coming week's starters, built from the confusable pairs (for example a sweeper that looks like a fastball out of the hand). The rest are generic shape clips. Comparing the two blocks answers the open question of whether the effect is starter-specific or general.
+- **Chance level:** report accuracy against the chance rate for the task as built (a 2-choice task has 50%, a 4-choice task 25%), and report the clip difficulty, because accuracy depends on how hard the clips are cut.
+
+**Design:**
+- Staggered start: hitters begin the clips in different weeks, so each hitter is his own control and the non-started hitters are the comparison.
+- Primary game outcome: chase rate and whiff rate on the flagged shapes, and walk and strikeout rate, from tracking data, pre vs post. Not OPS, which is too noisy at pilot size.
+- Dose: log sessions and minutes per hitter. No dose-response claim unless the log supports it.
+- Coach 1-on-1 review is part of the protocol and logged, because the case report's one hitter with no coaching support did worse. It also means the pilot tests the whole loop, not the clips alone.
+- Power: V3's detection numbers apply. If the pilot cannot detect the smallest useful change, that is stated before it starts.
+- Requires org approval and Visalia data. Not run until both exist.
