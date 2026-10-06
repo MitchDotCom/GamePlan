@@ -146,3 +146,36 @@ If two paths pass, the simpler one wins unless the harder one beats it by the B2
 ## Limits stated now
 
 The referee is a model, not truth. Mistakes are measured against the average hitter, not against the best choice for this hitter. MLB pitchers and hitters are better than Single-A, so a pass on MLB is not a pass at Visalia; the public Triple-A and Florida State League stress test comes after this round. Nothing here tests that watching video improves recognition. That needs hitters and clips.
+
+---
+
+# Addendum 2 (2026-10-06), written before any of these runs: fixing the ranking after Gate 1
+
+**Why.** Gate 1 (`docs/GATE1_WORKED_EXAMPLES.md`) showed that about half of the personal calls point at pitches the hitter handles *better* than the league does (for example Marte against Sears: both calls are fastballs where he loses less than the league). The current personal ranking multiplies how often the starter throws a pitch by the hitter's shrunk loss on it, so the starter's most-used pitches win whether or not the hitter struggles with them.
+
+## Two new paths (same pitch definitions S1 to S4, same rolling protocol, same referee, same bars as Gate 0)
+
+| Path | Rule | Meaning |
+|---|---|---|
+| **E, excess** | Score = starter usage x max(his shrunk loss minus the league loss, 0) on cells where he has at least 10 earlier pitches. One take call and one attack call, chosen as before. A cell where his excess is not above zero is never a call | "Pitches the starter throws that this hitter handles worse than most hitters" |
+| **W, standing weak spots** | Score = his excess loss alone, on cells the starter throws at least 5% of the time and where he has at least 10 earlier pitches. One take call and one attack call | "His season-long weak spots, filtered by what tonight's starter throws". Gives continuity from night to night |
+
+If a hitter has no cell with excess above zero against that starter, there is no call and the card says "no weak spot flagged". Reported: the share of hitter-starts that get at least one call.
+
+## Tests and decision rules (fixed now)
+
+- **Bars unchanged:** coverage (median touches of the called pitches at least 2.0), real weak spot (B1 at least 1.25 with the interval above 1.0), concentration (C), reliability (B3, already measured per definition).
+- **New, B2 against the starter-level ranking:** E minus L and W minus L in B1 lift, same hitters, same resamples. PASS means the lower bound is above zero.
+- **New, handled-better rate:** the share of calls on cells where his loss is at or below the league's. Reported for P, L, E and W. E and W are zero by construction; the point is to show how often P and L were pointing at pitches he is fine on.
+- **Flagged share:** at least 60% of hitter-starts get a call (CHOICE).
+
+| Result | Decision |
+|---|---|
+| E or W passes B1, coverage and B2 in 2025 and again in 2024, with flagged share at least 60% | Adopt the better of the two: W if its B1 beats E's with the interval above zero, otherwise E (simpler) |
+| Neither passes B2 | Keep L as the ranking (same two pitches for the lineup against a starter) and show each hitter's standing weak spots as a separate line, not as the calls |
+| Passes B2 but flagged share is under 60% | Adopt, but the card often says "no weak spot flagged"; discuss with the coach whether that is acceptable |
+| Fails B1 | Weak-spot ranking does not find costly pitches; stay with L |
+
+## Prediction on record
+
+E and W will lift B1 over P and L, because they are chosen on how much worse than the league the hitter is, while P and L include cells where he is better. B2 may pass for the first time with a meaningful margin. Coverage will drop, because W and E call fewer cells and sometimes none.
