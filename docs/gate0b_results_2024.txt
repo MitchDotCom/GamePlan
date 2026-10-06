@@ -1,0 +1,17 @@
+Gate 0b run: league data/league24, split 2024-07-01
+413664 starter pitches; extension for 413119 (655s)
+
+TEST 1: pitch-type blindness (g = his raw slope of swinging on the type signal; higher = uses it more; amended 2026-10-06, see the pre-registration)
+league slope -0.094 (negative = hitters swing less when the type signal favors swinging); hitters with 300+ pitches 417; g spread (10th, 50th, 90th pct) [-0.55 -0.1   0.4 ]
+reliability: odd vs even games r +0.308 over 409 hitters, corrected +0.470  PASS
+predicts mistakes (329 hitters): first-half g vs second-half loss on high-type-signal pitches: r -0.158 [-0.260, -0.060]; after removing his first-half loss on the same pitches: -0.039 [-0.143, +0.060]  no
+separate from zone control: correlation of g with his out-of-zone swing rate -0.120  (separate skills)
+
+TEST 2: extension-adjusted velocity and hitter-specific sensitivities (whiff per swing)
+all pitches: 103241 train, 94838 test swings; extension-adjusted velocity log-loss gain -0.00002 [-0.00008, +0.00004], coefficient +0.291 per sd  no
+fastballs only: 57260 train, 52755 test swings; extension-adjusted velocity log-loss gain -0.00004 [-0.00011, +0.00002], coefficient +0.134 per sd  no
+fastball ride (vertical break): hitter-specific slope (shrunk, K=100); reliability odd vs even r +0.329 over 409 hitters, corrected +0.495 PASS; second-half log-loss gain over the league slope +0.00033 [+0.00010, +0.00057]  PASS
+fastball extension-adjusted velocity: hitter-specific slope (shrunk, K=100); reliability odd vs even r +0.097 over 409 hitters, corrected +0.176 no; second-half log-loss gain over the league slope +0.00005 [-0.00013, +0.00023]  no
+breaking-ball run (horizontal break): hitter-specific slope (shrunk, K=100); reliability odd vs even r +0.543 over 282 hitters, corrected +0.704 PASS; second-half log-loss gain over the league slope +0.00095 [+0.00065, +0.00126]  PASS
+
+total time 681s
