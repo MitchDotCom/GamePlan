@@ -203,10 +203,23 @@ def answer_keys(p: dict) -> dict:
     return dict(family=fam, pitch_go=(fam == "FB"), zone_go=in_zone)
 
 
-def select(pitches: list[dict], pitcher: str | None = None, families: tuple = (), pockets: tuple = (), limit: int = 10, seed: int = 1) -> list[dict]:
-    """Rows from the tracking feed that match the request, in a fixed-seed order."""
+def top_shapes(pitches: list[dict], pitcher: str, stand: str, n: int = 3) -> list[tuple]:
+    """The pitcher's n most-used (family, pocket) shapes against batters of this side. Usage only: the validated rule (V2) found no model beats it."""
+    from collections import Counter
+    c = Counter((pitch_family(p.get("pitch_type", "")), pocket(p)) for p in pitches
+                if p.get("type") == "pitch" and p.get("stand") == stand and pocket(p) and pitcher.lower() in (p.get("pitcher_name") or "").lower())
+    return [k for k, _ in c.most_common(n)]
+
+
+def select(pitches: list[dict], pitcher: str | None = None, families: tuple = (), pockets: tuple = (), limit: int = 10, seed: int = 1,
+           stand: str | None = None, shapes: tuple = ()) -> list[dict]:
+    """Rows from the tracking feed that match the request, in a fixed-seed order. `shapes` is a set of (family, pocket) pairs."""
     out = []
     for p in pitches:
+        if stand and p.get("stand") != stand:
+            continue
+        if shapes and (pitch_family(p.get("pitch_type", "")), pocket(p)) not in shapes:
+            continue
         if p.get("type") != "pitch" or not p.get("play_id") or not p.get("plateTime"):
             continue
         if pitcher and pitcher.lower() not in (p.get("pitcher_name") or "").lower():

@@ -1,6 +1,6 @@
 """Go/no-go page from MLB clips: pitch data in, playable self-contained page out, answer keys from tracking (no hand labels).
 
-  python -m gameplan.mlb_demo --game 777433 --work <dir> --out <dir>/gonogo_mlb.html --limit 8 [--pitcher NAME]
+  python -m gameplan.mlb_demo --game 777433 --work <dir> --out <dir>/gonogo_mlb.html --limit 8 [--pitcher NAME --stand L|R --top N]
 
 Release here comes from the broadcast arrival sound minus plateTime (videocut.find_release).
 Bottom 12% of the frame is cropped (scoreboard shows pitch type and speed after the pitch) and audio is removed.
@@ -18,10 +18,15 @@ from . import videocut as V
 from .lowhome_demo import PAGE, LEAD, TAIL
 
 
-def build(game: int, work: pathlib.Path, out_html: pathlib.Path, limit: int = 8, pitcher: str | None = None, seed: int = 1) -> list[dict]:
+def build(game: int, work: pathlib.Path, out_html: pathlib.Path, limit: int = 8, pitcher: str | None = None, seed: int = 1,
+          stand: str | None = None, top: int = 0) -> list[dict]:
     work.mkdir(parents=True, exist_ok=True)
     items = []
-    for p in V.select(V.game_pitches(game), pitcher=pitcher, limit=limit * 3, seed=seed):
+    feed = V.game_pitches(game)
+    shapes = tuple(V.top_shapes(feed, pitcher, stand, top)) if top else ()
+    if shapes:
+        print("shapes for", pitcher, "vs", stand + "HH:", shapes)
+    for p in V.select(feed, pitcher=pitcher, limit=limit * 3, seed=seed, stand=stand, shapes=shapes):
         if len(items) >= limit:
             break
         url = V.clip_url(p["play_id"])
@@ -61,8 +66,10 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit", type=int, default=8)
     ap.add_argument("--pitcher", default=None)
+    ap.add_argument("--stand", choices=["L", "R"], default=None, help="batter side")
+    ap.add_argument("--top", type=int, default=0, help="use only the pitcher's N most-used (family, pocket) shapes vs this side; needs --pitcher and --stand")
     a = ap.parse_args(argv)
-    build(a.game, pathlib.Path(a.work), pathlib.Path(a.out), a.limit, a.pitcher)
+    build(a.game, pathlib.Path(a.work), pathlib.Path(a.out), a.limit, a.pitcher, stand=a.stand, top=a.top)
     return 0
 
 
