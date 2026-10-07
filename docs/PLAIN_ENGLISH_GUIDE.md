@@ -75,6 +75,17 @@ Found: it never wins. **0 of 64 comparisons** across four seasons. Picking the s
 
 **V9, is the referee fair to each hitter?** The referee grades against an average hitter. V9 rebuilds it using each hitter's own whiff and contact skill (from other games, so no peeking) and reruns V1. If the S2 result survives, the finding is not just an artifact of grading everyone as average.
 
+
+## 4b. Results of the last five tests (V4 to V9), in plain words
+
+- **V4 (did we get lucky?):** 48 of 53 passes survived the correction. The S2 results held.
+- **V5 (is it one setting?):** S2 passes at every setting, so it is not an accident. But when I picked the best setting from 2022 and 2023, it did not do better on 2024 and 2025. Grade C for the personal path. Nothing is wrong with the S2 finding. The personal path just never beats the simple rules.
+- **V6 (are the intervals too narrow?):** they were. Counting starters as well as hitters makes them about 1.7 to 1.9 times wider. S2 still passes for the personal path and the usage-only rule in all four seasons.
+- **V7 and V7b (what about less history?):** with 300 or more earlier pitches S2 holds. With 100 to 299 pitches it is weaker and not confirmed. Single-A hitters will start there, so the card should lean on starter-level flags early in the season.
+- **V9 (is the referee fair to each hitter?):** I let each hitter's own skill shift the referee. It changed almost nothing, and S2 still held in all four seasons.
+
+The full table with grades is in `docs/VALIDATION_READOUT.md`.
+
 ## 5. The extra tests on pitch traits (Gate 0b)
 
 - **Fastball ride and breaking-ball run.** Does a hitter react differently to a fastball with more ride, or a sweeper with more run? Found: yes, and it is stable in all four seasons. This matches how your coaches talk.
