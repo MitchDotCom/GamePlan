@@ -106,3 +106,15 @@ A separate check: an automatic ball tracker (white blob, frame differencing, reg
 ## Next
 
 Build a visual release detector (ball track plus the pitcher's arm motion) and measure it against the audio rule on a few hundred MLB clips and against the hand labels on the readable ones. Then test it on closer-angle video when available.
+
+## Other camera angles (owner asked for MLB low home), checked 2026-10-07
+
+Result: **no other angle reachable from here.** Only the HOME broadcast feed is served.
+
+- Savant's video page sets `feedType = 'HOME'` in its script. Passing `feedType=AWAY`, `NETWORK` or `CENTERFIELD` in the URL changes nothing (same mp4 each time).
+- Savant's game feed records have no other video fields among those inspected.
+- A long clip (18.3 s, a ball in play) was checked at 0.7 s steps: one continuous broadcast of the play (batter close-up, center-field pitch view, outfield, base running). No replay from another angle.
+- Hosts blocked by this environment's network policy and therefore not tested: `statsapi.mlb.com`, `www.milb.com`, `cuts.diamond.mlb.com`. Whether they hold other angles is unknown.
+- Two web searches found nothing on public downloads of other MLB camera angles. They did confirm that Hawk-Eye uses several cameras (reported as four behind the plate and one in center field for pitch tracking), but that is tracking hardware, not a public video source.
+
+Consequence: the MLB proof of concept stays on the center-field broadcast view. The pipeline, the answer key and the cutting are angle-independent. The release detector and whether the ball is visible at the pause are not, and need a closer angle to settle.
