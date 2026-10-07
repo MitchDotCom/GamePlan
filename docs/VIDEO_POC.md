@@ -37,3 +37,32 @@ Does not show: that release is found to within a frame. The spread of 0.067 s co
 4. Minor-league clips. The game feed returns non-MLB games (`sportId` 16 and 23 appeared for two game IDs), but I have not checked clips for any of them and do not know which leagues they are. I need a verified minor-league `game_pk` to test.
 5. Camera angle. All clips so far show the center-field broadcast view. No low-home or open-side angle was found in this source.
 6. Scoring truth for go/no-go (pitch type, or ball/strike from the zone) is available from tracking, not tested in the game flow.
+
+## Minor-league test, game_pk 821376 (provided by owner), 2026-10-07
+
+Game: Visalia Rawhide at Fresno Grizzlies, Chukchansi Park, 2026-08-06, `sportId` 14 (Single-A). Checked against Savant's game feed and video pages.
+
+| Item | Result |
+|---|---|
+| Game feed | Returns the game. 240 records, 238 pitches, every one with a `play_id` |
+| Fields present | Inning, count, batter, pitcher, catcher, result and description, strike-zone top, bottom and width, `stand`, `p_throws`. Batted-ball location (`hc_x`, `hc_y`) on balls in play only |
+| Tracking fields | **Absent:** pitch type, speed, plate location (`px`, `pz`), `plateTime`, extension, break, spin. These keys do not exist in the records |
+| Video | Savant's video page for 12 random pitches from this game: **0 of 12** have a clip link. The same page for an MLB pitch has one |
+| Savant "Minor League Search" | Exists on the site. Its Level control is built by script I could not read, so I do not know what level values it accepts. Earlier attempts to pull minor-league data through the search CSV returned MLB games |
+
+Conclusions that hold:
+1. For this California League game, public Savant has play-by-play but no pitch tracking and no video. A Visalia proof of concept cannot be built from public data. The chain tested on MLB games (pitch data to play_id to clip) does not extend to this game.
+2. The Visalia version has to run on the org's own tracking export and the org's own video (angles and quality as the owner described: low home, open-side pitcher, center field; 1080p, 60 fps).
+
+What I do not know (so no claims):
+- Whether the org's video carries a clock or timecode that can be matched to the tracking export's pitch timestamps. If so, release can be anchored without audio or computer vision. If not, release has to come from the video itself.
+- Whether the org's video has audio. The audio rule tested here relies on broadcast audio.
+- Whether other minor-league levels or games have clips on Savant. One game and 12 pitches is all that was tried.
+
+## Plan that follows from this
+
+The engine should treat the release time as coming from one of three interchangeable sources, in order of preference, and say which one it used for each pitch:
+1. Tracking timestamp matched to video clock (if the org data supports it). Not testable here.
+2. Arrival sound minus flight time. Works on broadcast-style clips with audio, accuracy not yet established.
+3. A visual ball-leaves-hand detector. Not built.
+Proving 2 and 3 on MLB broadcast video is possible now. Proving 1 needs one Visalia tracking file and a matching video.
