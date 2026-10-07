@@ -13,30 +13,34 @@ from gameplan import lowhome_batch as B
 FPS = 60
 
 
-def synth(path, release, size=(1280, 720), n=210, ball=True, decoy_at=None, decoy_x=0.30, occlude=(7, 8), seed=0, pitcher_x=0.5):
+def synth(path, release, size=(1280, 720), n=190, ball=True, decoy_at=None, decoy_x=0.30, occlude=(7, 8), seed=0, pitcher_x=0.5):
     """A fixed camera behind the plate: green field, dark net lattice, a still pitcher who winds up and throws, a white ball that falls after release,
     static white plate and lines, noise. release = frame the ball first moves on its straight fall."""
     rng = np.random.default_rng(seed)
     W, H = size
     s = W / 1280.0
+    bg = np.full((H, W, 3), (70, 140, 80), np.uint8)
+    cv2.rectangle(bg, (0, int(H * .78)), (W, H), (60, 100, 150), -1)
+    cv2.fillPoly(bg, [np.array([(int(560 * s), int(690 * s)), (int(720 * s), int(690 * s)), (int(700 * s), int(715 * s)), (int(580 * s), int(715 * s))])], (255, 255, 255))
+    cv2.line(bg, (0, int(660 * s)), (W, int(660 * s)), (255, 255, 255), max(1, int(3 * s)))
+    step = max(8, int(40 * s))
+    for x in range(0, W, step):
+        cv2.line(bg, (x, 0), (x, H), (30, 40, 30), 1)
+    for y in range(0, H, step):
+        cv2.line(bg, (0, y), (W, y), (30, 40, 30), 1)
     vw = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), FPS, (W, H))
     px = int(W * pitcher_x)
+    by = int(95 * s)
     for f in range(n):
-        im = np.full((H, W, 3), (70, 140, 80), np.uint8)
-        cv2.rectangle(im, (0, int(H * .78)), (W, H), (60, 100, 150), -1)
-        cv2.fillPoly(im, [np.array([(int(560 * s), int(690 * s)), (int(720 * s), int(690 * s)), (int(700 * s), int(715 * s)), (int(580 * s), int(715 * s))])], (255, 255, 255))   # plate
-        cv2.line(im, (0, int(660 * s)), (W, int(660 * s)), (255, 255, 255), max(1, int(3 * s)))                                     # white line
-        # pitcher: gray body, windup arm swinging in the 14 frames before release
-        by = int(95 * s)
-        cv2.rectangle(im, (px - int(22 * s), by + int(25 * s)), (px + int(22 * s), by + int(165 * s)), (140, 130, 120), -1)
-        cv2.circle(im, (px, by + int(10 * s)), int(14 * s), (120, 110, 100), -1)
+        im = bg.copy()
         k = f - (release - 14)
+        shift = k if 0 < k < 20 else 0
+        cv2.rectangle(im, (px - int(22 * s) + shift, by + int(25 * s)), (px + int(22 * s) + shift, by + int(165 * s)), (140, 130, 120), -1)
+        cv2.circle(im, (px + shift, by + int(10 * s)), int(14 * s), (120, 110, 100), -1)
         if 0 <= k <= 20:
             ang = np.deg2rad(-100 + 12 * k)
             cv2.line(im, (px, by + int(40 * s)), (px + int(60 * s * np.cos(ang)), by + int(40 * s + 60 * s * np.sin(ang))), (60, 60, 60), max(2, int(10 * s)))
-            cv2.circle(im, (px - int(30 * s), by + int(60 * s)), int(25 * s), (110, 100, 90), -1)   # body sway so there is clear motion in the pitcher box
-        if k > 0 and k < 20:
-            cv2.rectangle(im, (px - int(22 * s) + k, by + int(25 * s)), (px + int(22 * s) + k, by + int(165 * s)), (140, 130, 120), -1)
+            cv2.circle(im, (px - int(30 * s), by + int(60 * s)), int(25 * s), (110, 100, 90), -1)
         if ball and f >= release:
             j = f - release
             if j not in range(occlude[0], occlude[1] + 1):       # the net pole hides the ball for a couple of frames
@@ -44,12 +48,8 @@ def synth(path, release, size=(1280, 720), n=210, ball=True, decoy_at=None, deco
                 cv2.circle(im, (int(px - 70 * s + 0.4 * j * s), int(y)), max(2, int(5 * s)), (255, 255, 255), -1)
         if decoy_at is not None and decoy_at <= f < decoy_at + 12:   # another white thing falling somewhere else, long before the pitch
             cv2.circle(im, (int(W * decoy_x), int((110 + 8 * (f - decoy_at)) * s)), max(2, int(5 * s)), (255, 255, 255), -1)
-        for x in range(0, W, max(8, int(40 * s))):                        # net lattice
-            cv2.line(im, (x, 0), (x, H), (30, 40, 30), 1)
-        for y in range(0, H, max(8, int(40 * s))):
-            cv2.line(im, (0, y), (W, y), (30, 40, 30), 1)
-        im = np.clip(im.astype(np.float32) + rng.normal(0, 3, im.shape), 0, 255).astype(np.uint8)
-        vw.write(im)
+        noise = rng.integers(-3, 4, im.shape, dtype=np.int16)
+        vw.write(np.clip(im.astype(np.int16) + noise, 0, 255).astype(np.uint8))
     vw.release()
     return path
 

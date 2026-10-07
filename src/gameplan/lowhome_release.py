@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 
 import cv2
 import numpy as np
@@ -143,7 +143,8 @@ def link(cands: dict, s: float, cfg: Config = CFG):
 
 
 def steady_fall(t, s: float, cfg: Config = CFG) -> bool:
-    """The track falls at a steady rate in a narrow column."""
+    """The start of the track (first 10 frames) falls at a steady rate in a narrow column. Later frames are not tested: in perspective the ball speeds up."""
+    t = t[:10]
     ys = np.array([c[1] for _, c in t]); xs = np.array([c[0] for _, c in t]); fs = np.array([f for f, _ in t], float)
     fy, fx = np.polyfit(fs, ys, 1), np.polyfit(fs, xs, 1)
     resid = float(np.abs(ys - np.polyval(fy, fs)).max())
@@ -265,42 +266,55 @@ def analyze(path: str, profile: CameraProfile, cfg: Config = CFG) -> dict:
     return rec
 
 
-def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, scales=(0.5, 0.65, 0.8, 1.0, 1.25, 1.5), min_share: float = 0.7, per_clip: int = 12, near=None, overlay=None) -> CameraProfile:
-    """Learn a camera profile from clips of one camera position. Falling white blobs appear in many places (birds, dropped items, the ball after the catch),
-    but the pitched ball starts at the same spot in every clip. So: find, at each scale, the start location where the most clips agree, and
-    place the pitcher box and ball corridor around it. Refuses (raises) if fewer than min_share of the clips agree.
-    Known limit: something that falls at the same place in every clip also "agrees". `near=(x, y)`, one rough point on the pitcher, rules that out.
+SCALES = (0.5, 0.65, 0.8, 1.0, 1.25, 1.5, 2.0)
+REF_VY = 7.3          # px per frame a pitched ball falls at the start of its flight when the pitcher is 165 px tall (measured on the development clips)
+
+
+def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, min_share: float = 0.7, per_clip: int = 12, near=None, overlay=None) -> CameraProfile:
+    """Learn a camera profile from clips of one camera position.
+    1. Find falling white blobs anywhere in the upper frame, with loose size and speed limits.
+    2. The pitched ball starts at the same place in every clip (birds, dropped items and the ball after the catch do not). Cluster the track
+       starts across clips and take the cluster with the most clips; among ties, the highest one, which is the release point (every later point
+       on the same flight also agrees across clips).
+    3. The scale comes from how fast that ball falls, snapped to SCALES.
+    Refuses (raises) if fewer than min_share of the clips agree.
+    Known limit: something that falls at the same place in every clip also agrees. `near=(x, y)`, one rough point on the pitcher, rules that out.
     `overlay` is a path: a frame with the learned box drawn on it, so a person can confirm the profile in one look."""
-    size, found = None, {s: {} for s in scales}
+    wide = replace(cfg, vy=(2.0, 18.0), area=(6.0, 450.0), vx_max=4.0, resid_max=8.0)
+    size, tracks = None, {}
     for p in paths:
         cap = cv2.VideoCapture(p)
         W, H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         size = size or (W, H)
         if (W, H) != size:
             raise ValueError("calibration clips must share one frame size")
-        cands, fps = candidates(p, 0.0, cap.get(cv2.CAP_PROP_FRAME_COUNT) / fps_of(cap), (0, 0, W, int(0.8 * H)), cfg)
-        for s in scales:
-            tr = [t for t in link(cands, s, cfg) if steady_fall(t, s, cfg)]
-            found[s][p] = [(t[0][1][0], t[0][1][1], len(t)) for t in tr[:per_clip]]
+        cands, fps = candidates(p, 0.0, cap.get(cv2.CAP_PROP_FRAME_COUNT) / fps_of(cap), (0, 0, W, int(0.8 * H)), wide)
+        tr = [t for t in link(cands, 1.0, wide) if steady_fall(t, 1.0, wide)]
+        tracks[p] = tr[:per_clip]
+    r = 20.0 * min(1.0, size[0] / 1280.0 + 0.25)
     best = None
-    for s in scales:
-        r = 0.12 * s * REF_HEIGHT
-        for p0, pts in found[s].items():
-            for x, y, _ in pts:
-                if near is not None and np.hypot(x - near[0], y - near[1]) > 1.0 * s * REF_HEIGHT:
-                    continue
-                members = {}
-                for p1, pts1 in found[s].items():
-                    close = [(np.hypot(x1 - x, y1 - y), x1, y1) for x1, y1, _ in pts1 if np.hypot(x1 - x, y1 - y) <= r]
-                    if close:
-                        members[p1] = min(close)
-                score = (len(members), -sum(d for d, _, _ in members.values()) / max(len(members), 1))
-                if best is None or score > best[0]:
-                    best = (score, s, [(x1, y1) for _, x1, y1 in members.values()], len(members))
-    (n_clips, _), s, pts, n = best
-    if n < min_share * len(paths):
+    for p0, tr0 in tracks.items():
+        for t0 in tr0:
+            x, y = t0[0][1][0], t0[0][1][1]
+            if near is not None and np.hypot(x - near[0], y - near[1]) > 1.0 * REF_HEIGHT * size[0] / 1280.0:
+                continue
+            members = {}
+            for p1, tr1 in tracks.items():
+                close = [(np.hypot(t[0][1][0] - x, t[0][1][1] - y), t) for t in tr1 if np.hypot(t[0][1][0] - x, t[0][1][1] - y) <= r]
+                if close:
+                    members[p1] = min(close, key=lambda c: c[0])[1]
+            ys = float(np.median([t[0][1][1] for t in members.values()]))
+            score = (len(members), -ys)
+            if best is None or score > best[0]:
+                best = (score, list(members.values()))
+    if best is None or best[0][0] < min_share * len(paths):
+        n = 0 if best is None else best[0][0]
         raise ValueError(f"only {n} of {len(paths)} calibration clips agree on where the pitch starts; need at least {min_share:.0%}")
-    sx, sy = float(np.median([x for x, _ in pts])), float(np.median([y for _, y in pts]))
+    ts = best[1]
+    sx, sy = float(np.median([t[0][1][0] for t in ts])), float(np.median([t[0][1][1] for t in ts]))
+    vys = [np.polyfit([f for f, _ in t[:6]], [c[1] for _, c in t[:6]], 1)[0] for t in ts]   # speed at the start of the flight (the ball speeds up as it falls)
+    s_est = float(np.median(vys)) / REF_VY
+    s = min(SCALES, key=lambda v: abs(np.log(v / s_est)))
     H0 = s * REF_HEIGHT
     W, H = size
     box = (int(max(0, sx - 0.9 * H0)), int(max(0, sy - 0.7 * H0)), int(min(W, sx + 0.9 * H0)), int(min(H, sy + 1.0 * H0)))
@@ -309,9 +323,9 @@ def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, scales=(0.5,
         cap = cv2.VideoCapture(paths[0]); cap.set(cv2.CAP_PROP_POS_FRAMES, 5); ok, im = cap.read()
         if ok:
             cv2.rectangle(im, box[:2], box[2:], (0, 255, 255), 2); cv2.rectangle(im, roi[:2], roi[2:], (0, 160, 255), 1)
-            for x, y in pts:
-                cv2.circle(im, (int(x), int(y)), 6, (0, 0, 255), 2)
-            cv2.putText(im, f"{name}: scale {s}, {n} of {len(paths)} clips agree", (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+            for t in ts:
+                cv2.circle(im, (int(t[0][1][0]), int(t[0][1][1])), 6, (0, 0, 255), 2)
+            cv2.putText(im, f"{name}: scale {s}, {len(ts)} of {len(paths)} clips agree", (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
             cv2.imwrite(overlay, im)
     return CameraProfile(name=name, scale=s, pitcher_box=box, ball_roi=roi, size=size, calibrated_from=tuple(pathlib.Path(p).name for p in paths))
 
