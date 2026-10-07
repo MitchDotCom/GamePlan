@@ -92,7 +92,7 @@ Found: it never wins. **0 of 64 comparisons** across four seasons. Picking the s
 
 ## 7. What I got wrong or changed along the way
 
-- I once pulled data labeled minor-league that was actually MLB. I corrected the notes and threw out that run.
+- I once pulled data labeled minor-league that was MLB data. I corrected the notes and threw out that run.
 - The look-alike result looked strong, then fell apart when matched on landing spot. I reported it as a failed result, not a win.
 - One V1 bar I wrote ("effect at least half the model's prediction") compared two things in different units. I fixed it and recorded the change with a date, before any full run.
 - My background jobs were being killed whenever the machine paused. I rebuilt them so each stage can restart, and I now run them while I am actively working.
