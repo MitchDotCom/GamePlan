@@ -267,10 +267,11 @@ def analyze(path: str, profile: CameraProfile, cfg: Config = CFG) -> dict:
 
 
 SCALES = (0.5, 0.65, 0.8, 1.0, 1.25, 1.5, 2.0)
-REF_VY = 7.3          # px per frame a pitched ball falls at the start of its flight when the pitcher is 165 px tall (measured on the development clips)
+REF_VY = 8.5          # px per frame a pitched ball falls at the start of its flight at scale 1 (development clips: 7.5, 9.2, 9.3)
+REF_AREA = 42.0       # pixel area of the ball at scale 1 (development clips: 37, 48, 42)
 
 
-def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, min_share: float = 0.7, per_clip: int = 12, near=None, overlay=None) -> CameraProfile:
+def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, min_share: float = 0.7, per_clip: int = 40, near=None, overlay=None) -> CameraProfile:
     """Learn a camera profile from clips of one camera position.
     1. Find falling white blobs anywhere in the upper frame, with loose size and speed limits.
     2. The pitched ball starts at the same place in every clip (birds, dropped items and the ball after the catch do not). Cluster the track
@@ -290,6 +291,9 @@ def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, min_share: f
             raise ValueError("calibration clips must share one frame size")
         cands, fps = candidates(p, 0.0, cap.get(cv2.CAP_PROP_FRAME_COUNT) / fps_of(cap), (0, 0, W, int(0.8 * H)), wide)
         tr = [t for t in link(cands, 1.0, wide) if steady_fall(t, 1.0, wide)]
+        if near is not None:       # the hint selects first, so short ball tracks are not crowded out by longer false ones
+            lim = 1.0 * REF_HEIGHT * size[0] / 1280.0
+            tr = [t for t in tr if np.hypot(t[0][1][0] - near[0], t[0][1][1] - near[1]) <= lim]
         tracks[p] = tr[:per_clip]
     r = 20.0 * min(1.0, size[0] / 1280.0 + 0.25)
     best = None
@@ -313,8 +317,12 @@ def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, min_share: f
     ts = best[1]
     sx, sy = float(np.median([t[0][1][0] for t in ts])), float(np.median([t[0][1][1] for t in ts]))
     vys = [np.polyfit([f for f, _ in t[:6]], [c[1] for _, c in t[:6]], 1)[0] for t in ts]   # speed at the start of the flight (the ball speeds up as it falls)
-    s_est = float(np.median(vys)) / REF_VY
-    s = min(SCALES, key=lambda v: abs(np.log(v / s_est)))
+    areas = [c[2] for t in ts for _, c in t[:6]]
+    s_area = float(np.sqrt(np.median(areas) / REF_AREA))      # ball size is physical, so it sets the scale
+    s_vy = float(np.median(vys)) / REF_VY                      # fall speed varies with the pitch, so it only checks the size estimate
+    if not (0.6 <= s_area / s_vy <= 1.7):
+        raise ValueError(f"ball size and fall speed disagree about the scale ({s_area:.2f} vs {s_vy:.2f}); the calibration clips may not show the pitched ball")
+    s = min(SCALES, key=lambda v: abs(np.log(v / s_area)))
     H0 = s * REF_HEIGHT
     W, H = size
     box = (int(max(0, sx - 0.9 * H0)), int(max(0, sy - 0.7 * H0)), int(min(W, sx + 0.9 * H0)), int(min(H, sy + 1.0 * H0)))

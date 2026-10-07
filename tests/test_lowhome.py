@@ -45,7 +45,7 @@ def synth(path, release, size=(1280, 720), n=190, ball=True, decoy_at=None, deco
             j = f - release
             if j not in range(occlude[0], occlude[1] + 1):       # the net pole hides the ball for a couple of frames
                 y = by + int(30 * s) + (7.2 * j + 0.05 * j * j) * s
-                cv2.circle(im, (int(px - 70 * s + 0.4 * j * s), int(y)), max(2, int(5 * s)), (255, 255, 255), -1)
+                cv2.circle(im, (int(px - 70 * s + 0.4 * j * s), int(y)), max(2, int(4 * s)), (255, 255, 255), -1)
         if decoy_at is not None and decoy_at <= f < decoy_at + 12:   # another white thing falling somewhere else, long before the pitch
             cv2.circle(im, (int(W * decoy_x), int((110 + 8 * (f - decoy_at)) * s)), max(2, int(5 * s)), (255, 255, 255), -1)
         noise = rng.integers(-3, 4, im.shape, dtype=np.int16)
@@ -174,7 +174,9 @@ DEV = pathlib.Path(os.environ.get("LOWHOME_DEV_CLIPS", "/tmp/claude-0/lowhome"))
 @pytest.mark.skipif(not (DEV / "a1016406-2443D.mp4").exists(), reason="development clips not present")
 def test_development_clips_match_hand_labels(tmp_path):
     clips = sorted(str(p) for p in DEV.glob("*.mp4"))
-    prof = L.calibrate(clips, name="dev")
+    # on this camera a slow falling artefact near (460, 300) shows up in every clip, so calibration needs the one-time rough pitcher point
+    prof = L.calibrate(clips, name="dev", near=(586, 125))
+    assert prof.scale == 1.0
     labels = json.loads((pathlib.Path(__file__).parent / "data" / "lowhome_dev_labels.json").read_text())
     for c in clips:
         stem = pathlib.Path(c).stem
