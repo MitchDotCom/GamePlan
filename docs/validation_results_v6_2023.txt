@@ -1,0 +1,47 @@
+
+V6 2023: two-way (hitter and starter) bootstrap on the raw-outcome cost lift, K = 40, 1000 draws
+V6 2023 S1 L: lift +0.318 hitter [+0.128, +0.505] two-way [-0.014, +0.662] width ratio 1.79  no
+V6 2023 S1 P: lift +0.323 hitter [+0.141, +0.500] two-way [-0.009, +0.639] width ratio 1.80  no
+V6 2023 S1 E: lift +0.318 hitter [+0.095, +0.532] two-way [-0.064, +0.662] width ratio 1.66  no
+V6 2023 S1 W: lift +0.148 hitter [-0.091, +0.377] two-way [-0.268, +0.499] width ratio 1.64  no
+V6 2023 S1 U: lift +0.424 hitter [+0.244, +0.627] two-way [+0.111, +0.768] width ratio 1.72  PASS
+V6 2023 S1 B1: lift +0.217 hitter [-0.006, +0.446] two-way [-0.239, +0.646] width ratio 1.96  no
+V6 2023 S1 B3: lift +0.155 hitter [-0.041, +0.348] two-way [-0.182, +0.501] width ratio 1.76  no
+V6 2023 S1 P minus best baseline U: -0.100 hitter [-0.246, +0.048] two-way [-0.384, +0.151]  no
+V6 2023 S1 L minus best baseline U: -0.106 hitter [-0.243, +0.017] two-way [-0.334, +0.119]  no
+V6 2023 S1 E minus best baseline U: -0.106 hitter [-0.379, +0.152] two-way [-0.561, +0.317]  no
+V6 2023 S1 W minus best baseline U: -0.275 hitter [-0.583, -0.014] two-way [-0.770, +0.159]  no
+V6 2023 S2 L: lift +0.570 hitter [+0.328, +0.807] two-way [+0.158, +1.001] width ratio 1.76  PASS
+V6 2023 S2 P: lift +0.520 hitter [+0.275, +0.782] two-way [+0.091, +0.957] width ratio 1.71  PASS
+V6 2023 S2 E: lift +0.409 hitter [+0.121, +0.679] two-way [-0.074, +0.874] width ratio 1.70  no
+V6 2023 S2 W: lift +0.502 hitter [+0.246, +0.798] two-way [+0.032, +0.975] width ratio 1.71  PASS
+V6 2023 S2 U: lift +0.400 hitter [+0.167, +0.633] two-way [+0.008, +0.798] width ratio 1.70  PASS
+V6 2023 S2 B1: lift +0.509 hitter [+0.158, +0.841] two-way [-0.146, +1.094] width ratio 1.82  no
+V6 2023 S2 B3: lift +0.339 hitter [+0.084, +0.612] two-way [-0.102, +0.781] width ratio 1.67  no
+V6 2023 S2 P minus best baseline B1: +0.011 hitter [-0.399, +0.435] two-way [-0.689, +0.786]  no
+V6 2023 S2 L minus best baseline B1: +0.061 hitter [-0.356, +0.522] two-way [-0.660, +0.822]  no
+V6 2023 S2 E minus best baseline B1: -0.100 hitter [-0.531, +0.322] two-way [-0.839, +0.665]  no
+V6 2023 S2 W minus best baseline B1: -0.007 hitter [-0.455, +0.440] two-way [-0.698, +0.767]  no
+V6 2023 S3 L: lift +0.244 hitter [+0.060, +0.420] two-way [-0.089, +0.575] width ratio 1.85  no
+V6 2023 S3 P: lift +0.198 hitter [+0.016, +0.375] two-way [-0.166, +0.557] width ratio 2.02  no
+V6 2023 S3 E: lift +0.098 hitter [-0.180, +0.345] two-way [-0.355, +0.516] width ratio 1.66  no
+V6 2023 S3 W: lift -0.031 hitter [-0.285, +0.214] two-way [-0.450, +0.387] width ratio 1.68  no
+V6 2023 S3 U: lift +0.209 hitter [+0.012, +0.392] two-way [-0.133, +0.558] width ratio 1.82  no
+V6 2023 S3 B1: lift +0.274 hitter [-0.054, +0.568] two-way [-0.283, +0.777] width ratio 1.70  no
+V6 2023 S3 B3: lift +0.156 hitter [-0.055, +0.365] two-way [-0.244, +0.555] width ratio 1.91  no
+V6 2023 S3 P minus best baseline B1: -0.076 hitter [-0.438, +0.266] two-way [-0.729, +0.575]  no
+V6 2023 S3 L minus best baseline B1: -0.030 hitter [-0.402, +0.360] two-way [-0.643, +0.637]  no
+V6 2023 S3 E minus best baseline B1: -0.176 hitter [-0.563, +0.176] two-way [-0.830, +0.509]  no
+V6 2023 S3 W minus best baseline B1: -0.305 hitter [-0.673, +0.049] two-way [-0.932, +0.359]  no
+V6 2023 S4 L: lift +0.199 hitter [-0.018, +0.417] two-way [-0.188, +0.598] width ratio 1.80  no
+V6 2023 S4 P: lift +0.132 hitter [-0.111, +0.367] two-way [-0.244, +0.540] width ratio 1.64  no
+V6 2023 S4 E: lift +0.018 hitter [-0.258, +0.297] two-way [-0.483, +0.501] width ratio 1.77  no
+V6 2023 S4 W: lift +0.055 hitter [-0.218, +0.336] two-way [-0.433, +0.553] width ratio 1.78  no
+V6 2023 S4 U: lift +0.322 hitter [+0.093, +0.549] two-way [-0.052, +0.691] width ratio 1.63  no
+V6 2023 S4 B1: lift -0.165 hitter [-0.488, +0.173] two-way [-0.728, +0.397] width ratio 1.70  no
+V6 2023 S4 B3: lift -0.121 hitter [-0.362, +0.086] two-way [-0.549, +0.283] width ratio 1.86  no
+V6 2023 S4 P minus best baseline U: -0.190 hitter [-0.404, +0.035] two-way [-0.584, +0.201]  no
+V6 2023 S4 L minus best baseline U: -0.122 hitter [-0.319, +0.080] two-way [-0.458, +0.206]  no
+V6 2023 S4 E minus best baseline U: -0.304 hitter [-0.616, +0.039] two-way [-0.875, +0.288]  no
+V6 2023 S4 W minus best baseline U: -0.267 hitter [-0.581, +0.066] two-way [-0.821, +0.293]  no
+stage v6 time 129s
