@@ -1,0 +1,47 @@
+
+V6 2022: two-way (hitter and starter) bootstrap on the raw-outcome cost lift, K = 40, 1000 draws
+V6 2022 S1 L: lift -0.001 hitter [-0.200, +0.187] two-way [-0.355, +0.357] width ratio 1.84  no
+V6 2022 S1 P: lift +0.053 hitter [-0.131, +0.234] two-way [-0.290, +0.395] width ratio 1.88  no
+V6 2022 S1 E: lift +0.119 hitter [-0.125, +0.366] two-way [-0.288, +0.507] width ratio 1.62  no
+V6 2022 S1 W: lift -0.095 hitter [-0.337, +0.163] two-way [-0.517, +0.306] width ratio 1.65  no
+V6 2022 S1 U: lift +0.069 hitter [-0.123, +0.257] two-way [-0.266, +0.410] width ratio 1.78  no
+V6 2022 S1 B1: lift +0.304 hitter [+0.082, +0.526] two-way [-0.075, +0.660] width ratio 1.66  no
+V6 2022 S1 B3: lift +0.265 hitter [+0.073, +0.444] two-way [-0.067, +0.586] width ratio 1.76  no
+V6 2022 S1 P minus best baseline B1: -0.252 hitter [-0.530, +0.036] two-way [-0.743, +0.267]  no
+V6 2022 S1 L minus best baseline B1: -0.305 hitter [-0.588, +0.010] two-way [-0.816, +0.214]  no
+V6 2022 S1 E minus best baseline B1: -0.185 hitter [-0.506, +0.119] two-way [-0.682, +0.293]  no
+V6 2022 S1 W minus best baseline B1: -0.400 hitter [-0.732, -0.093] two-way [-0.907, +0.090]  no
+V6 2022 S2 L: lift +0.334 hitter [+0.107, +0.547] two-way [-0.071, +0.707] width ratio 1.77  no
+V6 2022 S2 P: lift +0.435 hitter [+0.229, +0.636] two-way [+0.036, +0.819] width ratio 1.92  PASS
+V6 2022 S2 E: lift +0.121 hitter [-0.135, +0.376] two-way [-0.322, +0.587] width ratio 1.78  no
+V6 2022 S2 W: lift -0.014 hitter [-0.266, +0.231] two-way [-0.480, +0.426] width ratio 1.82  no
+V6 2022 S2 U: lift +0.448 hitter [+0.242, +0.646] two-way [+0.071, +0.814] width ratio 1.84  PASS
+V6 2022 S2 B1: lift +0.600 hitter [+0.272, +0.916] two-way [+0.025, +1.170] width ratio 1.78  PASS
+V6 2022 S2 B3: lift +0.467 hitter [+0.248, +0.691] two-way [+0.048, +0.843] width ratio 1.80  PASS
+V6 2022 S2 P minus best baseline B1: -0.166 hitter [-0.553, +0.210] two-way [-0.843, +0.530]  no
+V6 2022 S2 L minus best baseline B1: -0.266 hitter [-0.677, +0.102] two-way [-1.002, +0.420]  no
+V6 2022 S2 E minus best baseline B1: -0.479 hitter [-0.893, -0.056] two-way [-1.200, +0.300]  no
+V6 2022 S2 W minus best baseline B1: -0.614 hitter [-1.004, -0.235] two-way [-1.385, +0.124]  no
+V6 2022 S3 L: lift +0.046 hitter [-0.148, +0.254] two-way [-0.308, +0.390] width ratio 1.74  no
+V6 2022 S3 P: lift +0.060 hitter [-0.146, +0.265] two-way [-0.301, +0.419] width ratio 1.75  no
+V6 2022 S3 E: lift +0.179 hitter [-0.060, +0.404] two-way [-0.226, +0.579] width ratio 1.74  no
+V6 2022 S3 W: lift +0.194 hitter [-0.052, +0.423] two-way [-0.233, +0.593] width ratio 1.74  no
+V6 2022 S3 U: lift -0.036 hitter [-0.238, +0.167] two-way [-0.407, +0.315] width ratio 1.78  no
+V6 2022 S3 B1: lift +0.503 hitter [+0.175, +0.811] two-way [-0.021, +0.989] width ratio 1.59  no
+V6 2022 S3 B3: lift +0.248 hitter [+0.037, +0.488] two-way [-0.136, +0.616] width ratio 1.67  no
+V6 2022 S3 P minus best baseline B1: -0.443 hitter [-0.804, -0.083] two-way [-1.046, +0.189]  no
+V6 2022 S3 L minus best baseline B1: -0.457 hitter [-0.836, -0.077] two-way [-1.080, +0.175]  no
+V6 2022 S3 E minus best baseline B1: -0.324 hitter [-0.666, +0.031] two-way [-0.926, +0.286]  no
+V6 2022 S3 W minus best baseline B1: -0.309 hitter [-0.680, +0.061] two-way [-0.899, +0.321]  no
+V6 2022 S4 L: lift -0.063 hitter [-0.295, +0.156] two-way [-0.449, +0.306] width ratio 1.68  no
+V6 2022 S4 P: lift -0.037 hitter [-0.277, +0.204] two-way [-0.456, +0.338] width ratio 1.65  no
+V6 2022 S4 E: lift +0.235 hitter [-0.053, +0.503] two-way [-0.258, +0.720] width ratio 1.76  no
+V6 2022 S4 W: lift +0.226 hitter [-0.059, +0.518] two-way [-0.285, +0.708] width ratio 1.72  no
+V6 2022 S4 U: lift -0.097 hitter [-0.341, +0.110] two-way [-0.499, +0.262] width ratio 1.69  no
+V6 2022 S4 B1: lift -0.017 hitter [-0.377, +0.300] two-way [-0.549, +0.535] width ratio 1.60  no
+V6 2022 S4 B3: lift +0.152 hitter [-0.104, +0.389] two-way [-0.277, +0.561] width ratio 1.70  no
+V6 2022 S4 P minus best baseline B3: -0.189 hitter [-0.480, +0.089] two-way [-0.671, +0.251]  no
+V6 2022 S4 L minus best baseline B3: -0.216 hitter [-0.480, +0.048] two-way [-0.681, +0.187]  no
+V6 2022 S4 E minus best baseline B3: +0.082 hitter [-0.282, +0.454] two-way [-0.457, +0.669]  no
+V6 2022 S4 W minus best baseline B3: +0.073 hitter [-0.300, +0.435] two-way [-0.556, +0.710]  no
+stage v6 time 129s
