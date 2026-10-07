@@ -1,0 +1,40 @@
+
+V9 2025: hitter-specific referee (out-of-fold whiff and contact-quality shifts), full rerun of the raw-outcome tally
+whiff logit shift sd 0.064, contact-quality shift sd 0.038; mean loss 2.22 vs 2.21 runs per 100 pitches; correlation of pitch losses 0.993
+V9 2025 S1 L: hitter-specific referee lift +0.088 [-0.087, +0.251] no (original referee +0.101)
+V9 2025 S1 P: hitter-specific referee lift +0.115 [-0.068, +0.297] no (original referee +0.122)
+V9 2025 S1 E: hitter-specific referee lift +0.035 [-0.193, +0.255] no (original referee +0.134)
+V9 2025 S1 W: hitter-specific referee lift +0.081 [-0.152, +0.306] no (original referee +0.223)
+V9 2025 S1 U: hitter-specific referee lift +0.056 [-0.115, +0.226] no (original referee +0.056)
+V9 2025 S1 P minus U: +0.059 [-0.088, +0.202] no
+V9 2025 S1 L minus U: +0.032 [-0.108, +0.174] no
+V9 2025 S1 E minus U: -0.021 [-0.309, +0.255] no
+V9 2025 S1 W minus U: +0.025 [-0.271, +0.310] no
+V9 2025 S2 L: hitter-specific referee lift +0.635 [+0.428, +0.824] PASS (original referee +0.639)
+V9 2025 S2 P: hitter-specific referee lift +0.663 [+0.456, +0.886] PASS (original referee +0.601)
+V9 2025 S2 E: hitter-specific referee lift +0.605 [+0.338, +0.863] PASS (original referee +0.508)
+V9 2025 S2 W: hitter-specific referee lift +0.392 [+0.118, +0.684] PASS (original referee +0.485)
+V9 2025 S2 U: hitter-specific referee lift +0.627 [+0.421, +0.820] PASS (original referee +0.627)
+V9 2025 S2 P minus U: +0.036 [-0.171, +0.265] no
+V9 2025 S2 L minus U: +0.008 [-0.182, +0.183] no
+V9 2025 S2 E minus U: -0.022 [-0.305, +0.280] no
+V9 2025 S2 W minus U: -0.235 [-0.545, +0.081] no
+V9 2025 S3 L: hitter-specific referee lift +0.132 [-0.080, +0.330] no (original referee +0.122)
+V9 2025 S3 P: hitter-specific referee lift +0.160 [-0.034, +0.354] no (original referee +0.150)
+V9 2025 S3 E: hitter-specific referee lift +0.111 [-0.160, +0.372] no (original referee +0.124)
+V9 2025 S3 W: hitter-specific referee lift +0.043 [-0.236, +0.306] no (original referee +0.083)
+V9 2025 S3 U: hitter-specific referee lift +0.186 [-0.031, +0.397] no (original referee +0.186)
+V9 2025 S3 P minus U: -0.026 [-0.222, +0.173] no
+V9 2025 S3 L minus U: -0.054 [-0.233, +0.139] no
+V9 2025 S3 E minus U: -0.075 [-0.396, +0.257] no
+V9 2025 S3 W minus U: -0.143 [-0.460, +0.185] no
+V9 2025 S4 L: hitter-specific referee lift +0.189 [-0.031, +0.415] no (original referee +0.214)
+V9 2025 S4 P: hitter-specific referee lift +0.188 [-0.068, +0.422] no (original referee +0.165)
+V9 2025 S4 E: hitter-specific referee lift +0.171 [-0.139, +0.437] no (original referee -0.028)
+V9 2025 S4 W: hitter-specific referee lift +0.255 [-0.039, +0.550] no (original referee +0.161)
+V9 2025 S4 U: hitter-specific referee lift +0.125 [-0.117, +0.372] no (original referee +0.125)
+V9 2025 S4 P minus U: +0.062 [-0.159, +0.285] no
+V9 2025 S4 L minus U: +0.064 [-0.142, +0.288] no
+V9 2025 S4 E minus U: +0.045 [-0.296, +0.367] no
+V9 2025 S4 W minus U: +0.130 [-0.225, +0.449] no
+stage v9 time 94s
