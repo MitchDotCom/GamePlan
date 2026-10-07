@@ -1,0 +1,47 @@
+
+V6 2025: two-way (hitter and starter) bootstrap on the raw-outcome cost lift, K = 40, 1000 draws
+V6 2025 S1 L: lift +0.101 hitter [-0.080, +0.272] two-way [-0.220, +0.405] width ratio 1.77  no
+V6 2025 S1 P: lift +0.122 hitter [-0.059, +0.304] two-way [-0.216, +0.437] width ratio 1.80  no
+V6 2025 S1 E: lift +0.134 hitter [-0.109, +0.371] two-way [-0.222, +0.506] width ratio 1.52  no
+V6 2025 S1 W: lift +0.223 hitter [-0.006, +0.458] two-way [-0.168, +0.598] width ratio 1.65  no
+V6 2025 S1 U: lift +0.056 hitter [-0.125, +0.241] two-way [-0.291, +0.374] width ratio 1.82  no
+V6 2025 S1 B1: lift +0.174 hitter [-0.053, +0.397] two-way [-0.229, +0.583] width ratio 1.81  no
+V6 2025 S1 B3: lift +0.108 hitter [-0.115, +0.310] two-way [-0.227, +0.447] width ratio 1.59  no
+V6 2025 S1 P minus best baseline B1: -0.052 hitter [-0.341, +0.235] two-way [-0.578, +0.454]  no
+V6 2025 S1 L minus best baseline B1: -0.073 hitter [-0.367, +0.217] two-way [-0.584, +0.445]  no
+V6 2025 S1 E minus best baseline B1: -0.040 hitter [-0.347, +0.250] two-way [-0.597, +0.486]  no
+V6 2025 S1 W minus best baseline B1: +0.049 hitter [-0.243, +0.343] two-way [-0.493, +0.582]  no
+V6 2025 S2 L: lift +0.639 hitter [+0.440, +0.841] two-way [+0.256, +1.004] width ratio 1.87  PASS
+V6 2025 S2 P: lift +0.601 hitter [+0.380, +0.834] two-way [+0.225, +0.959] width ratio 1.62  PASS
+V6 2025 S2 E: lift +0.508 hitter [+0.254, +0.771] two-way [+0.072, +0.928] width ratio 1.65  PASS
+V6 2025 S2 W: lift +0.485 hitter [+0.231, +0.756] two-way [+0.008, +0.940] width ratio 1.77  PASS
+V6 2025 S2 U: lift +0.627 hitter [+0.425, +0.822] two-way [+0.245, +1.004] width ratio 1.91  PASS
+V6 2025 S2 B1: lift +0.404 hitter [+0.068, +0.712] two-way [-0.205, +0.971] width ratio 1.83  no
+V6 2025 S2 B3: lift +0.461 hitter [+0.189, +0.738] two-way [+0.009, +0.887] width ratio 1.60  PASS
+V6 2025 S2 P minus best baseline U: -0.026 hitter [-0.230, +0.184] two-way [-0.395, +0.325]  no
+V6 2025 S2 L minus best baseline U: +0.013 hitter [-0.173, +0.183] two-way [-0.320, +0.336]  no
+V6 2025 S2 E minus best baseline U: -0.118 hitter [-0.400, +0.191] two-way [-0.662, +0.402]  no
+V6 2025 S2 W minus best baseline U: -0.142 hitter [-0.404, +0.157] two-way [-0.669, +0.376]  no
+V6 2025 S3 L: lift +0.122 hitter [-0.085, +0.326] two-way [-0.208, +0.496] width ratio 1.71  no
+V6 2025 S3 P: lift +0.150 hitter [-0.045, +0.356] two-way [-0.203, +0.519] width ratio 1.80  no
+V6 2025 S3 E: lift +0.124 hitter [-0.106, +0.368] two-way [-0.265, +0.543] width ratio 1.71  no
+V6 2025 S3 W: lift +0.083 hitter [-0.180, +0.351] two-way [-0.347, +0.517] width ratio 1.63  no
+V6 2025 S3 U: lift +0.186 hitter [-0.035, +0.391] two-way [-0.195, +0.533] width ratio 1.71  no
+V6 2025 S3 B1: lift +0.062 hitter [-0.249, +0.369] two-way [-0.482, +0.607] width ratio 1.76  no
+V6 2025 S3 B3: lift +0.283 hitter [+0.064, +0.510] two-way [-0.115, +0.664] width ratio 1.75  no
+V6 2025 S3 P minus best baseline B3: -0.133 hitter [-0.373, +0.106] two-way [-0.585, +0.300]  no
+V6 2025 S3 L minus best baseline B3: -0.161 hitter [-0.393, +0.066] two-way [-0.586, +0.264]  no
+V6 2025 S3 E minus best baseline B3: -0.159 hitter [-0.480, +0.156] two-way [-0.704, +0.367]  no
+V6 2025 S3 W minus best baseline B3: -0.199 hitter [-0.533, +0.133] two-way [-0.753, +0.364]  no
+V6 2025 S4 L: lift +0.214 hitter [-0.020, +0.411] two-way [-0.183, +0.553] width ratio 1.71  no
+V6 2025 S4 P: lift +0.165 hitter [-0.077, +0.385] two-way [-0.234, +0.549] width ratio 1.69  no
+V6 2025 S4 E: lift -0.028 hitter [-0.292, +0.237] two-way [-0.491, +0.417] width ratio 1.72  no
+V6 2025 S4 W: lift +0.161 hitter [-0.127, +0.446] two-way [-0.323, +0.587] width ratio 1.59  no
+V6 2025 S4 U: lift +0.125 hitter [-0.116, +0.352] two-way [-0.269, +0.521] width ratio 1.69  no
+V6 2025 S4 B1: lift +0.390 hitter [+0.071, +0.714] two-way [-0.143, +0.921] width ratio 1.65  no
+V6 2025 S4 B3: lift +0.300 hitter [+0.093, +0.497] two-way [-0.072, +0.649] width ratio 1.78  no
+V6 2025 S4 P minus best baseline B1: -0.225 hitter [-0.636, +0.172] two-way [-0.897, +0.401]  no
+V6 2025 S4 L minus best baseline B1: -0.176 hitter [-0.582, +0.234] two-way [-0.868, +0.497]  no
+V6 2025 S4 E minus best baseline B1: -0.418 hitter [-0.830, +0.017] two-way [-1.105, +0.306]  no
+V6 2025 S4 W minus best baseline B1: -0.229 hitter [-0.664, +0.202] two-way [-0.933, +0.465]  no
+stage v6 time 128s
