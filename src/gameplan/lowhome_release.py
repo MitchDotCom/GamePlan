@@ -291,9 +291,9 @@ def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, scales=(0.5,
                     continue
                 members = {}
                 for p1, pts1 in found[s].items():
-                    near = [(np.hypot(x1 - x, y1 - y), x1, y1) for x1, y1, _ in pts1 if np.hypot(x1 - x, y1 - y) <= r]
-                    if near:
-                        members[p1] = min(near)
+                    close = [(np.hypot(x1 - x, y1 - y), x1, y1) for x1, y1, _ in pts1 if np.hypot(x1 - x, y1 - y) <= r]
+                    if close:
+                        members[p1] = min(close)
                 score = (len(members), -sum(d for d, _, _ in members.values()) / max(len(members), 1))
                 if best is None or score > best[0]:
                     best = (score, s, [(x1, y1) for _, x1, y1 in members.values()], len(members))
