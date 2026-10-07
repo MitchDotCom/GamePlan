@@ -1,0 +1,54 @@
+V4: Benjamini-Hochberg at q = 0.05 over 192 tests (V1, V2 and B2, four seasons jointly). p-values are a normal approximation to the bootstrap intervals.
+V1: 112 tests, 43 pass uncorrected (interval above 0), 39 survive correction
+V2: 64 tests, 0 pass uncorrected (interval above 0), 0 survive correction
+B2: 16 tests, 10 pass uncorrected (interval above 0), 9 survive correction
+All: 53 pass uncorrected, 48 survive (91% of the uncorrected passes)
+
+Per conclusion: seasons passing uncorrected / seasons surviving correction, and grade (A 4 survive, B 3, C passes uncorrected in 3 or more but survives in fewer, F otherwise)
+B2 S1 P-L: 4/4 uncorrected, 4/4 survive  A
+B2 S2 P-L: 3/4 uncorrected, 3/4 survive  B
+B2 S3 P-L: 1/4 uncorrected, 1/4 survive  F
+B2 S4 P-L: 2/4 uncorrected, 1/4 survive  F
+V1 S1 B1: 1/4 uncorrected, 1/4 survive  F
+V1 S1 B3: 1/4 uncorrected, 1/4 survive  F
+V1 S1 E: 1/4 uncorrected, 1/4 survive  F
+V1 S1 L: 1/4 uncorrected, 1/4 survive  F
+V1 S1 P: 2/4 uncorrected, 2/4 survive  F
+V1 S1 U: 2/4 uncorrected, 1/4 survive  F
+V1 S2 B1: 4/4 uncorrected, 4/4 survive  A
+V1 S2 B3: 4/4 uncorrected, 4/4 survive  A
+V1 S2 E: 2/4 uncorrected, 2/4 survive  F
+V1 S2 L: 4/4 uncorrected, 4/4 survive  A
+V1 S2 P: 4/4 uncorrected, 4/4 survive  A
+V1 S2 U: 4/4 uncorrected, 4/4 survive  A
+V1 S2 W: 2/4 uncorrected, 2/4 survive  F
+V1 S3 B1: 1/4 uncorrected, 1/4 survive  F
+V1 S3 B3: 1/4 uncorrected, 1/4 survive  F
+V1 S3 L: 2/4 uncorrected, 2/4 survive  F
+V1 S3 P: 2/4 uncorrected, 0/4 survive  F
+V1 S3 U: 2/4 uncorrected, 1/4 survive  F
+V1 S4 B1: 1/4 uncorrected, 1/4 survive  F
+V1 S4 B3: 1/4 uncorrected, 1/4 survive  F
+V1 S4 U: 1/4 uncorrected, 1/4 survive  F
+V2 S1 E: 0/4 uncorrected, 0/4 survive  F
+V2 S1 L: 0/4 uncorrected, 0/4 survive  F
+V2 S1 P: 0/4 uncorrected, 0/4 survive  F
+V2 S1 W: 0/4 uncorrected, 0/4 survive  F
+V2 S2 E: 0/4 uncorrected, 0/4 survive  F
+V2 S2 L: 0/4 uncorrected, 0/4 survive  F
+V2 S2 P: 0/4 uncorrected, 0/4 survive  F
+V2 S2 W: 0/4 uncorrected, 0/4 survive  F
+V2 S3 E: 0/4 uncorrected, 0/4 survive  F
+V2 S3 L: 0/4 uncorrected, 0/4 survive  F
+V2 S3 P: 0/4 uncorrected, 0/4 survive  F
+V2 S3 W: 0/4 uncorrected, 0/4 survive  F
+V2 S4 E: 0/4 uncorrected, 0/4 survive  F
+V2 S4 L: 0/4 uncorrected, 0/4 survive  F
+V2 S4 P: 0/4 uncorrected, 0/4 survive  F
+V2 S4 W: 0/4 uncorrected, 0/4 survive  F
+
+Per season, tests surviving correction
+2025: V1 10/28, V2 0/16, B2 2/4
+2024: V1 8/28, V2 0/16, B2 2/4
+2023: V1 13/28, V2 0/16, B2 4/4
+2022: V1 8/28, V2 0/16, B2 1/4
