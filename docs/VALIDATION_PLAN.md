@@ -135,3 +135,21 @@ Source of the design: the ABCA/uHIT case report (graded C, ledger row 13) used a
 - Coach 1-on-1 review is part of the protocol and logged, because the case report's one hitter with no coaching support did worse. It also means the pilot tests the whole loop, not the clips alone.
 - Power: V3's detection numbers apply. If the pilot cannot detect the smallest useful change, that is stated before it starts.
 - Requires org approval and Visalia data. Not run until both exist.
+
+---
+
+## Amendment 2 (2026-10-07), operational definitions for V4, V5, V6, V7 and V9, written before any of them was run
+
+Order of runs: V4, then V5, V6, V7, V9 (one suite run per season, all four seasons, same code).
+
+**V4 (multiple comparisons).** Done by parsing the existing result files, so no model reruns. Each interval is turned into a one-sided z-test: se = (hi - lo) / 3.92, z = estimate / se, p = 1 - Phi(z) (direction: flagged pitches cost more; model path beats baseline; personal beats starter-level). This is a normal approximation to the percentile bootstrap and is stated as such. Families: V1 (7 paths x 4 shapes), V2 (4 model paths x 4 shapes), Gate 0 B2 (4 shapes). Benjamini-Hochberg at q = 0.05 over every test in all four seasons jointly. A conclusion is graded by the number of seasons in which it survives (A 4, B 3, C passes uncorrected in at least 3 seasons but survives in fewer, F otherwise).
+
+**V5 (shrinkage sweep).** K in {10, 20, 40, 80, 160} for the personal-path shrinkage, with the E and W excess paths using the same K. For each season and shape: V1 cost lift for P, E and U, and P minus L and P minus U differences, with hitter-cluster intervals. K is chosen on 2022 and 2023 as the value maximizing the mean P cost lift over shapes S1 to S4, and then judged on 2024 and 2025. Bars as in V5 above: sign and pass/fail do not flip across the grid, and the chosen K is within one grid step of 40.
+
+**V6 (two-way clustering).** The raw-outcome tally is kept per (hitter, starter) pair. Intervals use the pigeonhole bootstrap: hitters and starters are resampled independently, 1,000 draws, and each pair is weighted by the product of its hitter's and starter's draw counts. Reported next to the hitter-only interval for the same quantity. Bar as in V6 above.
+
+**V7 (Single-A sample-size curve).** One factor at a time from the baseline (300 earlier hitter pitches, 2 earlier starter starts, 20 earlier starter fastballs): hitter history in {100, 150, 200, 300}; starter starts in {1, 2, 3}. For each setting: V1 cost lift for P, L and U (S1 to S4), flagged pitches per hitter-start, hitter-starts evaluated, and the Gate 0 B3 reliability (odd/even, corrected) among hitters meeting that history minimum. Output: the smallest history at which P still beats L on the model measure with interval above zero and B3 stays at or above 0.40. This is MLB subsampling, not Single-A data.
+
+**V9 (hitter-specific referee).** The referee is refit so that each pitch is graded against the hitter's own skill, out of fold. For each hitter, his games are split into two folds by alternating game order; offsets estimated on one fold are applied to the other. Whiff: logit shift = sum(observed - predicted) / (sum p(1-p) + 200) over his swings in the other fold. Contact quality: additive shift on predicted xwOBA-on-contact = sum(residual) / (n balls in play + 60). The foul probability is unchanged. The loss and delta arrays are recomputed with these shifted predictions and the whole rolling evaluation and V1 raw-outcome tally are rerun with them. Bar: the flagged-pitch raw cost lift for L and P on S2 keeps its sign and interval above zero. If only P passes under the original referee and fails here, the personal paths are labeled "differs from league-average decisions."
+
+Approximations stated plainly: V4 uses a normal approximation; V9's hitter-specific kernel is a two-parameter shift (whiff and contact quality), not a full hitter-specific refit of the kernel.

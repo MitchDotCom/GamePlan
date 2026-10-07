@@ -1,26 +1,26 @@
 Gate 0 run: league data/league2022, eval from 2022-05-01, direct-test split 2022-07-01, hitter history 300+ pitches
-loaded 705884 pitches, 4860 starter-games, 708116 with early-flight position (32s)
-referee fit on 336879 swings and 368985 takes (41s)
+loaded 705884 pitches, 4860 starter-games, 708116 with early-flight position (30s)
+referee fit on 336879 swings and 368985 takes (38s)
 411179 starter pitches with complete data
-  referee 40000/411179 (66s)
-  referee 80000/411179 (90s)
-  referee 120000/411179 (111s)
-  referee 160000/411179 (133s)
-  referee 200000/411179 (154s)
-  referee 240000/411179 (173s)
-  referee 280000/411179 (191s)
-  referee 320000/411179 (209s)
-  referee 360000/411179 (227s)
-  referee 400000/411179 (250s)
-  referee 411179/411179 (257s)
+  referee 40000/411179 (60s)
+  referee 80000/411179 (81s)
+  referee 120000/411179 (99s)
+  referee 160000/411179 (114s)
+  referee 200000/411179 (129s)
+  referee 240000/411179 (143s)
+  referee 280000/411179 (158s)
+  referee 320000/411179 (171s)
+  referee 360000/411179 (185s)
+  referee 400000/411179 (199s)
+  referee 411179/411179 (203s)
 mean loss 2.13 runs per 100 pitches; share of pitches with any loss 0.31
   rolling 2022-04-07 (1/179), hitter-starts evaluated so far 0, 0s
   rolling 2022-04-27 (21/179), hitter-starts evaluated so far 0, 0s
   rolling 2022-05-17 (41/179), hitter-starts evaluated so far 279, 1s
   rolling 2022-06-06 (61/179), hitter-starts evaluated so far 2447, 3s
-  rolling 2022-06-26 (81/179), hitter-starts evaluated so far 5636, 5s
-  rolling 2022-07-16 (101/179), hitter-starts evaluated so far 9251, 8s
-  rolling 2022-08-08 (121/179), hitter-starts evaluated so far 12841, 11s
+  rolling 2022-06-26 (81/179), hitter-starts evaluated so far 5636, 6s
+  rolling 2022-07-16 (101/179), hitter-starts evaluated so far 9251, 9s
+  rolling 2022-08-08 (121/179), hitter-starts evaluated so far 12841, 12s
   rolling 2022-08-28 (141/179), hitter-starts evaluated so far 16735, 15s
   rolling 2022-09-17 (161/179), hitter-starts evaluated so far 20452, 18s
 
@@ -57,4 +57,4 @@ D-DIRECT: does early-flight closeness to the starter's fastball predict more whi
 whiff per swing: 39907 train, 41745 test; log-loss gain per pitch +0.00093 [+0.00052, +0.00133]; coefficient on separation (standardized) -0.1839 (closer to the fastball path = more whiffs)  PASS
 chase (swing at out-of-zone pitches): 51031 train, 52822 test; log-loss gain per pitch +0.01418 [+0.01252, +0.01596]; coefficient on separation (standardized) -0.6597 (closer to the fastball path = more chase)  PASS
 
-total time 291s
+total time 237s
