@@ -7,7 +7,10 @@
 Generators registered in GENERATORS:
   usage         the starter's most-used shapes vs this hitter's side, recent starts weighted more. The validated rule (V2: nothing beat it).
   hitter_cost   among shapes the starter really throws, the ones where this hitter's own raw results cost him most (Statcast delta_run_exp,
-                shrunk toward his overall rate). Descriptive: on 2022-2025 it did not beat usage (V2), so it is a second view, not a better pick.
+                shrunk toward his overall rate, several seasons, older seasons weighted less). Descriptive: on 2022-2025 it did not beat usage (V2).
+  ride          his fastball-ride slope (whiff vs vertical break, Gate 0b, confirmed 4 of 4 seasons) applied to the starter's fastballs: the ones
+                at the ride extreme where his whiff risk is highest. Needs a slope whose interval excludes zero, else it says so and returns nothing.
+  run           same for breaking-ball run (horizontal break, the strongest confirmed trait).
 Add a generator by writing fn(rows, hitter, n) -> [(family, pocket), ...] and registering it.
 """
 from __future__ import annotations
@@ -18,12 +21,20 @@ import json
 import pathlib
 from collections import Counter, defaultdict
 
+import numpy as np
+
+from . import savant
 from . import videocut as V
+from .traits_test import _fit_logit as ridge_logit
 
 STATSAPI = "https://statsapi.mlb.com/api/v1"
 HALF_LIFE = 2.0     # starts; a start two outings ago counts half
 K_SHRINK = 40       # pitches; same pull toward the hitter's overall rate used in V5
 MIN_SHARE = 0.05    # a shape must be at least this share of the starter's weighted pitches to be offered
+SEASON_HALF_LIFE = 1.0   # seasons; last season counts half as much as this one
+K_SLOPE = 100.0     # ridge strength on his ride/run slope, same as Gate 0b
+MIN_SWINGS = 150    # his swings in the family needed before a slope is reported
+BOOT = 200
 
 
 def recent_starts(pitcher_id: int, season: int, before: str, n: int = 5) -> list[tuple]:
@@ -65,8 +76,28 @@ def usage(rows: list[dict], hitter: dict, n: int = 3) -> list[tuple]:
     return [k for k, _ in c.most_common(n)]
 
 
+def read_rows(csv_text: str, season: int) -> list[dict]:
+    return [dict(r, _season=season) for r in csv.DictReader(io.StringIO(csv_text))]
+
+
+def hitter_history(hitter_id: int, seasons: list[int], cache: pathlib.Path) -> list[dict]:
+    """His Statcast pitch rows for each season (one cached CSV per season; the current season is refetched since it grows)."""
+    cache.mkdir(parents=True, exist_ok=True)
+    out = []
+    for i, yr in enumerate(sorted(seasons)):
+        f = cache / f"{hitter_id}_{yr}.csv"
+        if not f.exists() or yr == max(seasons):
+            f.write_text(savant.fetch_csv(savant.build_url(hitter_id, yr)))
+        out += read_rows(f.read_text(), yr)
+    return out
+
+
+def _sw(r: dict, latest: int) -> float:
+    return 0.5 ** ((latest - r["_season"]) / SEASON_HALF_LIFE)
+
+
 def hitter_cost(rows: list[dict], hitter: dict, n: int = 3) -> list[tuple]:
-    """hitter['csv'] is that hitter's Statcast pitch CSV text (savant.build_url / fetch_csv). Needs hitter['stand']."""
+    """hitter['rows'] is his pitch history (hitter_history); several seasons, each older season weighted less."""
     total = sum(_weight(p) for p in rows if p.get("stand") == hitter["stand"] and _shape(p))
     c = Counter()
     for p in rows:
@@ -74,9 +105,11 @@ def hitter_cost(rows: list[dict], hitter: dict, n: int = 3) -> list[tuple]:
             c[_shape(p)] += _weight(p)
     offered = {k for k, w in c.items() if total and w / total >= MIN_SHARE}
     hand = rows[0].get("p_throws") if rows else None
-    cost, cnt = defaultdict(float), defaultdict(int)
-    allc = alln = 0
-    for r in csv.DictReader(io.StringIO(hitter["csv"])):
+    hist = hitter["rows"]
+    latest = max((r["_season"] for r in hist), default=0)
+    cost, cnt = defaultdict(float), defaultdict(float)
+    allc = alln = 0.0
+    for r in hist:
         if hand and r.get("p_throws") != hand:
             continue
         try:
@@ -85,23 +118,111 @@ def hitter_cost(rows: list[dict], hitter: dict, n: int = 3) -> list[tuple]:
             fam = V.pitch_family(r["pitch_type"])
         except (KeyError, ValueError, TypeError):
             continue
+        w = _sw(r, latest)
         pk = V.pocket(q)
-        allc += v
-        alln += 1
+        allc += w * v
+        alln += w
         if pk:
-            cost[(fam, pk)] += v
-            cnt[(fam, pk)] += 1
+            cost[(fam, pk)] += w * v
+            cnt[(fam, pk)] += w
     mu = allc / alln if alln else 0.0
     score = {k: (cost[k] + K_SHRINK * mu) / (cnt[k] + K_SHRINK) for k in offered}
     return sorted(score, key=lambda k: -score[k])[:n]
 
 
-GENERATORS = {"usage": usage, "hitter_cost": hitter_cost}
+# ---------------------------------------------------------------- ride and run (Gate 0b traits)
+
+WHIFF = savant.WHIFF_DESCRIPTIONS | {"foul_tip"}
+
+
+def _f(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def starter_move(p: dict):
+    """(ride_in, run_in) of a pooled feed pitch in inches, same definitions as the study: ride = induced vertical break (pfx_z * 12),
+    run = break toward the batter (api_break_x_batter_in * 12). The feed's pfxX has the opposite sign to Statcast's pfx_x, checked on Singer's sinker."""
+    z, x = _f(p.get("pfxZ")), _f(p.get("pfxX"))
+    if z is None or x is None or p.get("stand") not in ("L", "R"):
+        return None, None
+    return z * 12.0, (x if p["stand"] == "R" else -x) * 12.0
+
+
+def trait_slope(hist: list[dict], family: str, trait: str, seed: int = 7) -> dict:
+    """His whiff-per-swing slope on ride (family FB) or run (family BRK), per sd of the feature, controlling for location, speed and two strikes,
+    ridge-shrunk toward zero (K=100) and bootstrapped over his swings. Simplified from Gate 0b (no league slope or pitcher intercepts), so read it as
+    a direction and a size, not the validated estimate itself."""
+    key = "pfx_z" if trait == "ride" else "api_break_x_batter_in"
+    X, y = [], []
+    for r in hist:
+        if V.pitch_family(r.get("pitch_type", "")) != family or r.get("description") not in savant.SWING_DESCRIPTIONS | {"foul_tip"}:
+            continue
+        v = [_f(r.get(k)) for k in (key, "plate_x", "plate_z", "release_speed")]
+        if None in v:
+            continue
+        X.append(v + [1.0 if r.get("strikes") == "2" else 0.0])
+        y.append(1.0 if r["description"] in WHIFF else 0.0)
+    n = len(y)
+    out = dict(n=n, trait=trait, family=family)
+    if n < MIN_SWINGS:
+        return dict(out, ok=False, why=f"only {n} swings (need {MIN_SWINGS})")
+    X, y = np.array(X), np.array(y)
+    mu, sd = X.mean(0), X.std(0) + 1e-9
+    Z = (X - mu) / sd
+    Z[:, 4] = X[:, 4]
+    Z2 = np.column_stack([Z[:, 0], Z[:, 1], Z[:, 2], Z[:, 1] ** 2, Z[:, 2] ** 2, Z[:, 3], Z[:, 4]])
+    off = np.log(y.mean() / (1 - y.mean())) if 0 < y.mean() < 1 else 0.0
+    slope = ridge_logit(Z2, y, np.full(n, off), lam=K_SLOPE)[0]
+    rng = np.random.default_rng(seed)
+    boots = []
+    for _ in range(BOOT):
+        i = rng.integers(0, n, n)
+        boots.append(ridge_logit(Z2[i], y[i], np.full(n, off), lam=K_SLOPE)[0])
+    lo, hi = np.percentile(boots, [2.5, 97.5])
+    return dict(out, ok=True, slope=float(slope), lo=float(lo), hi=float(hi), clear=bool(lo > 0 or hi < 0),
+                mean=float(mu[0]), sd=float(sd[0]), whiff_rate=float(y.mean()))
+
+
+def _trait_pitches(rows: list[dict], hitter: dict, trait: str, n: int):
+    fam = "FB" if trait == "ride" else "BRK"
+    t = trait_slope(hitter["rows"], fam, trait)
+    if not t["ok"] or not t["clear"]:
+        return t, []
+    # feature on the same scale as the slope (feet for ride, feet toward the batter for run); pooled pitches are in inches
+    pool = [(p, starter_move(p)[0 if trait == "ride" else 1]) for p in rows
+            if p.get("stand") == hitter["stand"] and V.pitch_family(p.get("pitch_type", "")) == fam]
+    pool = [(p, m / 12.0) for p, m in pool if m is not None]
+    if not pool:
+        return t, []
+    z = [((m - t["mean"]) / t["sd"], p) for p, m in pool]
+    z.sort(key=lambda a: -a[0] if t["slope"] > 0 else a[0])     # most whiff-prone end first
+    return t, [p for _, p in z[:max(n, 1)]]
+
+
+def _gen(trait):
+    def fn(rows, hitter, n=3):
+        t, ps = _trait_pitches(rows, hitter, trait, n)
+        hitter.setdefault("notes", {})[trait] = t
+        return ps
+    fn.returns_pitches = True
+    return fn
+
+
+GENERATORS = {"usage": usage, "hitter_cost": hitter_cost, "ride": _gen("ride"), "run": _gen("run")}
 
 
 def playlist(name: str, rows: list[dict], hitter: dict, n: int = 3, limit: int = 8, seed: int = 1) -> dict:
     """Shapes from the named generator and the pooled pitches that fall in them (this hitter's side), most recent starts first within a fixed-seed shuffle."""
-    shapes = GENERATORS[name](rows, hitter, n)
+    gen = GENERATORS[name]
+    if getattr(gen, "returns_pitches", False):
+        top = gen(rows, hitter, max(limit, n))
+        top = [dict(p, type="pitch") for p in top]
+        return dict(name=name, hitter=hitter.get("name"), shapes=[], pitches=top[:limit], pool=len(rows), starts=len({p["game_pk"] for p in rows}),
+                    note=hitter.get("notes", {}).get(name))
+    shapes = gen(rows, hitter, n)
     sel = V.select([dict(p, type="pitch") for p in rows], stand=hitter["stand"], shapes=tuple(shapes), limit=10 ** 6, seed=seed)
     sel.sort(key=lambda p: p["_age"])
     return dict(name=name, hitter=hitter.get("name"), shapes=shapes, pitches=sel[:limit], pool=len(rows), starts=len({p["game_pk"] for p in rows}))
@@ -116,6 +237,7 @@ def main(argv=None) -> int:
     ap.add_argument("--before", required=True, help="YYYY-MM-DD; only starts before this date are pooled")
     ap.add_argument("--starts", type=int, default=5)
     ap.add_argument("--hitter-id", type=int, required=True)
+    ap.add_argument("--hitter-seasons", type=int, default=3, help="seasons of his history, ending with --season")
     ap.add_argument("--hitter-name", default=None)
     ap.add_argument("--stand", choices=["L", "R"], required=True)
     ap.add_argument("--name", choices=sorted(GENERATORS), default="usage")
@@ -128,10 +250,15 @@ def main(argv=None) -> int:
     starts = recent_starts(a.pitcher_id, a.season, a.before, a.starts)
     rows = pooled(a.pitcher_id, starts, work / "feeds")
     hitter = dict(stand=a.stand, name=a.hitter_name or str(a.hitter_id))
-    if a.name == "hitter_cost":
-        hitter["csv"] = savant.fetch_csv(savant.build_url(a.hitter_id, a.season))
+    if a.name != "usage":
+        hitter["rows"] = hitter_history(a.hitter_id, list(range(a.season - a.hitter_seasons + 1, a.season + 1)), work / "hitters")
     pl = playlist(a.name, rows, hitter, a.n_shapes, a.limit)
     print(f"{pl['name']} for {pl['hitter']} ({a.stand}) from {pl['starts']} starts, {pl['pool']} pitches: shapes {pl['shapes']}; {len(pl['pitches'])} candidate pitches")
+    if pl.get("note"):
+        print("trait:", {k: (round(v, 3) if isinstance(v, float) else v) for k, v in pl["note"].items()})
+    if not pl["pitches"]:
+        print("no playlist: nothing met its rule (see trait line); not falling back silently")
+        return 1
     mlb_demo.build_rows(pl["pitches"], work, pathlib.Path(a.out), a.limit,
                         title=f"Go / No-Go: {a.hitter_name or a.hitter_id} ({a.stand}), {a.name} playlist, last {pl['starts']} starts")
     return 0
