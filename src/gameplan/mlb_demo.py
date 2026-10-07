@@ -20,13 +20,18 @@ from .lowhome_demo import PAGE, LEAD, TAIL
 
 def build(game: int, work: pathlib.Path, out_html: pathlib.Path, limit: int = 8, pitcher: str | None = None, seed: int = 1,
           stand: str | None = None, top: int = 0) -> list[dict]:
-    work.mkdir(parents=True, exist_ok=True)
-    items = []
     feed = V.game_pitches(game)
     shapes = tuple(V.top_shapes(feed, pitcher, stand, top)) if top else ()
     if shapes:
         print("shapes for", pitcher, "vs", stand + "HH:", shapes)
-    for p in V.select(feed, pitcher=pitcher, limit=limit * 3, seed=seed, stand=stand, shapes=shapes):
+    return build_rows(V.select(feed, pitcher=pitcher, limit=limit * 3, seed=seed, stand=stand, shapes=shapes), work, out_html, limit)
+
+
+def build_rows(rows: list[dict], work: pathlib.Path, out_html: pathlib.Path, limit: int = 8, title: str | None = None) -> list[dict]:
+    """Clips for these tracking rows (any games) into one page. Pitches with no clip or no clear release are skipped and printed."""
+    work.mkdir(parents=True, exist_ok=True)
+    items = []
+    for p in rows:
         if len(items) >= limit:
             break
         url = V.clip_url(p["play_id"])
@@ -55,7 +60,8 @@ def build(game: int, work: pathlib.Path, out_html: pathlib.Path, limit: int = 8,
                           b64=base64.b64encode(f.read_bytes()).decode(), release=round(release - start, 4), release_frame=None,
                           zone_go=k["zone_go"], pitch_go=k["pitch_go"], result=info))
         print(items[-1]["label"], info, f"release {release:.3f} s (audio)")
-    out_html.write_text(PAGE.replace("/*ITEMS*/[]", json.dumps(items)).replace("Go No-Go, Low Home", "Go No-Go, MLB").replace("Go / No-Go, low home", "Go / No-Go, MLB (center field view)"), encoding="utf-8")
+    head = title or "Go / No-Go, MLB (center field view)"
+    out_html.write_text(PAGE.replace("/*ITEMS*/[]", json.dumps(items)).replace("Go No-Go, Low Home", "Go No-Go, MLB").replace("Go / No-Go, low home", head), encoding="utf-8")
     return items
 
 
