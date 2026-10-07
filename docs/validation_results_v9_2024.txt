@@ -1,0 +1,40 @@
+
+V9 2024: hitter-specific referee (out-of-fold whiff and contact-quality shifts), full rerun of the raw-outcome tally
+whiff logit shift sd 0.065, contact-quality shift sd 0.037; mean loss 2.14 vs 2.14 runs per 100 pitches; correlation of pitch losses 0.993
+V9 2024 S1 L: hitter-specific referee lift +0.172 [-0.014, +0.350] no (original referee +0.179)
+V9 2024 S1 P: hitter-specific referee lift +0.186 [+0.009, +0.362] PASS (original referee +0.225)
+V9 2024 S1 E: hitter-specific referee lift +0.025 [-0.201, +0.264] no (original referee +0.098)
+V9 2024 S1 W: hitter-specific referee lift -0.147 [-0.379, +0.101] no (original referee -0.042)
+V9 2024 S1 U: hitter-specific referee lift +0.197 [+0.017, +0.380] PASS (original referee +0.197)
+V9 2024 S1 P minus U: -0.011 [-0.161, +0.144] no
+V9 2024 S1 L minus U: -0.025 [-0.170, +0.115] no
+V9 2024 S1 E minus U: -0.172 [-0.460, +0.107] no
+V9 2024 S1 W minus U: -0.344 [-0.635, -0.053] no
+V9 2024 S2 L: hitter-specific referee lift +0.532 [+0.309, +0.760] PASS (original referee +0.517)
+V9 2024 S2 P: hitter-specific referee lift +0.448 [+0.237, +0.665] PASS (original referee +0.478)
+V9 2024 S2 E: hitter-specific referee lift +0.243 [-0.032, +0.514] no (original referee +0.245)
+V9 2024 S2 W: hitter-specific referee lift +0.194 [-0.075, +0.469] no (original referee +0.195)
+V9 2024 S2 U: hitter-specific referee lift +0.554 [+0.337, +0.788] PASS (original referee +0.554)
+V9 2024 S2 P minus U: -0.106 [-0.335, +0.111] no
+V9 2024 S2 L minus U: -0.022 [-0.226, +0.191] no
+V9 2024 S2 E minus U: -0.311 [-0.643, +0.047] no
+V9 2024 S2 W minus U: -0.360 [-0.664, -0.047] no
+V9 2024 S3 L: hitter-specific referee lift +0.278 [+0.057, +0.485] PASS (original referee +0.289)
+V9 2024 S3 P: hitter-specific referee lift +0.234 [+0.039, +0.427] PASS (original referee +0.219)
+V9 2024 S3 E: hitter-specific referee lift +0.187 [-0.030, +0.415] no (original referee +0.234)
+V9 2024 S3 W: hitter-specific referee lift +0.256 [+0.028, +0.486] PASS (original referee +0.241)
+V9 2024 S3 U: hitter-specific referee lift +0.349 [+0.127, +0.530] PASS (original referee +0.349)
+V9 2024 S3 P minus U: -0.115 [-0.312, +0.105] no
+V9 2024 S3 L minus U: -0.071 [-0.254, +0.123] no
+V9 2024 S3 E minus U: -0.162 [-0.430, +0.120] no
+V9 2024 S3 W minus U: -0.093 [-0.368, +0.222] no
+V9 2024 S4 L: hitter-specific referee lift +0.177 [-0.075, +0.422] no (original referee +0.184)
+V9 2024 S4 P: hitter-specific referee lift +0.101 [-0.146, +0.343] no (original referee +0.132)
+V9 2024 S4 E: hitter-specific referee lift +0.041 [-0.230, +0.301] no (original referee +0.044)
+V9 2024 S4 W: hitter-specific referee lift -0.001 [-0.276, +0.275] no (original referee +0.045)
+V9 2024 S4 U: hitter-specific referee lift +0.158 [-0.064, +0.382] no (original referee +0.158)
+V9 2024 S4 P minus U: -0.057 [-0.264, +0.191] no
+V9 2024 S4 L minus U: +0.019 [-0.189, +0.244] no
+V9 2024 S4 E minus U: -0.117 [-0.419, +0.195] no
+V9 2024 S4 W minus U: -0.159 [-0.465, +0.169] no
+stage v9 time 92s
