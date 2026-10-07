@@ -1,0 +1,33 @@
+
+V7 2025: Single-A style history caps, one factor at a time from the baseline (300 earlier hitter pitches, 2 earlier starter starts)
+V7 2025 hist=100 starts=2: hitter-starts 30502; B3 reliability S1 +0.52, S2 +0.50, S3 +0.43, S4 +0.45
+V7 2025 hist=100 starts=2 S1: flagged per start P 3.9 L 4.0 | raw P +0.076 [-0.087, +0.235] no | raw L +0.055 [-0.099, +0.207] no | raw U +0.049 [-0.104, +0.211] no | model B1 P 1.17 L 1.15, B2 P-L +0.019 [+0.004, +0.033] PASS
+V7 2025 hist=100 starts=2 S2: flagged per start P 1.8 L 1.8 | raw P +0.515 [+0.328, +0.691] PASS | raw L +0.598 [+0.412, +0.778] PASS | raw U +0.590 [+0.406, +0.766] PASS | model B1 P 1.30 L 1.26, B2 P-L +0.039 [+0.022, +0.059] PASS
+V7 2025 hist=100 starts=2 S3: flagged per start P 2.8 L 2.9 | raw P +0.214 [+0.040, +0.393] PASS | raw L +0.130 [-0.060, +0.315] no | raw U +0.161 [-0.011, +0.351] no | model B1 P 1.27 L 1.26, B2 P-L +0.013 [-0.003, +0.029] no
+V7 2025 hist=100 starts=2 S4: flagged per start P 2.1 L 2.1 | raw P +0.208 [-0.015, +0.429] no | raw L +0.238 [+0.044, +0.459] PASS | raw U +0.141 [-0.066, +0.343] no | model B1 P 1.27 L 1.25, B2 P-L +0.022 [+0.005, +0.039] PASS
+V7 2025 hist=150 starts=2: hitter-starts 29201; B3 reliability S1 +0.53, S2 +0.50, S3 +0.43, S4 +0.45
+V7 2025 hist=150 starts=2 S1: flagged per start P 3.9 L 4.0 | raw P +0.097 [-0.057, +0.277] no | raw L +0.067 [-0.096, +0.225] no | raw U +0.048 [-0.116, +0.220] no | model B1 P 1.17 L 1.15, B2 P-L +0.019 [+0.004, +0.035] PASS
+V7 2025 hist=150 starts=2 S2: flagged per start P 1.8 L 1.8 | raw P +0.539 [+0.347, +0.754] PASS | raw L +0.613 [+0.445, +0.809] PASS | raw U +0.605 [+0.410, +0.793] PASS | model B1 P 1.31 L 1.27, B2 P-L +0.039 [+0.019, +0.060] PASS
+V7 2025 hist=150 starts=2 S3: flagged per start P 2.9 L 2.9 | raw P +0.205 [+0.038, +0.389] PASS | raw L +0.141 [-0.046, +0.326] no | raw U +0.161 [-0.025, +0.341] no | model B1 P 1.27 L 1.26, B2 P-L +0.015 [-0.002, +0.031] no
+V7 2025 hist=150 starts=2 S4: flagged per start P 2.1 L 2.1 | raw P +0.205 [-0.016, +0.405] no | raw L +0.245 [+0.036, +0.434] PASS | raw U +0.151 [-0.052, +0.342] no | model B1 P 1.27 L 1.25, B2 P-L +0.023 [+0.006, +0.040] PASS
+V7 2025 hist=200 starts=2: hitter-starts 27748; B3 reliability S1 +0.54, S2 +0.50, S3 +0.43, S4 +0.45
+V7 2025 hist=200 starts=2 S1: flagged per start P 3.9 L 4.0 | raw P +0.113 [-0.051, +0.295] no | raw L +0.076 [-0.096, +0.250] no | raw U +0.048 [-0.126, +0.210] no | model B1 P 1.17 L 1.16, B2 P-L +0.019 [+0.005, +0.035] PASS
+V7 2025 hist=200 starts=2 S2: flagged per start P 1.8 L 1.8 | raw P +0.598 [+0.384, +0.811] PASS | raw L +0.632 [+0.430, +0.827] PASS | raw U +0.616 [+0.430, +0.793] PASS | model B1 P 1.31 L 1.27, B2 P-L +0.041 [+0.021, +0.063] PASS
+V7 2025 hist=200 starts=2 S3: flagged per start P 2.9 L 2.9 | raw P +0.211 [+0.015, +0.392] PASS | raw L +0.143 [-0.069, +0.335] no | raw U +0.175 [-0.012, +0.366] no | model B1 P 1.28 L 1.27, B2 P-L +0.014 [-0.004, +0.032] no
+V7 2025 hist=200 starts=2 S4: flagged per start P 2.1 L 2.1 | raw P +0.243 [+0.029, +0.468] PASS | raw L +0.278 [+0.086, +0.480] PASS | raw U +0.183 [-0.014, +0.395] no | model B1 P 1.27 L 1.25, B2 P-L +0.024 [+0.006, +0.041] PASS
+V7 2025 hist=300 starts=2: hitter-starts 24447; B3 reliability S1 +0.57, S2 +0.50, S3 +0.43, S4 +0.45
+V7 2025 hist=300 starts=2 S1: flagged per start P 4.0 L 4.0 | raw P +0.122 [-0.057, +0.314] no | raw L +0.101 [-0.079, +0.285] no | raw U +0.056 [-0.130, +0.235] no | model B1 P 1.18 L 1.16, B2 P-L +0.021 [+0.006, +0.037] PASS
+V7 2025 hist=300 starts=2 S2: flagged per start P 1.8 L 1.8 | raw P +0.601 [+0.408, +0.831] PASS | raw L +0.639 [+0.442, +0.829] PASS | raw U +0.627 [+0.442, +0.833] PASS | model B1 P 1.32 L 1.27, B2 P-L +0.045 [+0.023, +0.067] PASS
+V7 2025 hist=300 starts=2 S3: flagged per start P 2.9 L 3.0 | raw P +0.150 [-0.038, +0.337] no | raw L +0.122 [-0.077, +0.312] no | raw U +0.186 [-0.008, +0.384] no | model B1 P 1.28 L 1.27, B2 P-L +0.013 [-0.006, +0.031] no
+V7 2025 hist=300 starts=2 S4: flagged per start P 2.1 L 2.1 | raw P +0.165 [-0.074, +0.412] no | raw L +0.214 [+0.006, +0.430] PASS | raw U +0.125 [-0.109, +0.374] no | model B1 P 1.27 L 1.25, B2 P-L +0.019 [-0.002, +0.039] no
+V7 2025 hist=300 starts=1: hitter-starts 25168; B3 reliability S1 +0.57, S2 +0.50, S3 +0.43, S4 +0.45
+V7 2025 hist=300 starts=1 S1: flagged per start P 4.0 L 4.0 | raw P +0.121 [-0.055, +0.288] no | raw L +0.094 [-0.086, +0.257] no | raw U +0.033 [-0.146, +0.210] no | model B1 P 1.18 L 1.16, B2 P-L +0.021 [+0.006, +0.036] PASS
+V7 2025 hist=300 starts=1 S2: flagged per start P 1.8 L 1.8 | raw P +0.607 [+0.397, +0.813] PASS | raw L +0.643 [+0.445, +0.838] PASS | raw U +0.608 [+0.419, +0.802] PASS | model B1 P 1.31 L 1.27, B2 P-L +0.043 [+0.020, +0.066] PASS
+V7 2025 hist=300 starts=1 S3: flagged per start P 2.9 L 2.9 | raw P +0.149 [-0.055, +0.335] no | raw L +0.113 [-0.082, +0.294] no | raw U +0.175 [-0.036, +0.371] no | model B1 P 1.28 L 1.27, B2 P-L +0.015 [-0.004, +0.034] no
+V7 2025 hist=300 starts=1 S4: flagged per start P 2.1 L 2.1 | raw P +0.151 [-0.071, +0.381] no | raw L +0.193 [-0.008, +0.400] no | raw U +0.108 [-0.116, +0.323] no | model B1 P 1.27 L 1.25, B2 P-L +0.020 [+0.001, +0.040] PASS
+V7 2025 hist=300 starts=3: hitter-starts 23682; B3 reliability S1 +0.57, S2 +0.50, S3 +0.43, S4 +0.45
+V7 2025 hist=300 starts=3 S1: flagged per start P 4.0 L 4.1 | raw P +0.142 [-0.034, +0.329] no | raw L +0.117 [-0.072, +0.299] no | raw U +0.070 [-0.116, +0.250] no | model B1 P 1.18 L 1.16, B2 P-L +0.021 [+0.006, +0.037] PASS
+V7 2025 hist=300 starts=3 S2: flagged per start P 1.8 L 1.8 | raw P +0.593 [+0.354, +0.817] PASS | raw L +0.624 [+0.429, +0.833] PASS | raw U +0.618 [+0.425, +0.819] PASS | model B1 P 1.32 L 1.27, B2 P-L +0.044 [+0.021, +0.067] PASS
+V7 2025 hist=300 starts=3 S3: flagged per start P 2.9 L 3.0 | raw P +0.165 [-0.038, +0.363] no | raw L +0.135 [-0.084, +0.335] no | raw U +0.192 [-0.016, +0.399] no | model B1 P 1.29 L 1.28, B2 P-L +0.010 [-0.010, +0.029] no
+V7 2025 hist=300 starts=3 S4: flagged per start P 2.1 L 2.1 | raw P +0.171 [-0.055, +0.397] no | raw L +0.231 [+0.004, +0.447] PASS | raw U +0.137 [-0.110, +0.373] no | model B1 P 1.27 L 1.25, B2 P-L +0.016 [-0.002, +0.035] no
+stage v7 time 436s
