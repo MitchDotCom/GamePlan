@@ -144,7 +144,7 @@ def _f(v):
 
 def starter_move(p: dict):
     """(ride_in, run_in) of a pooled feed pitch in inches, same definitions as the study: ride = induced vertical break (pfx_z * 12),
-    run = break toward the batter (api_break_x_batter_in * 12). The feed's pfxX has the opposite sign to Statcast's pfx_x, checked on Singer's sinker."""
+    run = the study's horizontal break (api_break_x_batter_in * 12). Despite its name, on this column an RHP sinker vs a left-handed batter is negative and his slider positive, so positive = break away from the batter, negative = toward him (checked on Singer's pitches vs Nootbaar). The feed's pfxX has the opposite sign to Statcast's pfx_x."""
     z, x = _f(p.get("pfxZ")), _f(p.get("pfxX"))
     if z is None or x is None or p.get("stand") not in ("L", "R"):
         return None, None
@@ -191,7 +191,7 @@ def _trait_pitches(rows: list[dict], hitter: dict, trait: str, n: int):
     t = trait_slope(hitter["rows"], fam, trait)
     if not t["ok"] or not t["clear"]:
         return t, []
-    # feature on the same scale as the slope (feet for ride, feet toward the batter for run); pooled pitches are in inches
+    # feature on the same scale as the slope (feet); pooled pitches are in inches
     pool = [(p, starter_move(p)[0 if trait == "ride" else 1]) for p in rows
             if p.get("stand") == hitter["stand"] and V.pitch_family(p.get("pitch_type", "")) == fam]
     pool = [(p, m / 12.0) for p, m in pool if m is not None]

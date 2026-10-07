@@ -129,3 +129,16 @@ Reachable now: `statsapi.mlb.com` (schedule, live game feed, game content all re
 - **Live game feed, MLB (777433):** full tracking on all 305 pitches. No video or camera fields.
 
 Conclusion: opening statsapi did not produce another camera angle or any Single-A tracking or clips. A low-home view for MLB is not available from anything I can reach. The owner's own footage is the only low-home source.
+
+## Playlists from pooled starts (2026-10-07)
+
+`python -m gameplan.playlist --pitcher-id <id> --season <yr> --before <date> --starts N --hitter-id <id> --stand L|R --name usage|hitter_cost|ride|run`
+
+Pools the starter's last N starts (statsapi game log, feeds cached on disk), recency weighted (half-life 2 starts), and builds a go/no-go page from the clips in the chosen shapes or at the chosen movement extreme. Hitter history is 3 seasons by default, older seasons weighted less.
+
+Live check, Singer (4 starts before 2025-06-11, 375 pitches) vs Nootbaar (L, 2023 to 2025 history):
+- usage: breaking low-in, fastball mid-in, breaking low-mid. hitter_cost: fastball mid-away, mid-in, low-mid.
+- ride: his fastball-ride slope is +0.059 per sd, interval [-0.018, +0.144], not clear, so no playlist is made (fails closed).
+- run: slope -0.166 per sd, interval [-0.25, -0.08], clear (1315 FB and 548 breaking-ball swings). He whiffs more on breaking balls with less away-break; the playlist picks Singer's sliders at the least-break end (1.2 to 3.5 in, against a median 6.0 and max 11.3).
+
+Caveats: the slope is a simplified Gate 0b estimate (his swings only, no league slope or pitcher intercepts). The Statcast column `api_break_x_batter_in` is positive for break away from the batter despite its name. No lineup-wide run, count-specific lists or low-home wiring yet.
