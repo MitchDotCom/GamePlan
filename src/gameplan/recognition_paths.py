@@ -270,7 +270,7 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                             xr = rawexc[gi]
                             ok = ~np.isnan(xr)
                             fm, um = m & ok, ~m & ok
-                            ra = raw_out.setdefault((path, d), defaultdict(lambda: np.zeros(5)))[b]
+                            ra = raw_out.setdefault((path, d), defaultdict(lambda: np.zeros(5)))[(b, p)]   # per (hitter, starter) pair so intervals can resample both
                             ra += (fm.sum(), xr[fm].sum(), um.sum(), xr[um].sum(), (xr[fm] ** 2).sum())
         # update stats with today's pitches
         if raw is not None:
@@ -416,7 +416,10 @@ def report_raw(raw_out, touches, paths):
         for p in paths:
             v = raw_out.get((p, d))
             if v:
-                mats[p] = {h: v[h] for h in v}
+                roll = defaultdict(lambda: np.zeros(5))
+                for (h, _st), vec in v.items():
+                    roll[h] += vec
+                mats[p] = dict(roll)
         if not mats:
             continue
         hitters = sorted(set().union(*[set(m) for m in mats.values()]))
