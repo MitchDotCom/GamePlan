@@ -171,7 +171,7 @@ def _pick_top2(score):
     return [int(i) for i in j if np.isfinite(score[i]) and score[i] > 0]
 
 
-def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, paths=PATHS, raw_out=None, strat=None):
+def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, paths=PATHS, raw_out=None, strat=None, hist_edges=None):
     """raw_out (dict) switches on the validation-plan V1/V2 tally: for each path and shape, per hitter
     [flagged n, flagged sum, other n, other sum, flagged sum of squares] of his raw run value (Statcast delta_run_exp, hitter side)
     minus the earlier-games league mean for the same stratum (strat). Paths B1 and B3 are the naive baselines."""
@@ -270,7 +270,8 @@ def rolling(P, loss, delta, early_arr, cells, ncell, isfb, fam, eval_start, path
                             xr = rawexc[gi]
                             ok = ~np.isnan(xr)
                             fm, um = m & ok, ~m & ok
-                            ra = raw_out.setdefault((path, d), defaultdict(lambda: np.zeros(5)))[(b, p)]   # per (hitter, starter) pair so intervals can resample both
+                            rk = (path, d) if hist_edges is None else (path, d, int(np.searchsorted(hist_edges, hp[b], side="right")))   # history bin when asked
+                            ra = raw_out.setdefault(rk, defaultdict(lambda: np.zeros(5)))[(b, p)]   # per (hitter, starter) pair so intervals can resample both
                             ra += (fm.sum(), xr[fm].sum(), um.sum(), xr[um].sum(), (xr[fm] ** 2).sum())
         # update stats with today's pitches
         if raw is not None:

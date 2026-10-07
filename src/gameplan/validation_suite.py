@@ -341,7 +341,41 @@ def stage_v9(c, year):
             say(f"V9 {year} {d} {p} minus U: {pct(L9[p][0] - L9['U'][0])} [{pct(lo)}, {pct(hi)}] {'PASS' if lo > 0 else 'no'}")
 
 
-STAGES = (("v6", stage_v6), ("v5", stage_v5), ("v7", stage_v7), ("v9", stage_v9))
+def stage_v7b(c, year):
+    say(f"\nV7b {year}: Single-A style curve by exact history size. Each hitter-start is tallied by how many earlier pitches the hitter had at that point.")
+    edges = (200, 300, 500)
+    labels = ("100-199", "200-299", "300-499", "500+")
+    rp.MIN_HITTER_PITCHES = 100
+    raw_out = {}
+    acc, touches, nstart, hb = rp.rolling(c["P"], c["loss"], c["delta"], c["early_arr"], c["cells"], c["ncell"], c["isfb"], c["fam"], rp.EVAL_START,
+                                          ("L", "P", "U"), raw_out=raw_out, strat=c["strat"], hist_edges=edges)
+    rp.MIN_HITTER_PITCHES = 300
+    rng = np.random.default_rng(505 + int(year))
+    say(f"hitter-starts evaluated with 100+ earlier pitches: {nstart}")
+    for bi, lab in enumerate(labels):
+        for d in DEFS:
+            sub = {(p, dd): v for (p, dd, b), v in raw_out.items() if b == bi and dd == d}
+            if not sub:
+                continue
+            T = Tally(sub, ("L", "P", "U"), d)
+            Ch, _ = T.draws(rng)
+            Lr = T.lifts(Ch)
+            n = int(T.H["P"][:, 0].sum() + T.H["P"][:, 2].sum()) if "P" in T.H else 0
+            cols = []
+            for p in ("P", "L", "U"):
+                if p not in Lr:
+                    continue
+                pt, hd, _ = Lr[p]
+                lo, hi = ci(hd)
+                cols.append(f"{p} {pct(pt)} [{pct(lo)}, {pct(hi)}] {'PASS' if lo > 0 else 'no'}")
+            if "P" in Lr and "L" in Lr:
+                dd = Lr["P"][1] - Lr["L"][1]
+                lo, hi = ci(dd)
+                cols.append(f"P-L {pct(Lr['P'][0] - Lr['L'][0])} [{pct(lo)}, {pct(hi)}] {'PASS' if lo > 0 else 'no'}")
+            say(f"V7b {year} history {lab} {d}: pitches {n} | " + " | ".join(cols))
+
+
+STAGES = (("v6", stage_v6), ("v5", stage_v5), ("v7", stage_v7), ("v9", stage_v9), ("v7b", stage_v7b))
 
 
 def main(argv=None) -> int:
@@ -351,7 +385,7 @@ def main(argv=None) -> int:
     ap.add_argument("--end", default=None)
     ap.add_argument("--check", action="store_true", help="smoke test: compare the rebuilt referee with the Gate 0 referee")
     ap.add_argument("--out-dir", default="docs")
-    ap.add_argument("--stages", default="v6,v5,v7,v9")
+    ap.add_argument("--stages", default="v6,v5,v7,v9,v7b")
     ap.add_argument("--tag", default="")
     a = ap.parse_args(argv)
     rp.EVAL_START = f"{a.year}-05-01"
