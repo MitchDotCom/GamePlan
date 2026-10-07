@@ -48,3 +48,11 @@ So on this camera a pause 150 ms after release shows no ball. For a pitch-recogn
 2. Whether the pitcher box and ball corridor hold when the camera is zoomed or moved (they are fixed pixel boxes for this camera position).
 3. Whether the ball track survives glare and busier backgrounds.
 4. Which pause offset trains recognition. Needs the pilot.
+
+## Update: profile-based detector and playable go/no-go page
+
+- Detector now uses a camera profile (`config/lowhome_profiles/visalia_low_home_dev.json`) learned by `lowhome_batch calibrate`. On this camera calibration needed one rough hint point on the pitcher (`--near x,y`) because a fixed object falls at the same place in every clip. Without the hint it refuses rather than guess.
+- On the three development clips it reproduces the hand-labelled release frames exactly (456, 396, 418). These clips were also used to tune it, so this is not a test. The held-out acceptance test in `LOWHOME_ACCEPTANCE.md` (30 or more clips, two labelers) is still to do.
+- `lowhome_demo` builds one self-contained HTML page (go/no-go). Browser check (headless Chromium, 3 pitches x pause 100 ms and 50 ms): the video paused 1.7 ms (0.1 frame) after the target every time; buttons appeared, decision time logged, reveal played, no page errors.
+- Answer keys are not set. They need TrackMan rows for these pitches; the page shows "no key" until entered.
+- The ball fades from view by about 100 to 150 ms after release on this camera, so 50 to 100 ms pauses are the useful range.

@@ -30,25 +30,25 @@ def trim(src: str, release: float, out: pathlib.Path, codec: str) -> dict:
     return dict(release_in_clip=round(release - start, 4), duration=round(min(release + TAIL, 1e9) - start, 3))
 
 
-def build(clips: list[str], out_html: pathlib.Path, answers: dict | None = None, codec: str = "h264") -> list[dict]:
+def build(clips: list[str], out_html: pathlib.Path, profile: L.CameraProfile, answers: dict | None = None, codec: str = "h264") -> list[dict]:
     work = out_html.parent / "_trim"
     work.mkdir(parents=True, exist_ok=True)
     items = []
     for i, src in enumerate(clips):
-        r = L.find_release(src)
+        r = L.analyze(src, profile)
         name = pathlib.Path(src).stem
-        if r is None:
-            print(f"{name}: release not found, skipped")
+        if r["status"] != "ok":
+            print(f"{name}: no package ({r['reason']})")
             continue
-        release = r["first_frame"] / r["fps"]
+        release = r["release_frame"] / r["fps"]
         ext = "mp4" if codec == "h264" else "webm"
         f = work / f"{name}.{ext}"
         meta = trim(src, release, f, codec)
         b64 = base64.b64encode(f.read_bytes()).decode()
         key = (answers or {}).get(name, {})
         items.append(dict(id=name, label=f"Pitch {len(items) + 1}", mime="video/mp4" if codec == "h264" else "video/webm", b64=b64, release=meta["release_in_clip"],
-                          release_frame=r["first_frame"], zone_go=key.get("zone_go"), pitch_go=key.get("pitch_go"), result=key.get("result")))
-        print(f"{name}: release frame {r['first_frame']} ({release:.3f} s); clip trimmed to {meta['duration']} s, {f.stat().st_size / 1e6:.1f} MB")
+                          release_frame=r["release_frame"], zone_go=key.get("zone_go"), pitch_go=key.get("pitch_go"), result=key.get("result")))
+        print(f"{name}: release frame {r['release_frame']} ({release:.3f} s); clip trimmed to {meta['duration']} s, {f.stat().st_size / 1e6:.1f} MB")
     out_html.write_text(PAGE.replace("/*ITEMS*/[]", json.dumps(items)), encoding="utf-8")
     return items
 
@@ -118,7 +118,7 @@ sel.onchange=load;load();
 function watch(){ // frame-accurate pause where requestVideoFrameCallback exists
   if(state!=="playing")return;
   const check=(now,meta)=>{if(state!=="playing")return;const mt=meta?meta.mediaTime:v.currentTime;
-    if(mt>=pauseAt-0.0085){v.pause();v.currentTime=pauseAt;prompt();return}
+    if(mt>=pauseAt-0.0085){window.__pauseMT=mt;v.pause();v.currentTime=pauseAt;prompt();return}
     v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))};
   v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))}
 function startPitch(){if(state==="playing"||state==="deciding")return;load();pauseAt=cur.release+parseFloat($("off").value);state="playing";$("hint").classList.add("on");$("res").classList.remove("on");v.muted=true;v.currentTime=0;v.play();watch()}
@@ -142,12 +142,13 @@ def main(argv=None) -> int:
     ap.add_argument("clips", nargs="+")
     ap.add_argument("--out", default="/tmp/claude-0/lowhome/demo/gonogo.html")
     ap.add_argument("--codec", choices=("h264", "vp9"), default="h264")
+    ap.add_argument("--profile", default="config/lowhome_profiles/visalia_low_home_dev.json")
     ap.add_argument("--answers", default=None, help="JSON {clip_stem: {zone_go: bool, pitch_go: bool}}")
     a = ap.parse_args(argv)
     ans = json.loads(pathlib.Path(a.answers).read_text()) if a.answers else None
     out = pathlib.Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    build(a.clips, out, ans, a.codec)
+    build(a.clips, out, L.CameraProfile.from_json(pathlib.Path(a.profile).read_text()), ans, a.codec)
     print("wrote", out, f"{out.stat().st_size / 1e6:.1f} MB")
     return 0
 
