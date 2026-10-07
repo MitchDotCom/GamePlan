@@ -66,3 +66,43 @@ The engine should treat the release time as coming from one of three interchange
 2. Arrival sound minus flight time. Works on broadcast-style clips with audio, accuracy not yet established.
 3. A visual ball-leaves-hand detector. Not built.
 Proving 2 and 3 on MLB broadcast video is possible now. Proving 1 needs one Visalia tracking file and a matching video.
+
+## MLB proof of concept, end to end (2026-10-07)
+
+Command: `python -m gameplan.videocut --game 777433 --build --work <dir> --pitcher Singer --families BRK,OFF --limit 6` (pitch data in, clip files and manifest out, no manual step).
+
+What it does per pitch:
+1. Selects pitches from the tracking feed by pitcher, pitch family and pocket. Pocket is the nine-pocket grid used in the validated S2 shape (height third x inside/middle/away, cut at 0.28 ft), from `px`, `pz`, `sz_top`, `sz_bot` and `stand`.
+2. Gets the clip link and downloads the clip.
+3. Finds release: arrival sound inside 3.0 to 4.0 s of the clip, minus `plateTime`. A pitch is skipped (not hand-fixed) when the window's loudest sound is under half of the clip's loudest.
+4. Cuts two files with ffmpeg: **pre** (from the last camera cut before release, or 1.6 s of lead-in, to release + 150 ms, no audio, bottom 12% of the picture removed) and **reveal** (from the pause to just after arrival or the next camera cut).
+5. Writes the answer key from tracking: pitch go/no-go (Go on fastballs) and zone go/no-go (Go on pitches through the zone), plus pitch type, speed, pocket and result.
+
+Run on 6 Brady Singer breaking and offspeed pitches: 6 of 6 produced packages. Pre files are 1.75 s, 105 frames at 59.94 fps. Reveal files are about 1.3 s.
+
+## Release accuracy, what was measured
+
+I labeled the first frame where the ball is clearly separate from the fingertips, by eye at 1-frame steps, on 8 of the 15 probe clips. Readable on 5:
+
+| Clip | Pitch | Label (frames from the audio estimate) | Basis |
+|---|---|---|---|
+| c0 | Sweeper, called strike | -1 | ball clearly free |
+| c8 | Fastball, ball | -1 | ball clearly free |
+| c12 | Fastball, in play | +1 | ball adjacent at 0, clearly free at +1 |
+| c3 | Fastball, swinging strike | about -1 | arm at full extension, ball not visible against white lettering |
+| c4 | Fastball, swinging strike | about -1 | same |
+
+So the audio-based estimate is within 1 to 2 frames (17 to 33 ms) of the labeled release on 5 of 5, usually about one frame late. Three of the other clips (c1, c2, c6) could not be read. This is five clips, read by eye. A likely cause of the lateness: `plateTime` is time to the front of the plate and the mitt sound comes a little later, but I have not tested that.
+
+A separate check: an automatic ball tracker (white blob, frame differencing, region of interest) followed the ball in clip 0 from +3 to +18 frames at about 7.5 pixels per frame, matching the position I read by eye. Extending that track back to the hand puts release near -0.6 frames, in line with the -1 label. It cannot replace the audio rule yet: it picks the ball up a few frames after release, and it lost the ball behind the batter before arrival.
+
+## Problems found
+
+1. **The ball is a few pixels wide at the pause point in this view.** At 150 ms after release, in the center-field broadcast view at 1280x720, the ball is about 6 to 8 pixels and not discernible in thumbnails. Pitch-recognition cues (spin, shape) are not visible. This feed is good for proving the pipeline, not for training. A closer angle (low home, 1080p) is much more likely to work; I could not test that here.
+2. **Answer overlay.** The broadcast graphic shows pitch type and speed after the pitch ("SWEEPER 81 MPH"). It was not on screen at the pause in these six clips, but the pre file crops the bottom 12% by default so it cannot leak. The crop assumes the scoreboard is at the bottom, which held for the broadcasts seen here and is not guaranteed.
+3. **The release anchor is MLB-broadcast specific.** Audio is not usable on Visalia video (owner: volume unreliable) and there is no video clock to match to tracking timestamps (owner). So the Visalia version needs a visual anchor. The ball tracker above is the starting point. The audio rule remains useful as an independent check for a visual method on MLB clips.
+4. **The 3.0 to 4.0 s window** comes from the feed's clip alignment, learned from 65 clips.
+
+## Next
+
+Build a visual release detector (ball track plus the pitcher's arm motion) and measure it against the audio rule on a few hundred MLB clips and against the hand labels on the readable ones. Then test it on closer-angle video when available.
