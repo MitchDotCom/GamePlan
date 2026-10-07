@@ -118,3 +118,14 @@ Result: **no other angle reachable from here.** Only the HOME broadcast feed is 
 - Two web searches found nothing on public downloads of other MLB camera angles. They did confirm that Hawk-Eye uses several cameras (reported as four behind the plate and one in center field for pitch tracking), but that is tracking hardware, not a public video source.
 
 Consequence: the MLB proof of concept stays on the center-field broadcast view. The pipeline, the answer key and the cutting are angle-independent. The release detector and whether the ball is visible at the pause are not, and need a closer angle to settle.
+
+## After the owner allowed more hosts (2026-10-07)
+
+Reachable now: `statsapi.mlb.com` (schedule, live game feed, game content all return data, for MLB and for sportId 14). Still not reachable: `mlb-cuts-diamond.mlb.com` (the host of the highlight mp4s, connection refused by policy), `www.mlb.com/video`. `cuts.diamond.mlb.com` and `www.milb.com` answer at the root (403 and a redirect), not tested further.
+
+- **Game content (MLB, CIN@STL 2025-06-20):** 28 highlight items. They are game-level edits (condensed game, recap, key plays, interviews), 1280x720 at about 59 fps, 4 to 16 Mbps. They carry no play IDs, no camera-angle tags, and are not per pitch. Keyword types: game, team, player, taxonomy, season.
+- **Game content (Single-A, Visalia at Fresno, 821376):** no highlights at all.
+- **Live game feed, Single-A (821376):** 238 pitches, each with a `playId`, strike-zone top and bottom, and plate coordinates. No pitch type, speed, flight time, extension or break (the same gap as the Savant feed). No video or camera fields anywhere in the feed.
+- **Live game feed, MLB (777433):** full tracking on all 305 pitches. No video or camera fields.
+
+Conclusion: opening statsapi did not produce another camera angle or any Single-A tracking or clips. A low-home view for MLB is not available from anything I can reach. The owner's own footage is the only low-home source.
