@@ -174,20 +174,38 @@ def extend_back(track, cands: dict, s: float, tol=5.0, max_back=3):
     return first
 
 
-def box_motion(path: str, box):
-    """Mean absolute frame-to-frame change inside box, per frame."""
+_SMALL = (320, 180)
+_CACHE: dict = {}
+
+
+def _diff_stack(path: str):
+    """Frame-to-frame absolute grey changes on a 320x180 copy (uint8), plus fps and the full frame size. Cached per clip."""
+    if path in _CACHE:
+        return _CACHE[path]
     c = cv2.VideoCapture(path)
-    fps = c.get(cv2.CAP_PROP_FPS)
-    x0, y0, x1, y1 = box
-    prev, en = None, []
+    fps, W, H = c.get(cv2.CAP_PROP_FPS), int(c.get(cv2.CAP_PROP_FRAME_WIDTH)), int(c.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    prev, out = None, []
     while True:
         ok, f = c.read()
         if not ok:
             break
-        g = cv2.cvtColor(f[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(np.float32)
-        en.append(0.0 if prev is None else float(np.abs(g - prev).mean()))
+        g = cv2.cvtColor(cv2.resize(f, _SMALL, interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2GRAY).astype(np.int16)
+        out.append(np.zeros_like(g, np.uint8) if prev is None else np.minimum(np.abs(g - prev), 255).astype(np.uint8))
         prev = g
-    return np.array(en), fps
+    if len(_CACHE) >= 4:
+        _CACHE.pop(next(iter(_CACHE)))
+    _CACHE[path] = (np.stack(out) if out else np.zeros((0,) + _SMALL[::-1], np.uint8), fps, W, H)
+    return _CACHE[path]
+
+
+def box_motion(path: str, box):
+    """Mean absolute frame-to-frame change inside box (full-frame pixels), per frame."""
+    d, fps, W, H = _diff_stack(path)
+    x0, y0, x1, y1 = box
+    kx, ky = _SMALL[0] / W, _SMALL[1] / H
+    sx0, sx1 = int(max(0, x0 * kx)), int(min(_SMALL[0], max(x0 * kx + 1, x1 * kx)))
+    sy0, sy1 = int(max(0, y0 * ky)), int(min(_SMALL[1], max(y0 * ky + 1, y1 * ky)))
+    return d[:, sy0:sy1, sx0:sx1].mean(axis=(1, 2)), fps
 
 
 def delivery(path: str, profile: CameraProfile, cfg: Config = CFG):
@@ -201,6 +219,18 @@ def delivery(path: str, profile: CameraProfile, cfg: Config = CFG):
     before = sm[: max(5, pk - int(1.0 * fps))]
     ratio = float(sm[pk] / max(np.percentile(before, 90), 1e-3))
     return i / fps, (i + win) / fps, pk / fps, ratio
+
+
+def competes(a, b, s: float, min_shared: int = 2, apart: float = 20.0) -> bool:
+    """Two tracks are rivals only if they fall at the same moment in different places. Sub-tracks of one ball (same place) and tracks that
+    do not overlap in time (before the release, after the catch) are not rivals."""
+    pa = {f: (c[0], c[1]) for f, c in a}
+    pb = {f: (c[0], c[1]) for f, c in b}
+    shared = sorted(set(pa) & set(pb))
+    if len(shared) < min_shared:
+        return False
+    d = [float(np.hypot(pa[f][0] - pb[f][0], pa[f][1] - pb[f][1])) for f in shared]
+    return float(np.median(d)) > apart * s
 
 
 def analyze(path: str, profile: CameraProfile, cfg: Config = CFG) -> dict:
@@ -223,7 +253,7 @@ def analyze(path: str, profile: CameraProfile, cfg: Config = CFG) -> dict:
         rec["reason"] = "no plausible ball track near the delivery"
         return rec
     t = good[0]
-    rivals = [u for u in good[1:] if abs(u[0][0] - t[0][0]) > 3 and len(u) >= max(cfg.min_track, len(t) - 1)]
+    rivals = [u for u in good[1:] if competes(t, u, s)]
     rec["checks"]["unambiguous"] = not rivals
     if rivals:
         rec["reason"] = f"{len(rivals) + 1} competing ball tracks"
@@ -235,11 +265,13 @@ def analyze(path: str, profile: CameraProfile, cfg: Config = CFG) -> dict:
     return rec
 
 
-def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, scales=(0.5, 0.65, 0.8, 1.0, 1.25, 1.5, 2.0)) -> CameraProfile:
-    """Learn a camera profile from clips of the same camera position: find falling balls anywhere in the upper frame, take the scale where
-    the most clips have one, and place the pitcher box and ball corridor around where those balls start. Needs no typed numbers."""
-    found = {s: [] for s in scales}
-    size = None
+def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, scales=(0.5, 0.65, 0.8, 1.0, 1.25, 1.5), min_share: float = 0.7, per_clip: int = 12, near=None, overlay=None) -> CameraProfile:
+    """Learn a camera profile from clips of one camera position. Falling white blobs appear in many places (birds, dropped items, the ball after the catch),
+    but the pitched ball starts at the same spot in every clip. So: find, at each scale, the start location where the most clips agree, and
+    place the pitcher box and ball corridor around it. Refuses (raises) if fewer than min_share of the clips agree.
+    Known limit: something that falls at the same place in every clip also "agrees". `near=(x, y)`, one rough point on the pitcher, rules that out.
+    `overlay` is a path: a frame with the learned box drawn on it, so a person can confirm the profile in one look."""
+    size, found = None, {s: {} for s in scales}
     for p in paths:
         cap = cv2.VideoCapture(p)
         W, H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -248,19 +280,40 @@ def calibrate(paths: list, name: str = "camera", cfg: Config = CFG, scales=(0.5,
             raise ValueError("calibration clips must share one frame size")
         cands, fps = candidates(p, 0.0, cap.get(cv2.CAP_PROP_FRAME_COUNT) / fps_of(cap), (0, 0, W, int(0.8 * H)), cfg)
         for s in scales:
-            tr = [t for t in link(cands, s, cfg) if steady_fall(t, s, cfg) and len(t) >= cfg.min_track]
-            if tr:
-                found[s].append((p, tr[0][0][1][0], tr[0][0][1][1]))
-    best = max(scales, key=lambda s: (len(found[s]), -abs(np.log(s))))
-    pts = found[best]
-    if not pts:
-        raise ValueError("no falling ball found in the calibration clips")
-    sx, sy = float(np.median([x for _, x, _ in pts])), float(np.median([y for _, _, y in pts]))
-    H0 = best * REF_HEIGHT
+            tr = [t for t in link(cands, s, cfg) if steady_fall(t, s, cfg)]
+            found[s][p] = [(t[0][1][0], t[0][1][1], len(t)) for t in tr[:per_clip]]
+    best = None
+    for s in scales:
+        r = 0.12 * s * REF_HEIGHT
+        for p0, pts in found[s].items():
+            for x, y, _ in pts:
+                if near is not None and np.hypot(x - near[0], y - near[1]) > 1.0 * s * REF_HEIGHT:
+                    continue
+                members = {}
+                for p1, pts1 in found[s].items():
+                    near = [(np.hypot(x1 - x, y1 - y), x1, y1) for x1, y1, _ in pts1 if np.hypot(x1 - x, y1 - y) <= r]
+                    if near:
+                        members[p1] = min(near)
+                score = (len(members), -sum(d for d, _, _ in members.values()) / max(len(members), 1))
+                if best is None or score > best[0]:
+                    best = (score, s, [(x1, y1) for _, x1, y1 in members.values()], len(members))
+    (n_clips, _), s, pts, n = best
+    if n < min_share * len(paths):
+        raise ValueError(f"only {n} of {len(paths)} calibration clips agree on where the pitch starts; need at least {min_share:.0%}")
+    sx, sy = float(np.median([x for x, _ in pts])), float(np.median([y for _, y in pts]))
+    H0 = s * REF_HEIGHT
     W, H = size
     box = (int(max(0, sx - 0.9 * H0)), int(max(0, sy - 0.7 * H0)), int(min(W, sx + 0.9 * H0)), int(min(H, sy + 1.0 * H0)))
-    roi = (int(max(0, sx - 0.9 * H0)), int(max(0, sy - 0.7 * H0)), int(min(W, sx + 0.9 * H0)), int(min(H, sy + 2.6 * H0)))
-    return CameraProfile(name=name, scale=best, pitcher_box=box, ball_roi=roi, size=size, calibrated_from=tuple(pathlib.Path(p).name for p in paths))
+    roi = (box[0], box[1], box[2], int(min(H, sy + 2.6 * H0)))
+    if overlay:
+        cap = cv2.VideoCapture(paths[0]); cap.set(cv2.CAP_PROP_POS_FRAMES, 5); ok, im = cap.read()
+        if ok:
+            cv2.rectangle(im, box[:2], box[2:], (0, 255, 255), 2); cv2.rectangle(im, roi[:2], roi[2:], (0, 160, 255), 1)
+            for x, y in pts:
+                cv2.circle(im, (int(x), int(y)), 6, (0, 0, 255), 2)
+            cv2.putText(im, f"{name}: scale {s}, {n} of {len(paths)} clips agree", (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+            cv2.imwrite(overlay, im)
+    return CameraProfile(name=name, scale=s, pitcher_box=box, ball_roi=roi, size=size, calibrated_from=tuple(pathlib.Path(p).name for p in paths))
 
 
 def fps_of(cap) -> float:
