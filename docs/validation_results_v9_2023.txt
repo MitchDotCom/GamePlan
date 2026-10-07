@@ -1,0 +1,40 @@
+
+V9 2023: hitter-specific referee (out-of-fold whiff and contact-quality shifts), full rerun of the raw-outcome tally
+whiff logit shift sd 0.063, contact-quality shift sd 0.037; mean loss 2.23 vs 2.22 runs per 100 pitches; correlation of pitch losses 0.993
+V9 2023 S1 L: hitter-specific referee lift +0.319 [+0.118, +0.497] PASS (original referee +0.318)
+V9 2023 S1 P: hitter-specific referee lift +0.357 [+0.158, +0.554] PASS (original referee +0.323)
+V9 2023 S1 E: hitter-specific referee lift +0.231 [-0.013, +0.446] no (original referee +0.318)
+V9 2023 S1 W: hitter-specific referee lift +0.071 [-0.181, +0.309] no (original referee +0.148)
+V9 2023 S1 U: hitter-specific referee lift +0.424 [+0.222, +0.612] PASS (original referee +0.424)
+V9 2023 S1 P minus U: -0.067 [-0.230, +0.088] no
+V9 2023 S1 L minus U: -0.105 [-0.246, +0.035] no
+V9 2023 S1 E minus U: -0.193 [-0.480, +0.080] no
+V9 2023 S1 W minus U: -0.352 [-0.657, -0.063] no
+V9 2023 S2 L: hitter-specific referee lift +0.604 [+0.379, +0.833] PASS (original referee +0.570)
+V9 2023 S2 P: hitter-specific referee lift +0.536 [+0.295, +0.795] PASS (original referee +0.520)
+V9 2023 S2 E: hitter-specific referee lift +0.524 [+0.246, +0.824] PASS (original referee +0.409)
+V9 2023 S2 W: hitter-specific referee lift +0.503 [+0.207, +0.785] PASS (original referee +0.502)
+V9 2023 S2 U: hitter-specific referee lift +0.400 [+0.176, +0.631] PASS (original referee +0.400)
+V9 2023 S2 P minus U: +0.136 [-0.082, +0.355] no
+V9 2023 S2 L minus U: +0.204 [+0.014, +0.405] PASS
+V9 2023 S2 E minus U: +0.124 [-0.221, +0.469] no
+V9 2023 S2 W minus U: +0.103 [-0.247, +0.427] no
+V9 2023 S3 L: hitter-specific referee lift +0.259 [+0.076, +0.446] PASS (original referee +0.244)
+V9 2023 S3 P: hitter-specific referee lift +0.183 [-0.001, +0.386] no (original referee +0.198)
+V9 2023 S3 E: hitter-specific referee lift +0.133 [-0.126, +0.380] no (original referee +0.098)
+V9 2023 S3 W: hitter-specific referee lift +0.037 [-0.216, +0.301] no (original referee -0.031)
+V9 2023 S3 U: hitter-specific referee lift +0.209 [+0.013, +0.397] PASS (original referee +0.209)
+V9 2023 S3 P minus U: -0.026 [-0.207, +0.154] no
+V9 2023 S3 L minus U: +0.050 [-0.108, +0.214] no
+V9 2023 S3 E minus U: -0.076 [-0.391, +0.224] no
+V9 2023 S3 W minus U: -0.172 [-0.469, +0.120] no
+V9 2023 S4 L: hitter-specific referee lift +0.172 [-0.050, +0.398] no (original referee +0.199)
+V9 2023 S4 P: hitter-specific referee lift +0.112 [-0.111, +0.352] no (original referee +0.132)
+V9 2023 S4 E: hitter-specific referee lift -0.012 [-0.282, +0.253] no (original referee +0.018)
+V9 2023 S4 W: hitter-specific referee lift +0.015 [-0.248, +0.286] no (original referee +0.055)
+V9 2023 S4 U: hitter-specific referee lift +0.322 [+0.103, +0.555] PASS (original referee +0.322)
+V9 2023 S4 P minus U: -0.210 [-0.422, +0.007] no
+V9 2023 S4 L minus U: -0.149 [-0.342, +0.048] no
+V9 2023 S4 E minus U: -0.334 [-0.669, -0.006] no
+V9 2023 S4 W minus U: -0.306 [-0.651, +0.039] no
+stage v9 time 90s
