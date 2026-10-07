@@ -1,0 +1,19 @@
+V5 readout (shrinkage sweep, K in 10 20 40 80 160), written 2026-10-07 from docs/validation_results_v5_<year>.txt
+
+K chosen on 2022 and 2023 only, by the mean raw cost lift of the personal path P over shapes S1 to S4:
+  K=10 0.193, K=20 0.193, K=40 0.211, K=80 0.220, K=160 0.229   -> chosen K = 160
+
+Judged on 2024 and 2025 (P cost lift, K=160 vs the K=40 we have used all along):
+  2024: S1 0.197 vs 0.225, S2 0.421 vs 0.478, S3 0.253 vs 0.219, S4 0.139 vs 0.132
+  2025: S1 0.107 vs 0.122, S2 0.689 vs 0.601, S3 0.145 vs 0.150, S4 0.139 vs 0.165
+  Mixed: K=160 is better on 3 of 8 shape-years and worse on 5. The out-of-sample gain from the chosen K is not there.
+
+Pre-registered bars (amendment 2):
+  1. Sign and pass/fail do not flip across the K grid: 15 of 16 season-shape cells never flip. One flip: 2025 S4 passes at K=20 only. S2 passes at every K in every season (20 of 20). MET for S2, one stray flip elsewhere.
+  2. Chosen K within one grid step of 40: chosen K = 160, two steps away. NOT MET.
+
+Does P beat the starter-level path (L) or the usage-only rule (U)?
+  P minus L passes in 1 of 100 cells (2022 S1 at K=160). P minus U passes in 1 of 100 cells (2023 S2 at K=160). That is about what chance alone gives.
+
+Grade for the personal path under the plan's wording ("if the result depends on K, C at best"): C.
+Plain reading: the S2 result does not depend on K, so the finding is not an accident of one setting. But no K makes the personal path reliably better than the simple rules, and the K that looked best in early years did not carry to later years. K=40 stays, with a note that the choice does not matter much.
