@@ -37,7 +37,9 @@ def build_rows(rows: list[dict], work: pathlib.Path, out_html: pathlib.Path, lim
         url = V.clip_url(p["play_id"])
         if not url:
             continue
-        src = V.download(url, work / f"{p['play_id']}.mp4")
+        src = work / f"{p['play_id']}.mp4"
+        if not src.exists():
+            V.download(url, src)
         rel = V.find_release(src, float(p["plateTime"]))
         time.sleep(0.3)
         if not rel:
