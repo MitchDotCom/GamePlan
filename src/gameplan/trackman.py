@@ -115,7 +115,8 @@ def convert(rows: list[dict], signs: Signs, sz: dict | None = None) -> list[dict
         out.append(dict(type="pitch", play_id=r.get("PitchUID") or f"{r['Date']}-{r.get('PitchNo', i)}", plateTime=_f(r.get("ZoneTime")) or 0.0,
                         pitcher=r["PitcherId"], pitcher_name=r.get("Pitcher"), p_throws=hand, batter=r["BatterId"], batter_name=r.get("Batter"), stand=stand,
                         pitch_type=code, px=signs.plate * px, pz=pz, sz_top=top, sz_bot=bot, balls=int(float(r["Balls"])), strikes=int(float(r["Strikes"])),
-                        start_speed=_f(r["RelSpeed"]), game_pk=r.get("GameID") or r["Date"], _date=r["Date"], _ride_in=ride, _run_in=away))
+                        start_speed=_f(r["RelSpeed"]), game_pk=r.get("GameID") or r["Date"], _date=r["Date"], _ride_in=ride, _run_in=away,
+                        inning=r.get("Inning"), pa=r.get("PAofInning"), pitch_of_pa=r.get("PitchofPA"), pitch_call=r.get("PitchCall")))
     return out
 
 
