@@ -486,7 +486,7 @@ def main():
             srv3, st3, b3 = serve(content, keys=keys)
             port = srv3.server_address[1]
             E3 = Env(pw, b3)
-            ctx, p = E3.open()
+            ctx, p = E3.open(service_workers="block")      # the test tool cannot intercept requests made through a service worker, so run this one without it
             setup(p, ask="zone")
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
@@ -545,6 +545,7 @@ def main():
             clips_ready(p, 6)                      # let the background download finish, otherwise it refills the store after we clear it
             p.evaluate("""() => new Promise(res => { const r = indexedDB.open('gonogo', 1); r.onsuccess = () => { const t = r.result.transaction('clips', 'readwrite'); t.objectStore('clips').clear(); t.oncomplete = () => res(1); }; })""")
             ctx.set_offline(True)
+            p.route("**/content/**", lambda r: r.abort())      # offline mode alone still serves clips from the browser's own HTTP cache, so block them for real
             p.click("#tabs button[data-t=play]")
             p.click("#start")
             p.wait_for_timeout(1500)
@@ -874,8 +875,12 @@ def main():
                     return urllib.request.urlopen(req).status
                 except urllib.error.HTTPError as e:
                     return e.code
-            res = dict(badjson=post(b"{nope", raw=True), notlist=post({"trials": "x"}), nokey=post({"x": 1}), noid=post({"trials": [{"player": "p"}]}),
-                       toobig=post(b"{" + b" " * (6 * 1024 * 1024) + b"}", raw=True))
+            def post_big():
+                try:
+                    return post(b"{" + b" " * (6 * 1024 * 1024) + b"}", raw=True)
+                except (urllib.error.URLError, ConnectionError, BrokenPipeError):
+                    return 413          # the server refused the body and closed the connection before the client finished sending: that is a rejection
+            res = dict(badjson=post(b"{nope", raw=True), notlist=post({"trials": "x"}), nokey=post({"x": 1}), noid=post({"trials": [{"player": "p"}]}), toobig=post_big())
             assert res["badjson"] == 400 and res["notlist"] == 400 and res["nokey"] == 400, res
             assert res["toobig"] in (400, 413), f"6 MB body accepted/handled as {res['toobig']}"
             assert urllib.request.urlopen(base + "/api/health").status == 200

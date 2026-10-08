@@ -164,6 +164,8 @@ const v=$("v");let urlNow=null;let reach=true;
 function setNet(ok){if(ok!==undefined)reach=ok;const on=navigator.onLine&&reach;$("net").textContent=on?"online":"offline";$("net").className="chip"+(on?"":" warn");updateChips&&updateChips()}
 const items=()=>Q?Q.packs.flatMap(p=>p.items.map(i=>Object.assign({},i,{_pack:p}))):[];
 const pct=x=>Math.round(100*x)+"%";
+// everything that comes from outside the page (pack titles, pitcher and batter names, pitch labels, tracking text) goes through esc() before it is put into markup
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
 function rng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
 const uuid=()=>(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2));
@@ -205,7 +207,7 @@ async function renderQueue(){
     let on=0;for(const i of p.items)if(await hasClip(i.id))on++;
     const done=p.items.filter(i=>seen.has(i.id)).length;
     const d=document.createElement("div");d.className="card";
-    d.innerHTML=`<h2>${p.title}</h2><div class="note">${p.subtitle||""}</div><dl class="det"><dt>Pitches</dt><dd>${p.items.length}</dd><dt>Done</dt><dd>${done} of ${p.items.length}</dd><dt>On this phone</dt><dd>${on} of ${p.items.length}</dd><dt>Mode</dt><dd>${p.mode==="assess"?"Assessment":"Training"}</dd></dl><div class="row"><button class="pri">Start</button><button>Download</button></div>`;
+    d.innerHTML=`<h2>${esc(p.title)}</h2><div class="note">${esc(p.subtitle||"")}</div><dl class="det"><dt>Pitches</dt><dd>${p.items.length}</dd><dt>Done</dt><dd>${done} of ${p.items.length}</dd><dt>On this phone</dt><dd>${on} of ${p.items.length}</dd><dt>Mode</dt><dd>${p.mode==="assess"?"Assessment":"Training"}</dd></dl><div class="row"><button class="pri">Start</button><button>Download</button></div>`;
     const [bs,bd]=d.querySelectorAll("button");bs.onclick=()=>startPack(p);bd.onclick=()=>prefetch(p.items.map(i=>Object.assign({},i,{_pack:p})));
     frag.appendChild(d);
     if(!nextSet&&done<p.items.length){nextSet=true;$("nextTitle").textContent=p.title.startsWith("Next")?p.title:"Next up: "+p.title;$("nextNum").innerHTML=`${p.items.length-done}<small>new pitches</small>`;$("goNext").onclick=()=>startPack(p)}
@@ -270,7 +272,7 @@ function resultCard(m,answerRows){
   const pitch=[PN[m.pitch_type]||m.pitch_type,m.speed!=null&&m.speed!==""?num(m.speed)+" mph":null].filter(Boolean).join(", ");
   const rows=[["Pitch",pitch||null],["Location",tracked?where(m):null],["Zone edge",edge||null],["Ride",m.ride_in==null?null:num(m.ride_in)+" in"],["Run",run],
     ["Spin",m.spin==null?null:Math.round(m.spin).toLocaleString()+" rpm"],["Extension",m.extension==null?null:num(m.extension)+" ft"],["Flight time",m.flight_ms==null?null:m.flight_ms+" ms"],["Result",m.outcome||null]].filter(r=>r[1]);
-  return `<div class="card"><dl class="det">${answerRows}${rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("")}</dl></div>${tracked?`<div class="zonecard">${zoneSVG(m)}</div>`:""}<div class="note" style="margin-top:6px">Zone view is from the catcher. Ride is induced vertical break and run is horizontal break, both in inches. Run is measured away from or toward the batter. Zone edge is how far the pitch was from the edge of the zone.</div>`}
+  return `<div class="card"><dl class="det">${answerRows}${rows.map(r=>`<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl></div>${tracked?`<div class="zonecard">${zoneSVG(m)}</div>`:""}<div class="note" style="margin-top:6px">Zone view is from the catcher. Ride is induced vertical break and run is horizontal break, both in inches. Run is measured away from or toward the batter. Zone edge is how far the pitch was from the edge of the zone.</div>`}
 function finishClip(){document.body.classList.remove("focus");const assess=$("mode").value==="assess";const r=$("res");$("tiles").innerHTML="";updateChips();renderStats();
   if(assess){$("hlab").textContent="Recorded";$("hnum").innerHTML=`${sessionLog.length}<small>answers this session</small>`;r.innerHTML="";state="idle";v.pause();after(true);return}
   const row=(task,lab)=>{const a=pendingAns[task];if(!a)return"";
@@ -290,7 +292,7 @@ const TCOLS="player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_
 const q=x=>{x=String(x??"");if(/^[=+\-@\t\r]/.test(x)&&!/^-?\d+(\.\d+)?$/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
 const toCSV=ts=>[TCOLS.join(","),...ts.map(t=>TCOLS.map(c=>q(t[c])).join(","))].join("\n");
 function addRow(t){const assess=t.mode==="assess";const tb=document.querySelector("#log tbody");const tr=document.createElement("tr");
-  tr.innerHTML=`<td>${sessionLog.length}</td><td>${(t.clip||"").slice(0,6)}</td><td>${t.task==="zone"?"strike":"fastball"}</td><td class="num">${t.pause_ms}</td><td>${t.call}</td><td class="num">${t.rt_ms}</td><td>${assess?"hidden":(t.key||"unknown")}</td><td>${assess?"hidden":(t.correct===""?"no key":t.correct?"correct":"wrong")}</td>`;tb.appendChild(tr)}
+  tr.innerHTML=`<td>${sessionLog.length}</td><td>${esc((t.clip||"").slice(0,6))}</td><td>${t.task==="zone"?"strike":"fastball"}</td><td class="num">${t.pause_ms}</td><td>${t.call}</td><td class="num">${t.rt_ms}</td><td>${assess?"hidden":(t.key||"unknown")}</td><td>${assess?"hidden":(t.correct===""?"no key":t.correct?"correct":"wrong")}</td>`;tb.appendChild(tr)}
 function renderStats(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;const rts=s.map(t=>t.rt_ms).sort((a,b)=>a-b);return n?`<b>${pct(k/n)}</b> (${k} of ${n}), median ${rts[Math.floor(n/2)]} ms`:"no scored answers"};
   $("stats").innerHTML=`<span>This session: <b>${sessionLog.length}</b> answers</span><span>Strike? ${f("zone")}</span><span>Fastball? ${f("pitch")}</span>`}
 async function updateChips(){if(!DB)return;const t=await allTrials();const n=t.filter(x=>!x.synced).length;$("pend").textContent=n+" to sync";$("pend").className="chip"+(n>0&&!(navigator.onLine&&reach)?" warn":"")}
@@ -308,7 +310,7 @@ window.addEventListener("online",()=>{setNet(true);sync()});window.addEventListe
 function renderKeys(){const el=$("keys");el.innerHTML="";items().forEach(it=>{const o=keys[it.id]||{};const d=document.createElement("div");d.className="card";const k=it.keys||{};
   const sel=(f,shipped)=>{const s=document.createElement("select");[["","unknown"],["true","GO"],["false","NO-GO"]].forEach(([val,txt])=>{const op=document.createElement("option");op.value=val;op.textContent=txt;const c=o[f]!=null?o[f]:shipped;if(String(c)===val||(c==null&&val===""))op.selected=true;s.appendChild(op)});
     s.onchange=async()=>{keys[it.id]=keys[it.id]||{};keys[it.id][f]=s.value===""?null:s.value==="true";await kvSet("keys",keys)};return s};
-  d.innerHTML=`<h2>${it.label||it.id.slice(0,8)}</h2><div class="note">${it._pack.title}${it._pack.mode==="assess"?", assessment: no shipped answer":""}</div><dl class="det"><dt>Strike? (GO = in zone)</dt><dd></dd><dt>Fastball? (GO = fastball)</dt><dd></dd></dl>`;
+  d.innerHTML=`<h2>${esc(it.label||it.id.slice(0,8))}</h2><div class="note">${esc(it._pack.title)}${it._pack.mode==="assess"?", assessment: no shipped answer":""}</div><dl class="det"><dt>Strike? (GO = in zone)</dt><dd></dd><dt>Fastball? (GO = fastball)</dt><dd></dd></dl>`;
   const dds=d.querySelectorAll("dd");dds[0].appendChild(sel("zone_go",k.zone_go));dds[1].appendChild(sel("pitch_go",k.pitch_go));el.appendChild(d)})}
 // ---------- tabs, info, boot ----------
 function showTab(t){document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id==="t-"+t));document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(t==="queue")renderQueue();window.scrollTo(0,0)}

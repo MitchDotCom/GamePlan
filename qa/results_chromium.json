@@ -1,0 +1,11 @@
+[
+ {
+  "id": "E1",
+  "area": "Offline",
+  "test": "Clip not on the phone and no signal: a clear message, no crash, state recovers",
+  "result": "PASS",
+  "evidence": "This clip is not on the phone and there is no signal.",
+  "seconds": 2.3,
+  "severity": "S1"
+ }
+]
