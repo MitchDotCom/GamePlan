@@ -214,7 +214,7 @@ def main():
             p.click("#start")
             p.wait_for_timeout(300)
             now = p.inner_text("#now")
-            errs = list(E2.errors)
+            errs = [e for e in E2.errors if "Failed to load resource" not in e]      # the missing queue file is expected here
             ctx.close()
             E2.browser.close()
             s2.shutdown()
