@@ -151,7 +151,7 @@ def starter_move(p: dict):
     return z * 12.0, (x if p["stand"] == "R" else -x) * 12.0
 
 
-def trait_slope(hist: list[dict], family: str, trait: str, seed: int = 7) -> dict:
+def trait_slope(hist: list[dict], family: str, trait: str, seed: int = 7, min_swings: int = MIN_SWINGS, boot: int = BOOT) -> dict:
     """His whiff-per-swing slope on ride (family FB) or run (family BRK), per sd of the feature, controlling for location, speed and two strikes,
     ridge-shrunk toward zero (K=100) and bootstrapped over his swings. Simplified from Gate 0b (no league slope or pitcher intercepts), so read it as
     a direction and a size, not the validated estimate itself."""
@@ -167,8 +167,8 @@ def trait_slope(hist: list[dict], family: str, trait: str, seed: int = 7) -> dic
         y.append(1.0 if r["description"] in WHIFF else 0.0)
     n = len(y)
     out = dict(n=n, trait=trait, family=family)
-    if n < MIN_SWINGS:
-        return dict(out, ok=False, why=f"only {n} swings (need {MIN_SWINGS})")
+    if n < min_swings:
+        return dict(out, ok=False, why=f"only {n} swings (need {min_swings})")
     X, y = np.array(X), np.array(y)
     mu, sd = X.mean(0), X.std(0) + 1e-9
     Z = (X - mu) / sd
@@ -176,9 +176,11 @@ def trait_slope(hist: list[dict], family: str, trait: str, seed: int = 7) -> dic
     Z2 = np.column_stack([Z[:, 0], Z[:, 1], Z[:, 2], Z[:, 1] ** 2, Z[:, 2] ** 2, Z[:, 3], Z[:, 4]])
     off = np.log(y.mean() / (1 - y.mean())) if 0 < y.mean() < 1 else 0.0
     slope = ridge_logit(Z2, y, np.full(n, off), lam=K_SLOPE)[0]
+    if not boot:
+        return dict(out, ok=True, slope=float(slope), mean=float(mu[0]), sd=float(sd[0]), whiff_rate=float(y.mean()))
     rng = np.random.default_rng(seed)
     boots = []
-    for _ in range(BOOT):
+    for _ in range(boot):
         i = rng.integers(0, n, n)
         boots.append(ridge_logit(Z2[i], y[i], np.full(n, off), lam=K_SLOPE)[0])
     lo, hi = np.percentile(boots, [2.5, 97.5])
