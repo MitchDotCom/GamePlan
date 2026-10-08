@@ -18,8 +18,20 @@ import pathlib
 import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
+MAX_BODY = 5 * 1024 * 1024
 APP_DIR = pathlib.Path(__file__).resolve().parents[2] / "phone_app"
 COLS = "player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",")
+
+
+def _safe(v):
+    """A spreadsheet runs a text cell that starts with = + - @ tab or CR as a formula. Prefix those so a hostile player name stays text. Plain numbers are left alone."""
+    if isinstance(v, str) and v[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        try:
+            float(v)
+            return v
+        except ValueError:
+            return "'" + v
+    return v
 
 
 class Store:
@@ -61,17 +73,20 @@ class Store:
         b = io.StringIO()
         w = csv.DictWriter(b, COLS, extrasaction="ignore")
         w.writeheader()
-        w.writerows(self.rows())
+        w.writerows({k: _safe(v) for k, v in r.items()} for r in self.rows())
         return b.getvalue()
 
 
 def make_handler(content: pathlib.Path, store: Store, token: str | None, sync_url: str):
     class H(SimpleHTTPRequestHandler):
         def translate_path(self, path):
-            p = path.split("?")[0]
-            if p.startswith("/content/"):
-                return str(content / p[len("/content/"):])
-            return str(APP_DIR / p.lstrip("/"))
+            from urllib.parse import unquote
+            p = unquote(path.split("?")[0].split("#")[0])
+            root, rel = (content, p[len("/content/"):]) if p.startswith("/content/") else (APP_DIR, p.lstrip("/"))
+            full = (root / rel).resolve()
+            if root.resolve() != full and root.resolve() not in full.parents:       # no path may leave the folder it is served from
+                return str(root / "__forbidden__")
+            return str(full)
 
         def log_message(self, *a):
             pass
@@ -104,7 +119,12 @@ def make_handler(content: pathlib.Path, store: Store, token: str | None, sync_ur
             if token and self.headers.get("X-Token") != token:
                 return self._send(401, b'{"error":"token"}')
             try:
-                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                size = int(self.headers.get("Content-Length", 0))
+                if size > MAX_BODY:
+                    return self._send(413, b'{"error":"too large"}')
+                body = json.loads(self.rfile.read(size) or b"{}")
+                if not isinstance(body.get("trials"), list) or not all(isinstance(t, dict) for t in body["trials"]):
+                    return self._send(400, b'{"error":"trials must be a list of objects"}')
                 n = store.add(body["trials"])
             except Exception as e:
                 return self._send(400, json.dumps({"error": str(e)[:80]}).encode())

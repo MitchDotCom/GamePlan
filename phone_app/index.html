@@ -82,7 +82,12 @@ video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
 svg.zone{display:block;width:100%;height:auto;max-width:300px;margin:0 auto}.zlab{font-size:10px;fill:var(--ink3)}
 .pt circle{stroke:var(--ink2);stroke-width:1.5}.pt .k-ball{fill:var(--panel);stroke:var(--ink);stroke-width:2}
 #res .card{padding:var(--s4)}#res dl.det dt{padding-right:var(--s3)}#res dl.det dd{overflow-wrap:anywhere}.nw{white-space:nowrap}
+#t-set dl.det,#t-keys dl.det{grid-template-columns:1fr}#t-set dl.det dt,#t-keys dl.det dt{border-bottom:0;padding:10px 0 0}#t-set dl.det dd,#t-keys dl.det dd{text-align:left;padding:6px 0 10px}
+#t-set select,#t-set input[type=text],#t-keys select{width:100%;max-width:100%}
 section{display:none}section.on{display:block}
+@media (max-height:520px){.bar{position:static}.hero{padding:var(--s3) var(--s4)}.hnum{font-size:28px}.tiles{display:none}.stage{height:46vh;width:auto;margin-left:auto;margin-right:auto}.stage video{width:auto}}
+/* tap targets: 44 px on touch screens */
+@media (pointer:coarse){button,select,input[type=text]{min-height:44px}.tabs button{padding:10px 14px}}
 @media(prefers-reduced-motion:no-preference){button{transition:border-color .12s ease-out,background-color .12s ease-out}}
 </style></head><body><div class="wrap">
 <div class="bar">
@@ -148,7 +153,8 @@ const allTrials=()=>pr(tx("trials","readonly").getAll());
 const putTrial=t=>pr(tx("trials","readwrite").put(t));
 const hasClip=async id=>!!(await pr(tx("clips","readonly").getKey(id)));
 const getClip=id=>pr(tx("clips","readonly").get(id));
-const putClip=(id,blob)=>pr(tx("clips","readwrite").put({id,blob}));
+const putClip=async(id,blob)=>pr(tx("clips","readwrite").put({id,ab:await blob.arrayBuffer(),type:blob.type||"video/mp4"})); // raw bytes, not a Blob: Safari/WebKit fails to store Blobs in IndexedDB
+const clipBlob=rec=>new Blob([rec.ab],{type:rec.type||"video/mp4"});
 // ---------- state ----------
 let Q=null,keys={},session=new Date().toISOString().slice(0,19).replace(/[:T-]/g,""),state="idle",cur=null,curPack=null,pauseAt=0,t0=0,packQ=null,sessionLog=[],pendingAns={},qOrder=[],qi=0,clipTrial=0;
 const v=$("v");let urlNow=null;let reach=true;
@@ -223,12 +229,14 @@ function renderTiles(){const f=task=>{const s=sessionLog.filter(t=>t.task===task
   const [z,zn]=f("zone"),[p,pn]=f("pitch");const rts=sessionLog.map(t=>t.rt_ms).sort((a,b)=>a-b);
   $("tiles").innerHTML=sessionLog.length?`<div class="tile"><div class="tl">Strike? ${zn}</div><div class="tv">${z}</div></div><div class="tile"><div class="tl">Fastball? ${pn}</div><div class="tv">${p}</div></div><div class="tile"><div class="tl">Median ms, n=${rts.length}</div><div class="tv">${rts[Math.floor(rts.length/2)]}</div></div>`:""}
 // ---------- the pitch ----------
+let busy=false,answering=false;
 async function startPitch(auto){
-  if(state==="playing"||state==="q")return;
+  if(busy||state==="playing"||state==="q")return;busy=true;try{await startPitch1()}finally{busy=false}}
+async function startPitch1(){
   if(!player()){showTab("set");say("now","Enter a player name or ID first");return}
   if(!cur){const its=items();if(!its.length){say("now","No pitches yet. Connect once to load the queue.");return}cur=its[+$("pitch").value||0];curPack=cur._pack}
   if(!(await hasClip(cur.id))&&!(await fetchClip(cur))){say("now","This clip is not on the phone and there is no signal.");return}
-  const c=await getClip(cur.id);if(urlNow)URL.revokeObjectURL(urlNow);urlNow=URL.createObjectURL(c.blob);v.src=urlNow;v.muted=true;v.currentTime=0;
+  const c=await getClip(cur.id);if(urlNow)URL.revokeObjectURL(urlNow);urlNow=URL.createObjectURL(clipBlob(c));v.src=urlNow;v.muted=true;v.currentTime=0;
   $("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";
   $("tiles").innerHTML="";pauseAt=cur.release+parseFloat($("off").value);state="playing";$("hint").classList.add("on");pendingAns={};clipTrial++;
   const ask=$("ask").value;qOrder=ask==="both"?(rng(hash(player()+session+cur.id))()<0.5?["zone","pitch"]:["pitch","zone"]):[ask];qi=0;
@@ -241,7 +249,8 @@ function watch(){const check=(now,meta)=>{if(state!=="playing")return;const mt=m
   v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))}
 function showQ(){const task=qOrder[qi];$("hlab").textContent=qOrder.length>1?`Question ${qi+1} of ${qOrder.length}`:"Question";$("hnum").innerHTML=task==="zone"?"Strike?":"Fastball?";
   $("qn").textContent=task==="zone"?"GO if it crosses the zone. NO-GO if it does not.":"GO if it is a fastball. NO-GO if it is not.";$("q").style.display="";t0=performance.now()}
-async function answer(go){if(state!=="q")return;const rt=Math.round(performance.now()-t0),task=qOrder[qi];const key=keyFor(cur,task);const m=cur.meta||{};
+async function answer(go){if(state!=="q"||answering)return;answering=true;try{await answer1(go)}finally{answering=false}}
+async function answer1(go){const rt=Math.round(performance.now()-t0),task=qOrder[qi];const key=keyFor(cur,task);const m=cur.meta||{};
   const t={id:uuid(),player:player(),session,mode:$("mode").value,ts:new Date().toISOString(),pack:curPack.id,clip:cur.id,clip_trial:clipTrial,task,q_order:qi+1,ask:$("ask").value,pause_ms:Math.round(parseFloat($("off").value)*1000),
     call:go?"GO":"NO-GO",rt_ms:rt,key:key==null?"":(key?"GO":"NO-GO"),correct:key==null?"":(key===go?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
     sz_top:m.sz_top??"",sz_bot:m.sz_bot??"",speed:m.speed??"",stand:m.stand??"",p_throws:m.p_throws??"",release_frame:cur.release_frame??"",app:APP,synced:0};
@@ -274,7 +283,7 @@ $("bgo").onclick=()=>answer(true);$("bno").onclick=()=>answer(false);$("start").
 document.addEventListener("keydown",e=>{if(["SELECT","INPUT"].includes(e.target.tagName))return;if(e.key==="g"||e.key==="G")answer(true);else if(e.key==="n"||e.key==="N")answer(false);else if(e.key===" "||e.key==="Enter"){e.preventDefault();if($("next").style.display!=="none")$("next").click();else startPitch(false)}});
 // ---------- log, csv, sync ----------
 const TCOLS="player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",");
-const q=x=>{x=String(x??"");return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
+const q=x=>{x=String(x??"");if(/^[=+\-@\t\r]/.test(x)&&!/^-?\d+(\.\d+)?$/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
 const toCSV=ts=>[TCOLS.join(","),...ts.map(t=>TCOLS.map(c=>q(t[c])).join(","))].join("\n");
 function addRow(t){const assess=t.mode==="assess";const tb=document.querySelector("#log tbody");const tr=document.createElement("tr");
   tr.innerHTML=`<td>${sessionLog.length}</td><td>${(t.clip||"").slice(0,6)}</td><td>${t.task==="zone"?"strike":"fastball"}</td><td class="num">${t.pause_ms}</td><td>${t.call}</td><td class="num">${t.rt_ms}</td><td>${assess?"hidden":(t.key||"unknown")}</td><td>${assess?"hidden":(t.correct===""?"no key":t.correct?"correct":"wrong")}</td>`;tb.appendChild(tr)}
