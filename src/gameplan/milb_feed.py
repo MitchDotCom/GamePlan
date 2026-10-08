@@ -40,7 +40,10 @@ def _tracked(p: dict) -> bool:
 def fetch_game(date: str, pk: int, cache: pathlib.Path) -> dict:
     f = cache / f"{pk}.json"
     if f.exists():
-        return json.loads(f.read_text())["meta"]
+        try:
+            return json.loads(f.read_text())["meta"]
+        except (json.JSONDecodeError, KeyError):     # a run killed mid-write leaves a partial file; refetch it
+            f.unlink()
     for attempt in range(3):
         try:
             ps = [p for p in V.game_pitches(pk) if p.get("type") == "pitch"]
@@ -52,7 +55,9 @@ def fetch_game(date: str, pk: int, cache: pathlib.Path) -> dict:
         return dict(game_pk=pk, date=date, error=err)
     keep = [p for p in ps if _tracked(p)]
     meta = dict(game_pk=pk, date=date, pitches=len(ps), tracked=len(keep), year=int(date[:4]))
-    f.write_text(json.dumps(dict(meta=meta, pitches=keep)))
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps(dict(meta=meta, pitches=keep)))
+    tmp.replace(f)                                   # atomic: a reader never sees half a file
     return meta
 
 
@@ -77,7 +82,10 @@ def load(cache: pathlib.Path, since: str | None = None, before: str | None = Non
     for f in sorted(cache.glob("*.json")):
         if f.name.startswith("_"):
             continue
-        d = json.loads(f.read_text())
+        try:
+            d = json.loads(f.read_text())
+        except json.JSONDecodeError:
+            continue
         m = d["meta"]
         if (since and m["date"] < since) or (before and m["date"] >= before):
             continue

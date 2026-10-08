@@ -39,3 +39,11 @@ def test_count_bucket_and_thin_bucket_refuses():
     thin = PL.playlist("usage", rows, dict(stand="L", name="x"), n=1, limit=5, bucket="ahead")
     assert thin["pitches"] == [] and "only 1 pitches to LHH" in thin["why"]
     assert "thin" in PL.EVIDENCE["ride"] and "validated" in PL.playlist("usage", rows, dict(stand="L", name="x"))["evidence"]
+
+
+def test_milb_cache_survives_partial_file(tmp_path, monkeypatch):
+    from gameplan import milb_feed as MF
+    (tmp_path / "123.json").write_text('{"meta": {"game_pk"')          # a killed run left half a file
+    monkeypatch.setattr(MF.V, "game_pitches", lambda pk: [dict(type="pitch", pitch_type="FF", start_speed=90, px=0, pz=2, pfxX=1, pfxZ=1)])
+    meta = MF.fetch_game("2025-06-01", 123, tmp_path)
+    assert meta["tracked"] == 1 and MF.load(tmp_path)[0]["game_pk"] == "123"
