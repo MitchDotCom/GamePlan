@@ -1,0 +1,48 @@
+{
+ "skipped": [],
+ "traits": {
+  "ride": {
+   "split_half": {
+    "n": 66,
+    "r": 0.455,
+    "ci": [
+     0.196,
+     0.644
+    ],
+    "corrected": 0.625
+   },
+   "year_over_year": {
+    "n": 55,
+    "r": 0.205,
+    "ci": [
+     -0.106,
+     0.521
+    ],
+    "corrected": null
+   },
+   "passes_bar": true
+  },
+  "run": {
+   "split_half": {
+    "n": 56,
+    "r": 0.598,
+    "ci": [
+     0.403,
+     0.752
+    ],
+    "corrected": 0.748
+   },
+   "year_over_year": {
+    "n": 45,
+    "r": 0.458,
+    "ci": [
+     0.199,
+     0.67
+    ],
+    "corrected": null
+   },
+   "passes_bar": true
+  }
+ },
+ "hitters_considered": 70
+}
