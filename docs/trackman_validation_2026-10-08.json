@@ -1,0 +1,99 @@
+{
+ "feed": {
+  "plate_flip=+1 hb_flip=+1": {
+   "n": 3962,
+   "inferred_plate": 1,
+   "inferred_arm": 1,
+   "signs_ok": true,
+   "max_dx": 0.0,
+   "max_d_ride": 0.0,
+   "max_d_run": 0.0,
+   "pocket_agree_per_batter_zone": 0.9705,
+   "pocket_agree_default_zone": 0.9101
+  },
+  "plate_flip=+1 hb_flip=-1": {
+   "n": 3962,
+   "inferred_plate": 1,
+   "inferred_arm": -1,
+   "signs_ok": true,
+   "max_dx": 0.0,
+   "max_d_ride": 0.0,
+   "max_d_run": 0.0,
+   "pocket_agree_per_batter_zone": 0.9705,
+   "pocket_agree_default_zone": 0.9101
+  },
+  "plate_flip=-1 hb_flip=+1": {
+   "n": 3962,
+   "inferred_plate": -1,
+   "inferred_arm": 1,
+   "signs_ok": true,
+   "max_dx": 0.0,
+   "max_d_ride": 0.0,
+   "max_d_run": 0.0,
+   "pocket_agree_per_batter_zone": 0.9705,
+   "pocket_agree_default_zone": 0.9101
+  },
+  "plate_flip=-1 hb_flip=-1": {
+   "n": 3962,
+   "inferred_plate": -1,
+   "inferred_arm": -1,
+   "signs_ok": true,
+   "max_dx": 0.0,
+   "max_d_ride": 0.0,
+   "max_d_run": 0.0,
+   "pocket_agree_per_batter_zone": 0.9705,
+   "pocket_agree_default_zone": 0.9101
+  }
+ },
+ "hitter": {
+  "ride plate_flip=+1 hb_flip=+1": {
+   "native": 0.0585,
+   "trackman": 0.0585,
+   "n_native": 1315,
+   "n_trackman": 1315
+  },
+  "run plate_flip=+1 hb_flip=+1": {
+   "native": -0.1663,
+   "trackman": -0.1663,
+   "n_native": 548,
+   "n_trackman": 548
+  },
+  "ride plate_flip=+1 hb_flip=-1": {
+   "native": 0.0585,
+   "trackman": 0.0585,
+   "n_native": 1315,
+   "n_trackman": 1315
+  },
+  "run plate_flip=+1 hb_flip=-1": {
+   "native": -0.1663,
+   "trackman": -0.1663,
+   "n_native": 548,
+   "n_trackman": 548
+  },
+  "ride plate_flip=-1 hb_flip=+1": {
+   "native": 0.0585,
+   "trackman": 0.0585,
+   "n_native": 1315,
+   "n_trackman": 1315
+  },
+  "run plate_flip=-1 hb_flip=+1": {
+   "native": -0.1663,
+   "trackman": -0.1663,
+   "n_native": 548,
+   "n_trackman": 548
+  },
+  "ride plate_flip=-1 hb_flip=-1": {
+   "native": 0.0585,
+   "trackman": 0.0585,
+   "n_native": 1315,
+   "n_trackman": 1315
+  },
+  "run plate_flip=-1 hb_flip=-1": {
+   "native": -0.1663,
+   "trackman": -0.1663,
+   "n_native": 548,
+   "n_trackman": 548
+  }
+ },
+ "passed": true
+}

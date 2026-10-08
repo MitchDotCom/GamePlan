@@ -149,7 +149,9 @@ def hitter_cost(rows: list[dict], hitter: dict, n: int = 3) -> list[tuple]:
         if pk:
             cost[(fam, pk)] += w * v
             cnt[(fam, pk)] += w
-    mu = allc / alln if alln else 0.0
+    if not alln:       # no run-value column (e.g. a TrackMan export): nothing to rank by
+        return []
+    mu = allc / alln
     score = {k: (cost[k] + K_SHRINK * mu) / (cnt[k] + K_SHRINK) for k in offered}
     return sorted(score, key=lambda k: -score[k])[:n]
 
@@ -169,6 +171,8 @@ def _f(v):
 def starter_move(p: dict):
     """(ride_in, run_in) of a pooled feed pitch in inches, same definitions as the study: ride = induced vertical break (pfx_z * 12),
     run = the study's horizontal break (api_break_x_batter_in * 12). Despite its name, on this column an RHP sinker vs a left-handed batter is negative and his slider positive, so positive = break away from the batter, negative = toward him (checked on Singer's pitches vs Nootbaar). The feed's pfxX has the opposite sign to Statcast's pfx_x."""
+    if p.get("_ride_in") is not None:      # TrackMan rows carry the study's definitions already (trackman.convert)
+        return p["_ride_in"], p["_run_in"]
     z, x = _f(p.get("pfxZ")), _f(p.get("pfxX"))
     if z is None or x is None or p.get("stand") not in ("L", "R"):
         return None, None
