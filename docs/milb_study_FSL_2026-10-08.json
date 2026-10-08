@@ -1,0 +1,55 @@
+{
+ "label": "FSL",
+ "tracked_pitches": 171015,
+ "hitters": 192,
+ "coverage_full": {
+  "ride": {
+   "hitters": 192,
+   "with_min": 122,
+   "share": 0.635,
+   "median_swings": 197
+  },
+  "run": {
+   "hitters": 192,
+   "with_min": 29,
+   "share": 0.151,
+   "median_swings": 81
+  }
+ },
+ "coverage_midseason": {
+  "ride": {
+   "hitters": 192,
+   "with_min": 73,
+   "share": 0.38,
+   "median_swings": 113
+  },
+  "run": {
+   "hitters": 192,
+   "with_min": 0,
+   "share": 0.0,
+   "median_swings": 46
+  }
+ },
+ "reliability": {
+  "ride": {
+   "n": 87,
+   "r": 0.259,
+   "ci": [
+    -0.012,
+    0.485
+   ],
+   "corrected": 0.411,
+   "passes_bar": false
+  },
+  "run": {
+   "n": 12,
+   "r": -0.621,
+   "ci": [
+    -0.915,
+    -0.02
+   ],
+   "corrected": -3.275,
+   "passes_bar": false
+  }
+ }
+}
