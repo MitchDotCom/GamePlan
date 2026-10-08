@@ -1,31 +1,11 @@
 [
  {
-  "id": "C2",
-  "area": "Core",
-  "test": "Question order is randomized: across the pack both orders occur, and the same clip keeps the same order",
-  "result": "PASS",
-  "evidence": "first questions over 8 clips: ['Strike?', 'Fastball?', 'Fastball?', 'Strike?', 'Strike?', 'Fastball?', 'Fastball?', 'Fastball?']",
-  "seconds": 56.1,
-  "severity": "S3"
- },
- {
-  "id": "D6",
-  "area": "Data",
-  "test": "Server unreachable during sync: clear message, answers stay unsynced, later sync succeeds with nothing lost",
-  "result": "FAIL",
-  "evidence": "TimeoutError: Page.wait_for_function: Timeout 6000ms exceeded.",
-  "seconds": 11.8,
-  "severity": "S1",
-  "trace": "aywright/_impl/_frame.py\", line 941, in wait_for_function\n    await self._channel.send(\"waitForFunction\", self._timeout, params)\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py\", line 76, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py\", line 632, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 6000ms exceeded.\n"
- },
- {
   "id": "E2",
   "area": "Offline",
-  "test": "Going offline mid-clip does not interrupt the pitch or the answers",
-  "result": "FAIL",
-  "evidence": "TimeoutError: Page.wait_for_function: Timeout 25000ms exceeded.",
-  "seconds": 27.1,
-  "severity": "S2",
-  "trace": "ywright/_impl/_frame.py\", line 941, in wait_for_function\n    await self._channel.send(\"waitForFunction\", self._timeout, params)\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py\", line 76, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py\", line 632, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 25000ms exceeded.\n"
+  "test": "The server disappears right after a clip starts: the pitch, the question and the answer all still work (server really stopped, not browser offline emulation)",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 5.3,
+  "severity": "S2"
  }
 ]

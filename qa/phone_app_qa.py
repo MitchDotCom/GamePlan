@@ -555,20 +555,24 @@ def main():
             assert ("not on the phone" in msg or "No pitches" in msg) and st == "idle", (msg, st)
             return msg
 
-        @check("E2", "Offline", "Going offline mid-clip does not interrupt the pitch or the answers", "S2")
+        @check("E2", "Offline", "The server disappears right after a clip starts: the pitch, the question and the answer all still work (server really stopped, not browser offline emulation)", "S2")
         def _():
-            ctx, p = E.open()
+            s5, st5, b5 = serve(content, keys=keys)
+            E5 = Env(pw, b5)
+            ctx, p = E5.open()
             setup(p, ask="zone")
             p.click("#tabs button[data-t=queue]")
             clips_ready(p, 6)
             p.click("#goNext")
-            ctx.set_offline(True)
+            s5.shutdown()
+            s5.server_close()
             wait_q(p)
             p.click("#bgo")
             p.wait_for_timeout(400)
             n = len(trials(p))
             ctx.close()
-            assert n == 1
+            E5.browser.close()
+            assert n == 1, n
 
         # ------------------------------------------------------------------ F. robustness
         @check("F1", "Robustness", "Double-tapping GO records ONE answer for that question", "S1")

@@ -1,11 +1,11 @@
 [
  {
-  "id": "E1",
+  "id": "E2",
   "area": "Offline",
-  "test": "Clip not on the phone and no signal: a clear message, no crash, state recovers",
+  "test": "The server disappears right after a clip starts: the pitch, the question and the answer all still work (server really stopped, not browser offline emulation)",
   "result": "PASS",
-  "evidence": "This clip is not on the phone and there is no signal.",
-  "seconds": 2.3,
-  "severity": "S1"
+  "evidence": "",
+  "seconds": 3.9,
+  "severity": "S2"
  }
 ]
