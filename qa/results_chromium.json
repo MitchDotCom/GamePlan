@@ -1,11 +1,470 @@
 [
  {
+  "id": "A1",
+  "area": "Install",
+  "test": "Manifest has name, standalone display, start_url and both icons that exist with the declared sizes",
+  "result": "PASS",
+  "evidence": "icons [192, 512]",
+  "seconds": 0.0,
+  "severity": "S1"
+ },
+ {
+  "id": "A2",
+  "area": "Install",
+  "test": "Service worker registers, activates and controls the page after one reload",
+  "result": "PASS",
+  "evidence": "controller active after reload",
+  "seconds": 0.6,
+  "severity": "S1"
+ },
+ {
+  "id": "A3",
+  "area": "Install",
+  "test": "iOS home-screen tags present (apple-touch-icon 180px, capable, status bar, title) and theme-color set",
+  "result": "PASS",
+  "evidence": "{'touch': True, 'cap': 'yes', 'theme': '#5f249f', 'title': 'Go/No-Go', 'vp': 'width=device-width,initial-scale=1,viewport-fit=cover'}",
+  "seconds": 0.4,
+  "severity": "S2"
+ },
+ {
+  "id": "A4",
+  "area": "Install",
+  "test": "With the SERVER STOPPED, the installed shell still opens, shows the cached queue and plays a cached clip",
+  "result": "PASS",
+  "evidence": "opened and played with the server down; chip said offline",
+  "seconds": 3.3,
+  "severity": "S1"
+ },
+ {
+  "id": "B1",
+  "area": "First run",
+  "test": "Start with no player name: blocked with a message, no answer is recorded",
+  "result": "PASS",
+  "evidence": "Enter a player name or ID first",
+  "seconds": 1.0,
+  "severity": "S1"
+ },
+ {
+  "id": "B2",
+  "area": "First run",
+  "test": "Empty content folder (no queue yet): app opens, says so, no script errors",
+  "result": "PASS",
+  "evidence": "queue says 'No queue yet. Connect once to load it.', play says 'No pitches yet. Connect once to load the queue.'",
+  "seconds": 1.8,
+  "severity": "S2"
+ },
+ {
+  "id": "B3",
+  "area": "First run",
+  "test": "Very first load while offline (nothing cached): fails safely, no crash loop",
+  "result": "PASS",
+  "evidence": "browser shows its offline page; the app needs one online visit to install (documented)",
+  "seconds": 0.2,
+  "severity": "S2"
+ },
+ {
+  "id": "C1",
+  "area": "Core",
+  "test": "Both questions per clip: 2 rows, same clip_trial, q_order 1 and 2, different tasks",
+  "result": "PASS",
+  "evidence": "questions asked: ['Fastball?', 'Strike?']",
+  "seconds": 3.3,
+  "severity": "S1"
+ },
+ {
+  "id": "C2",
+  "area": "Core",
+  "test": "Question order is randomized: across the pack both orders occur, and the same clip keeps the same order",
+  "result": "PASS",
+  "evidence": "first questions over 8 clips: ['Strike?', 'Strike?', 'Strike?', 'Strike?', 'Fastball?', 'Strike?', 'Strike?', 'Fastball?']",
+  "seconds": 35.0,
+  "severity": "S3"
+ },
+ {
+  "id": "C3a",
+  "area": "Core",
+  "test": "Ask 'zone' only: one row per clip, task zone",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 3.4,
+  "severity": "S2"
+ },
+ {
+  "id": "C3b",
+  "area": "Core",
+  "test": "Ask 'pitch' only: one row per clip, task pitch",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 3.3,
+  "severity": "S2"
+ },
+ {
+  "id": "C4",
+  "area": "Core",
+  "test": "Training: each answer is scored against the shipped key; verdicts on screen match the stored correct flag",
+  "result": "PASS",
+  "evidence": "0 of 2 correct, screen agrees",
+  "seconds": 3.2,
+  "severity": "S1"
+ },
+ {
+  "id": "C5",
+  "area": "Core",
+  "test": "Assessment: no feedback, no reveal playback, no answers in the page or the queue file, stored key is blank",
+  "result": "PASS",
+  "evidence": "mode=assess, video paused=False",
+  "seconds": 4.8,
+  "severity": "S1"
+ },
+ {
+  "id": "C6",
+  "area": "Core",
+  "test": "Run block: plays every pitch in the queue once, auto-advances, ends with 'Done'",
+  "result": "PASS",
+  "evidence": "24 pitches answered, 23 distinct clips",
+  "seconds": 117.2,
+  "severity": "S2"
+ },
+ {
+  "id": "C7",
+  "area": "Core",
+  "test": "Keyboard: G, N and Space work (for a desktop or Bluetooth keyboard)",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 2.8,
+  "severity": "S3"
+ },
+ {
+  "id": "C8",
+  "area": "Core",
+  "test": "Pack completion: the Start button comes back and the queue marks the pitches done after a reload",
+  "result": "PASS",
+  "evidence": "hero now says: NEXT UP: RANDOM: SCOTT BARLOW",
+  "seconds": 29.9,
+  "severity": "S2"
+ },
+ {
+  "id": "D1",
+  "area": "Data",
+  "test": "Every stored answer has all fields; times are plausible; ids unique",
+  "result": "PASS",
+  "evidence": "6 rows",
+  "seconds": 14.8,
+  "severity": "S1"
+ },
+ {
+  "id": "D2",
+  "area": "Data",
+  "test": "Sync twice and concurrently: server holds exactly the local count, nothing duplicated",
+  "result": "PASS",
+  "evidence": "local 2, server 2, chip '0 to sync'",
+  "seconds": 6.6,
+  "severity": "S1"
+ },
+ {
+  "id": "D3",
+  "area": "Data",
+  "test": "Server CSV is read by the recognition profile code and produces a profile (end to end, no exceptions)",
+  "result": "PASS",
+  "evidence": "8 rows, zone n=4, pitch n=4",
+  "seconds": 19.4,
+  "severity": "S1"
+ },
+ {
+  "id": "D4",
+  "area": "Data",
+  "test": "Reload keeps answers, settings and the 'done' state",
+  "result": "PASS",
+  "evidence": "{'player': 'Persist Test', 'bats': 'L', 'ask': 'zone', 'off': '0.150'}",
+  "seconds": 3.8,
+  "severity": "S1"
+ },
+ {
+  "id": "D5",
+  "area": "Data",
+  "test": "Erase on this phone really clears answers and resets the sync chip",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 4.0,
+  "severity": "S2"
+ },
+ {
+  "id": "D6",
+  "area": "Data",
+  "test": "Server unreachable during sync: clear message, answers stay unsynced, later sync succeeds with nothing lost",
+  "result": "PASS",
+  "evidence": "failed sync -> chip '1 to sync', net 'offline'; retry stored 1",
+  "seconds": 4.2,
+  "severity": "S1"
+ },
+ {
+  "id": "D7",
+  "area": "Data",
+  "test": "CSV formula injection: a player name like =cmd|... must not reach a spreadsheet cell as a formula (app export and server CSV)",
+  "result": "PASS",
+  "evidence": "neutralised in both exports",
+  "seconds": 4.2,
+  "severity": "S1"
+ },
+ {
+  "id": "E1",
+  "area": "Offline",
+  "test": "Clip not on the phone and no signal: a clear message, no crash, state recovers",
+  "result": "PASS",
+  "evidence": "This clip is not on the phone and there is no signal.",
+  "seconds": 2.3,
+  "severity": "S1"
+ },
+ {
   "id": "E2",
   "area": "Offline",
   "test": "The server disappears right after a clip starts: the pitch, the question and the answer all still work (server really stopped, not browser offline emulation)",
   "result": "PASS",
   "evidence": "",
-  "seconds": 3.9,
+  "seconds": 3.7,
   "severity": "S2"
+ },
+ {
+  "id": "F1",
+  "area": "Robustness",
+  "test": "Double-tapping GO records ONE answer for that question",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 3.5,
+  "severity": "S1"
+ },
+ {
+  "id": "F2",
+  "area": "Robustness",
+  "test": "Start tapped repeatedly: one playback, one set of trials",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 4.0,
+  "severity": "S2"
+ },
+ {
+  "id": "F3",
+  "area": "Robustness",
+  "test": "During a pitch the tab bar is hidden (focus mode); the question appears and is answered; the tabs return afterwards",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 2.9,
+  "severity": "S2"
+ },
+ {
+  "id": "F4",
+  "area": "Robustness",
+  "test": "Reload in the middle of a question: no half-written answers, app recovers to idle",
+  "result": "PASS",
+  "evidence": "kept the one completed answer; the unfinished clip is simply asked again",
+  "seconds": 3.3,
+  "severity": "S2"
+ },
+ {
+  "id": "F5",
+  "area": "Robustness",
+  "test": "Corrupt clip file in storage: the app reports it and recovers, it does not hang in 'playing'",
+  "result": "PASS",
+  "evidence": "state after corrupt clip: idle; message 'Tap Start pitch to allow video'",
+  "seconds": 4.8,
+  "severity": "S1"
+ },
+ {
+  "id": "F6",
+  "area": "Robustness",
+  "test": "Landscape orientation: question buttons are on screen without scrolling",
+  "result": "PASS",
+  "evidence": "[278.390625, 355.390625, 390]",
+  "seconds": 2.9,
+  "severity": "S2"
+ },
+ {
+  "id": "G1-320",
+  "area": "Layout",
+  "test": "iPhone SE 1st gen 320x568: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "result": "PASS",
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 392/568, height 77",
+  "seconds": 4.0,
+  "severity": "S1"
+ },
+ {
+  "id": "G1-360",
+  "area": "Layout",
+  "test": "small Android 360x640: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "result": "PASS",
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 415/640, height 77",
+  "seconds": 4.2,
+  "severity": "S1"
+ },
+ {
+  "id": "G1-375",
+  "area": "Layout",
+  "test": "iPhone SE 2/3 375x667: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "result": "PASS",
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 423/667, height 77",
+  "seconds": 4.1,
+  "severity": "S1"
+ },
+ {
+  "id": "G1-390",
+  "area": "Layout",
+  "test": "iPhone 14 390x844: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "result": "PASS",
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 432/844, height 77",
+  "seconds": 4.1,
+  "severity": "S1"
+ },
+ {
+  "id": "G1-412",
+  "area": "Layout",
+  "test": "Pixel 7 412x915: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "result": "PASS",
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 444/915, height 77",
+  "seconds": 4.0,
+  "severity": "S1"
+ },
+ {
+  "id": "G1-820",
+  "area": "Layout",
+  "test": "iPad 820x1180: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "result": "PASS",
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 527/1180, height 77",
+  "seconds": 4.0,
+  "severity": "S1"
+ },
+ {
+  "id": "G2",
+  "area": "Accessibility",
+  "test": "Tap targets: GO, NO-GO, Start, tabs and sync are at least 44 px tall",
+  "result": "PASS",
+  "evidence": "{'bgo': 77, 'bno': 77, 'sync': 44}",
+  "seconds": 3.0,
+  "severity": "S2"
+ },
+ {
+  "id": "G3",
+  "area": "Accessibility",
+  "test": "Controls have accessible names; images/svg labelled; page has a title and lang",
+  "result": "PASS",
+  "evidence": "{'lang': 'en', 'title': 'Go / No-Go', 'unnamed': [], 'svg': True}",
+  "seconds": 2.9,
+  "severity": "S3"
+ },
+ {
+  "id": "G4-light",
+  "area": "Layout",
+  "test": "light theme: every tab renders, no script or console errors",
+  "result": "PASS",
+  "evidence": "background rgb(255, 255, 255)",
+  "seconds": 3.4,
+  "severity": "S2"
+ },
+ {
+  "id": "G4-dark",
+  "area": "Layout",
+  "test": "dark theme: every tab renders, no script or console errors",
+  "result": "PASS",
+  "evidence": "background rgb(21, 11, 36)",
+  "seconds": 3.5,
+  "severity": "S2"
+ },
+ {
+  "id": "H1",
+  "area": "Timing",
+  "test": "Pause lands within 1.5 frames of release+offset for EVERY clip in both queues at 50, 100 and 200 ms",
+  "result": "PASS",
+  "evidence": "144 runs, median +0.10 frames, worst 1.35",
+  "seconds": 292.6,
+  "severity": "S1"
+ },
+ {
+  "id": "H2",
+  "area": "Timing",
+  "test": "Speed: tap Start to question under 3 s (cached clip); app ready under 2 s on localhost",
+  "result": "PASS",
+  "evidence": "ready 0.17 s, start-to-question 1.78 s (includes the clip's own lead-in)",
+  "seconds": 2.4,
+  "severity": "S3"
+ },
+ {
+  "id": "I1",
+  "area": "Content",
+  "test": "Every queue item: file exists, plays, release inside the clip with at least 0.4 s after it; keys agree with the pitch's own location and type",
+  "result": "PASS",
+  "evidence": "48 items checked",
+  "seconds": 3.6,
+  "severity": "S1"
+ },
+ {
+  "id": "I2",
+  "area": "Content",
+  "test": "Assessment keys are absent from every public file and present in the private file for every assessment item",
+  "result": "PASS",
+  "evidence": "queue files carry null keys for assessment items",
+  "seconds": 0.0,
+  "severity": "S1"
+ },
+ {
+  "id": "I3",
+  "area": "Content",
+  "test": "Footprint: total content and per-clip size reasonable for a phone",
+  "result": "PASS",
+  "evidence": "48 clips, 5.3 MB total, largest 0.15 MB",
+  "seconds": 0.0,
+  "severity": "S3"
+ },
+ {
+  "id": "J1",
+  "area": "Security",
+  "test": "Path traversal: ../ and encoded variants cannot read files outside the app and content folders",
+  "result": "PASS",
+  "evidence": "no file outside the served folders was readable",
+  "seconds": 0.0,
+  "severity": "S1"
+ },
+ {
+  "id": "J2",
+  "area": "Security",
+  "test": "POST hardening: oversize body, bad JSON, wrong shape, missing ids are all rejected without crashing the server",
+  "result": "PASS",
+  "evidence": "{'badjson': 400, 'notlist': 400, 'nokey': 400, 'noid': 200, 'toobig': 413}",
+  "seconds": 0.0,
+  "severity": "S1"
+ },
+ {
+  "id": "J3",
+  "area": "Security",
+  "test": "Shared token: wrong or missing token gets 401 on POST and on the CSV; correct token works",
+  "result": "PASS",
+  "evidence": "codes [401, 401, 200]; note: config.json hands the token to anyone who opens the app, so it is a team passcode, not a secret",
+  "seconds": 0.5,
+  "severity": "S2"
+ },
+ {
+  "id": "J4",
+  "area": "Security",
+  "test": "Script injection: hostile player name and hostile pack title never execute",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 2.2,
+  "severity": "S1"
+ },
+ {
+  "id": "J5",
+  "area": "Security",
+  "test": "Static server: only GET/POST used; HEAD, OPTIONS and unknown paths answer without killing the server",
+  "result": "PASS",
+  "evidence": "{'HEAD': 200, 'OPTIONS': 501, 'DELETE': 501, 'PUT': 501}",
+  "seconds": 0.0,
+  "severity": "S3"
+ },
+ {
+  "id": "K1",
+  "area": "Hygiene",
+  "test": "No uncaught script errors or console errors occurred anywhere in this run",
+  "result": "PASS",
+  "evidence": "1 console lines, none from the app's own code",
+  "seconds": 0.0,
+  "severity": "S1"
  }
 ]
