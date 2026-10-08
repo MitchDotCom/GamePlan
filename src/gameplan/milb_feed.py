@@ -14,7 +14,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
+import threading
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -55,7 +57,7 @@ def fetch_game(date: str, pk: int, cache: pathlib.Path) -> dict:
         return dict(game_pk=pk, date=date, error=err)
     keep = [p for p in ps if _tracked(p)]
     meta = dict(game_pk=pk, date=date, pitches=len(ps), tracked=len(keep), year=int(date[:4]))
-    tmp = f.with_suffix(".tmp")
+    tmp = f.with_name(f"{f.stem}.{os.getpid()}.{threading.get_ident()}.tmp")   # unique per process and thread, so overlapping runs cannot collide
     tmp.write_text(json.dumps(dict(meta=meta, pitches=keep)))
     tmp.replace(f)                                   # atomic: a reader never sees half a file
     return meta

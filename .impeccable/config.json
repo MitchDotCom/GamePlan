@@ -5,5 +5,56 @@
       "maxFindings": 5,
       "maxChars": 8000
     }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "phone_app/index.html"
+        ],
+        "createdAt": "2026-10-08T16:25:43.827Z",
+        "reason": "copied verbatim from src/gameplan/viewer/viewer.css; owner instructed the phone app to match the coach viewer's design exactly"
+      },
+      {
+        "rule": "ai-color-palette",
+        "value": "*",
+        "files": [
+          "phone_app/index.html"
+        ],
+        "createdAt": "2026-10-08T16:25:43.842Z",
+        "reason": "copied verbatim from src/gameplan/viewer/viewer.css; owner instructed the phone app to match the coach viewer's design exactly"
+      },
+      {
+        "rule": "gpt-thin-border-wide-shadow",
+        "value": "*",
+        "files": [
+          "phone_app/index.html"
+        ],
+        "createdAt": "2026-10-08T16:25:43.855Z",
+        "reason": "copied verbatim from src/gameplan/viewer/viewer.css; owner instructed the phone app to match the coach viewer's design exactly"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "phone_app/index.html"
+        ],
+        "createdAt": "2026-10-08T16:25:43.872Z",
+        "reason": "copied verbatim from src/gameplan/viewer/viewer.css; owner instructed the phone app to match the coach viewer's design exactly"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "phone_app/index.html"
+        ],
+        "createdAt": "2026-10-08T16:25:43.888Z",
+        "reason": "video stage fills its black frame edge to edge on purpose (no text inside); sticky bar spacing is the viewer's own"
+      }
+    ]
   }
 }

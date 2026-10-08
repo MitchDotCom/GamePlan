@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#5f249f"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Go/No-Go">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="stylesheet" href="fonts.css">
+<title>Go / No-Go</title>
+<style>
+/* Design system copied from the GamePlan game viewer (src/gameplan/viewer/viewer.css): vintage Arizona Diamondbacks colors sampled from the 1998 to 2006 logo,
+   purple primary, teal secondary (swing, go), copper accent (take, no-go), JetBrains Mono throughout, heavy italic display, pill controls, label-left value-right rows. */
+:root{color-scheme:light;
+ --bg:#fff;--panel:#fff;--ink:#1c1030;--ink2:#4a3d63;--ink3:#76698c;--line:color-mix(in srgb,#8f654d 30%,#fff);--mid:color-mix(in srgb,#5f249f 7%,#fff);
+ --purple:#5f249f;--purple2:#3f1870;--teal:#005f61;--copper:#8f654d;--onpurple:#f6f0ff;--onpurple2:#cdbbe8;
+ --brand:#5f249f;--accent:#5f249f;--sand:color-mix(in srgb,#8f654d 22%,#fff);
+ --pos:#005f61;--neg:#8f654d;--good:#005f61;--bad:#a32424;--warn:#8f654d;
+ --k-called:#3f1870;--k-whiff:#d9822b;--k-foul:#e3c21f;--k-play:#2f9e6f;
+ --shadow:0 1px 2px rgba(63,24,112,.08),0 10px 28px rgba(63,24,112,.10);
+ --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:40px;
+ --t-label:12px;--t-body:14px;--t-lead:15px;--t-title:21px;--t-hero:42px;
+ --font:"JetBrains Mono","SF Mono",ui-monospace,Menlo,Consolas,monospace;--display:var(--font);--caps:var(--font)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#150b24;--panel:#1f1233;--ink:#f4eefb;--ink2:#cfc2e4;--ink3:#a698c0;--line:#3b2a57;--mid:#2a1a45;--purple:#6b3fb0;--purple2:#4a1f85;--teal:#3fc2c0;--copper:#c79a80;--brand:#a678e8;--accent:#a678e8;--pos:#3fc2c0;--neg:#c79a80;--good:#3fc2c0;--bad:#ff8a80;--shadow:0 10px 28px rgba(0,0,0,.4)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#150b24;--panel:#1f1233;--ink:#f4eefb;--ink2:#cfc2e4;--ink3:#a698c0;--line:#3b2a57;--mid:#2a1a45;--purple:#6b3fb0;--purple2:#4a1f85;--teal:#3fc2c0;--copper:#c79a80;--brand:#a678e8;--accent:#a678e8;--pos:#3fc2c0;--neg:#c79a80;--good:#3fc2c0;--bad:#ff8a80;--shadow:0 10px 28px rgba(0,0,0,.4)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:var(--t-body)/1.5 var(--font);font-variant-numeric:tabular-nums;overscroll-behavior:none}
+::selection{background:var(--sand);color:var(--ink)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto;padding:0 var(--s4) calc(var(--s6) + env(safe-area-inset-bottom,0px))}
+h1{font-family:var(--display);font-style:italic;font-weight:900;font-size:var(--t-title);line-height:1.2;margin:0;letter-spacing:-.01em;color:var(--brand)}
+h2{font-size:var(--t-lead);margin:0 0 var(--s2);font-weight:650;color:var(--brand)}
+.bar{position:sticky;top:0;z-index:5;padding:calc(var(--s3) + env(safe-area-inset-top,0px)) 0 var(--s3);margin-bottom:var(--s4);background:var(--bg);border-top:4px solid var(--copper);border-bottom:1px solid var(--line)}
+.top{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}.top h1{flex:1}
+.tools{display:flex;gap:var(--s3);flex-wrap:wrap;align-items:center;margin-top:var(--s2)}
+.tabs{display:flex;width:fit-content;max-width:100%;gap:2px;flex-wrap:wrap;padding:4px;background:var(--mid);border-radius:999px}
+.tabs button{border:0;background:transparent;border-radius:999px;padding:6px 14px;color:var(--ink2)}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{background:var(--purple);color:var(--onpurple);font-weight:650}
+button,select,input[type=text],textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 14px}
+button{cursor:pointer}button:hover{border-color:var(--ink3)}
+button.pri,#lg-export,#lg-copy{background:var(--purple);color:var(--onpurple);border:0;font-weight:650;padding:8px 18px}button.pri:hover{background:var(--purple2)}
+label.f{display:inline-flex;gap:6px;align-items:center;color:var(--ink2);font-size:var(--t-label)}label.fc{display:flex;flex-direction:column;gap:4px;color:var(--ink2);font-size:var(--t-label)}
+.proto{color:var(--ink3);font-size:var(--t-label);margin-top:var(--s2)}.proto summary{cursor:pointer;display:inline}.proto p{margin:var(--s2) 0 0;max-width:70ch}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:var(--s5);box-shadow:var(--shadow);margin-top:var(--s3)}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:10px var(--s2);border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--ink3);font-weight:600;font-size:var(--t-label)}tr:last-child td{border-bottom:0}td.num,th.num{text-align:right}
+.mut{color:var(--ink2);font-size:13px}.note{font-size:var(--t-label);color:var(--ink3);max-width:70ch}
+.chip{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--mid);font-size:var(--t-label);color:var(--ink2)}.chip.warn{color:var(--bad)}
+.hero{background:linear-gradient(160deg,var(--purple),var(--purple2));color:var(--onpurple);border-radius:24px;padding:var(--s5);box-shadow:var(--shadow)}
+.hlab{color:var(--onpurple2);font-size:var(--t-label);font-family:var(--caps);font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.hnum{font-family:var(--display);font-style:italic;font-weight:900;font-size:var(--t-hero);line-height:1.1;letter-spacing:-.02em;margin:4px 0 var(--s2)}
+.hnum small{font-size:var(--t-lead);font-weight:500;color:var(--onpurple2);letter-spacing:0;margin-left:6px}
+.hrow{display:flex;gap:var(--s3);flex-wrap:wrap;align-items:center}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:var(--s3);margin-top:var(--s4)}
+.tile{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:var(--s3) var(--s4)}
+.tile .tl{color:var(--onpurple2);font-size:var(--t-label)}.tile .tv{font-size:22px;font-weight:600;letter-spacing:-.01em}
+.hero label.f,.hero .mut{color:var(--onpurple2)}
+.hero select{background:rgba(255,255,255,.1);color:var(--onpurple);border-color:rgba(255,255,255,.2)}.hero select option{color:#0f2a2e;background:#fff}
+.hero button.pri{background:#fff;color:#3f1870}
+/* dark theme: the viewer's hero starts from a lighter purple that gives text only 2.6 to 4.1:1; the phone app starts darker so every line passes 4.5:1 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hero{background:linear-gradient(160deg,#4f2788,#34145f)}}
+:root[data-theme="dark"] .hero{background:linear-gradient(160deg,#4f2788,#34145f)}
+dl.det{display:grid;grid-template-columns:max-content 1fr;margin:var(--s2) 0 0}
+dl.det dt,dl.det dd{padding:10px 0;border-bottom:1px solid var(--line);margin:0}
+dl.det dt{color:var(--ink3);font-size:var(--t-label);padding-right:var(--s5);display:flex;align-items:center}
+dl.det dd{text-align:right;font-weight:600}dl.det dd .mut{font-weight:400}
+.lab-ok{color:var(--good);font-weight:600}.lab-bad{color:var(--bad);font-weight:600}
+.tw{overflow-x:auto}.stats{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s5);color:var(--ink2)}.stats b{color:var(--ink);font-weight:650}
+.row{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;margin-top:var(--s3)}
+/* video stage */
+.stage{position:relative;background:#000;border-radius:20px;overflow:hidden;aspect-ratio:16/9;width:100%;margin-top:var(--s3);box-shadow:var(--shadow)}
+video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
+.hint{position:absolute;top:10px;left:12px;color:#fff;background:rgba(0,0,0,.55);padding:3px 10px;border-radius:999px;font-size:var(--t-label);display:none}.hint.on{display:block}
+/* answer buttons: GO is teal (swing), NO-GO is copper (take), as in the viewer */
+.ans{display:flex;gap:var(--s3);margin-top:var(--s3)}
+.ans button{flex:1;border:0;border-radius:999px;padding:22px 0;font-size:22px;font-weight:800;letter-spacing:.04em;color:#fff}
+.ans .go{background:var(--teal)}.ans .nogo{background:var(--copper)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ans button{color:#0f2a2e}}
+:root[data-theme="dark"] .ans button{color:#0f2a2e}
+/* strike-zone card, same treatment as the viewer's zone card */
+.zonecard{background:linear-gradient(160deg,var(--purple),var(--purple2));border-radius:24px;padding:var(--s4);box-shadow:var(--shadow);margin-top:var(--s3);
+ --panel:#4a2a7a;--ink:#f6f0ff;--ink2:#d4c4ee;--ink3:#b39dd8;--line:#6a46a0;--mid:#573488;--brand:#e3b9a1;--good:#7fe3de;--pos:#2fb3b0;--neg:#c79a80}
+svg.zone{display:block;width:100%;height:auto;max-width:300px;margin:0 auto}.zlab{font-size:10px;fill:var(--ink3)}
+.pt circle{stroke:var(--ink2);stroke-width:1.5}.pt .k-ball{fill:var(--panel);stroke:var(--ink);stroke-width:2}
+section{display:none}section.on{display:block}
+@media(prefers-reduced-motion:no-preference){button{transition:border-color .12s ease-out,background-color .12s ease-out}}
+</style></head><body><div class="wrap">
+<div class="bar">
+ <div class="top"><h1>Go / No-Go</h1><span class="chip" id="net">online</span><span class="chip" id="pend">0 to sync</span></div>
+ <div class="tools"><div class="tabs" id="tabs"><button data-t="play" class="on">Play</button><button data-t="queue">Queue</button><button data-t="log">Log</button><button data-t="keys">Keys</button><button data-t="set">Setup</button></div></div>
+ <details class="proto"><summary>Prototype</summary><p>Pitch clips with answers taken from tracking data. Not validated for use as training. Your answers stay on this phone until you sync.</p></details>
+</div>
+<main>
+<section id="t-play" class="on">
+  <div class="hero"><div class="hlab" id="hlab">Next up</div><div class="hnum" id="hnum">-<small id="hsub"></small></div>
+   <div class="hrow"><span class="hlab" id="hmeta"></span></div><div class="tiles" id="tiles"></div></div>
+  <div class="stage"><video id="v" playsinline muted preload="auto"></video><div class="hint" id="hint">Watch the pitch</div></div>
+  <div id="q" style="display:none"><div class="ans"><button class="go" id="bgo">GO</button><button class="nogo" id="bno">NO-GO</button></div><div class="note" style="margin-top:6px" id="qn"></div></div>
+  <div id="res"></div>
+  <div class="row"><button class="pri" id="start">Start pitch</button><button id="next" style="display:none">Next</button></div>
+  <div class="note" id="now" style="margin-top:8px"></div>
+</section>
+
+<section id="t-queue">
+  <div class="hero"><div class="hlab" id="nextTitle">Next up</div><div class="hnum" id="nextNum">-<small id="nextSub"></small></div>
+   <div class="hrow"><button class="pri" id="goNext">Start next pack</button><button id="block">Run block, random order</button></div></div>
+  <div id="packs"></div>
+  <div class="card"><h2>Practice any pitch</h2><div class="row"><label class="fc">Pitch<select id="pitch"></select></label><button id="dlAll">Download all clips</button></div><div class="note" id="dlmsg"></div></div>
+</section>
+
+<section id="t-log">
+  <div class="card"><div class="stats" id="stats"></div></div>
+  <div class="row"><button id="copy">Copy log as CSV</button><button id="dl">Download trials (CSV)</button><button class="pri" id="sync">Sync now</button></div><div class="note" id="syncmsg"></div>
+  <div class="card tw"><table id="log"><thead><tr><th>#</th><th>Pitch</th><th>Task</th><th class="num">Pause</th><th>Call</th><th class="num">ms</th><th>Answer</th><th>Score</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="t-keys">
+  <div class="note">Packs built from tracking carry their answers. For a pitch with no answer, set the truth here (from the TrackMan row or the umpire call). A pitch left unknown is timed but not scored. Assessment packs ship without answers and are scored on the server.</div>
+  <div id="keys"></div>
+</section>
+
+<section id="t-set">
+  <div class="card"><h2>Player</h2>
+   <dl class="det"><dt>Name or ID</dt><dd><input type="text" id="player" autocomplete="off" size="14"></dd>
+   <dt>Batting side today</dt><dd><select id="bats"><option value="R">Right</option><option value="L">Left</option></select></dd>
+   <dt>Mode</dt><dd><select id="mode"><option value="train">Training, feedback each pitch</option><option value="assess">Assessment, no feedback</option></select></dd>
+   <dt>Questions per clip</dt><dd><select id="ask"><option value="both">Strike? and fastball?</option><option value="zone">Strike? only</option><option value="pitch">Fastball? only</option></select></dd>
+   <dt>Pause after release</dt><dd><select id="off"><option value="0.050">50 ms</option><option value="0.080">80 ms</option><option value="0.100" selected>100 ms</option><option value="0.150">150 ms</option><option value="0.200">200 ms</option></select></dd>
+   <dt>Play the rest after answering</dt><dd><select id="reveal"><option value="1">Yes</option><option value="0">No</option></select></dd></dl></div>
+  <div class="card"><h2>Data on this phone</h2><div class="note" id="dataInfo"></div><div class="row"><button id="refresh">Check for new queue</button><button id="wipe">Erase trials on this phone</button></div></div>
+  <div class="note" style="margin-top:12px">Keyboard: G = GO, N = NO-GO, Space or Enter = start or next. Mode and questions per clip are logged with every answer.</div>
+</section>
+</main></div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const APP="phone-1";
+let CFG={content:"content/",sync_url:"",token:""};
+// ---------- storage: IndexedDB holds clips as blobs, answers, settings ----------
+let DB;
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open("gonogo",1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore("clips",{keyPath:"id"});d.createObjectStore("trials",{keyPath:"id"});d.createObjectStore("kv",{keyPath:"k"})};r.onsuccess=()=>{DB=r.result;res()};r.onerror=()=>rej(r.error)})}
+const tx=(s,m)=>DB.transaction(s,m).objectStore(s);
+const pr=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const kvGet=async(k,d)=>{const r=await pr(tx("kv","readonly").get(k));return r?r.v:d};
+const kvSet=(k,v)=>pr(tx("kv","readwrite").put({k,v}));
+const allTrials=()=>pr(tx("trials","readonly").getAll());
+const putTrial=t=>pr(tx("trials","readwrite").put(t));
+const hasClip=async id=>!!(await pr(tx("clips","readonly").getKey(id)));
+const getClip=id=>pr(tx("clips","readonly").get(id));
+const putClip=(id,blob)=>pr(tx("clips","readwrite").put({id,blob}));
+// ---------- state ----------
+let Q=null,keys={},session=new Date().toISOString().slice(0,19).replace(/[:T-]/g,""),state="idle",cur=null,curPack=null,pauseAt=0,t0=0,packQ=null,sessionLog=[],pendingAns={},qOrder=[],qi=0,clipTrial=0;
+const v=$("v");let urlNow=null;
+const items=()=>Q?Q.packs.flatMap(p=>p.items.map(i=>Object.assign({},i,{_pack:p}))):[];
+const pct=x=>Math.round(100*x)+"%";
+function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+const uuid=()=>(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2));
+const player=()=>$("player").value.trim();
+const say=(el,t)=>{$(el).textContent=t};
+function keyFor(it,task){const o=keys[it.id]||{};const f=task==="zone"?"zone_go":"pitch_go";if(o[f]!=null)return o[f];const k=it.keys||{};return k[f]==null?null:k[f]}
+const PN={FF:"Four-seam",SI:"Sinker",FC:"Cutter",SL:"Slider",ST:"Sweeper",SV:"Slurve",CU:"Curveball",KC:"Knuckle curve",CH:"Changeup",FS:"Splitter",FO:"Forkball",KN:"Knuckleball"};
+// where() is the viewer's wording for a pitch location
+function where(m){if(m.px==null||m.px==="")return"Not tracked";const zt=m.sz_top||3.5,zb=m.sz_bot||1.5,fr=(m.pz-zb)/(zt-zb),ax=Math.abs(m.px);
+ const vv=fr>1?"Above zone":fr<0?"Below zone":fr>2/3?"High":fr<1/3?"Low":"Middle";
+ const h=ax<=0.28?"middle":ax<=0.83?(m.px<0?"inside":"away"):(m.px<0?"off plate, inside":"off plate, away");return vv+", "+h}
+// zone card: the viewer's drawing scale (100 units per foot), catcher view, with the pitch location
+function zoneSVG(m){const U=100,X0=-1.5,Z1=4.25,W=300,H=350,pad=14;const ux=x=>(x-X0)*U,uy=z=>(Z1-z)*U;const zt=m.sz_top||3.5,zb=m.sz_bot||1.5;
+ let s=`<svg class="zone" viewBox="${-pad} ${-pad} ${W+2*pad} ${H+pad+56}" role="img" aria-label="Strike zone, catcher view"><rect x="0" y="0" width="${W}" height="${H}" fill="var(--panel)" stroke="var(--line)"/>`;
+ [-.28,.28].forEach(x=>s+=`<line x1="${ux(x)}" y1="${uy(zt)}" x2="${ux(x)}" y2="${uy(zb)}" stroke="var(--line)"/>`);[1/3,2/3].forEach(f=>{const z=zb+(zt-zb)*f;s+=`<line x1="${ux(-.83)}" y1="${uy(z)}" x2="${ux(.83)}" y2="${uy(z)}" stroke="var(--line)"/>`});
+ s+=`<rect x="${ux(-.83)}" y="${uy(zt)}" width="166" height="${(zt-zb)*U}" fill="none" stroke="var(--ink)" stroke-width="2.5"/>`;
+ const cx0=ux(0);s+=`<polygon points="${cx0-71},${H+10} ${cx0+71},${H+10} ${cx0+71},${H+22} ${cx0},${H+36} ${cx0-71},${H+22}" fill="var(--mid)" stroke="var(--ink2)" stroke-width="1.5"/>`;
+ s+=`<text x="0" y="${H+30}" class="zlab">${m.stand==="L"?"Away":"Inside"}</text><text x="${W}" y="${H+30}" text-anchor="end" class="zlab">${m.stand==="L"?"Inside":"Away"}</text>`;
+ const rx=ux(m.px),ry=uy(m.pz),cx=Math.max(12,Math.min(W-12,rx)),cy=Math.max(12,Math.min(H-12,ry));
+ return s+`<g class="pt"><circle cx="${cx}" cy="${cy}" r="11" class="k-ball"/></g></svg>`}
+// ---------- settings ----------
+const SETK=["player","bats","mode","ask","off","reveal"];
+async function loadSettings(){const s=await kvGet("settings",{});SETK.forEach(k=>{if(s[k]!=null)$(k).value=s[k]})}
+async function saveSettings(){const s={};SETK.forEach(k=>s[k]=$(k).value);await kvSet("settings",s)}
+SETK.forEach(k=>$(k).addEventListener("change",async()=>{await saveSettings();if(k==="bats")await loadQueue();if(k==="player")renderQueue()}));
+// ---------- queue ----------
+async function loadQueue(){
+  try{const r=await fetch(CFG.content+"queue_"+$("bats").value+".json",{cache:"no-cache"});if(!r.ok)throw 0;Q=await r.json();await kvSet("queue_"+$("bats").value,Q)}catch(e){Q=await kvGet("queue_"+$("bats").value,null)}
+  keys=await kvGet("keys",{});renderQueue();renderKeys();fillPitchSelect();refreshInfo();renderHeroIdle()}
+async function fetchClip(it){if(await hasClip(it.id))return true;try{const r=await fetch(CFG.content+it._pack.dir+"/"+it.file);if(!r.ok)return false;await putClip(it.id,await r.blob());return true}catch(e){return false}}
+async function prefetch(list){let n=0;for(const it of list){if(await fetchClip(it))n++;say("dlmsg",`${n} of ${list.length} clips on this phone`)}renderQueue()}
+async function seenSet(){const t=await allTrials();return new Set(t.filter(x=>x.player===player()).map(x=>x.clip))}
+async function renderQueue(){
+  const el=$("packs");el.innerHTML="";if(!Q){el.innerHTML="<div class='card note'>No queue yet. Connect once to load it.</div>";return}
+  const seen=await seenSet();let nextSet=false;
+  for(const p of Q.packs){
+    let on=0;for(const i of p.items)if(await hasClip(i.id))on++;
+    const done=p.items.filter(i=>seen.has(i.id)).length;
+    const d=document.createElement("div");d.className="card";
+    d.innerHTML=`<h2>${p.title}</h2><div class="note">${p.subtitle||""}</div><dl class="det"><dt>Pitches</dt><dd>${p.items.length}</dd><dt>Done</dt><dd>${done} of ${p.items.length}</dd><dt>On this phone</dt><dd>${on} of ${p.items.length}</dd><dt>Mode</dt><dd>${p.mode==="assess"?"Assessment":"Training"}</dd></dl><div class="row"><button class="pri">Start</button><button>Download</button></div>`;
+    const [bs,bd]=d.querySelectorAll("button");bs.onclick=()=>startPack(p);bd.onclick=()=>prefetch(p.items.map(i=>Object.assign({},i,{_pack:p})));
+    el.appendChild(d);
+    if(!nextSet&&done<p.items.length){nextSet=true;$("nextTitle").textContent="Next up: "+p.title;$("nextNum").innerHTML=`${p.items.length-done}<small>new pitches</small>`;$("goNext").onclick=()=>startPack(p)}
+  }
+  if(!nextSet){$("nextTitle").textContent="All caught up";$("nextNum").innerHTML=`0<small>new pitches</small>`;$("goNext").onclick=()=>startPack(Q.packs[0])}
+  $("block").onclick=()=>runBlock(items())}
+function fillPitchSelect(){const s=$("pitch");s.innerHTML="";items().forEach((it,i)=>{const o=document.createElement("option");o.value=i;o.textContent=`${it._pack.title.slice(0,18)} / ${it.label||it.id.slice(0,8)}`;s.appendChild(o)})}
+$("pitch").onchange=()=>{const it=items()[+$("pitch").value];if(it){cur=it;curPack=it._pack;renderHeroIdle();say("now","Selected: "+(it.label||it.id));showTab("play")}};
+$("dlAll").onclick=()=>prefetch(items());
+async function startPack(p){if(!player()){showTab("set");say("now","Enter a player name or ID first");return}
+  const seen=await seenSet();let list=p.items.filter(i=>!seen.has(i.id));if(!list.length)list=p.items.slice();
+  const r=rng(hash(player()+session+p.id));for(let i=list.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[list[i],list[j]]=[list[j],list[i]]}
+  $("mode").value=p.mode||$("mode").value;await saveSettings();packQ=list.map(i=>Object.assign({},i,{_pack:p}));showTab("play");nextInQueue()}
+function runBlock(all){if(!player()){showTab("set");say("now","Enter a player name or ID first");return}
+  const r=rng(hash(player()+session+"block"));const a=all.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}packQ=a;showTab("play");nextInQueue()}
+function nextInQueue(){if(!packQ)return;if(!packQ.length){packQ=null;say("now","Done. Your numbers are in Log. Sync to send them.");renderHeroIdle();$("start").style.display="";$("next").style.display="none";return}
+  const it=packQ.shift();say("now",`${packQ.length+1} left in ${it._pack.title}`);cur=it;curPack=it._pack;setTimeout(()=>startPitch(true),500)}
+// ---------- hero ----------
+function renderHeroIdle(){const p=curPack||(Q&&Q.packs[0]);$("hlab").textContent=p?p.title:"Next up";$("hnum").innerHTML=`${p?p.items.length:"-"}<small>pitches in this pack</small>`;$("hmeta").textContent=p?(p.subtitle||""):"";renderTiles()}
+function renderTiles(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;return[n?pct(k/n):"-","n="+n]};
+  const [z,zn]=f("zone"),[p,pn]=f("pitch");const rts=sessionLog.map(t=>t.rt_ms).sort((a,b)=>a-b);
+  $("tiles").innerHTML=sessionLog.length?`<div class="tile"><div class="tl">Strike? ${zn}</div><div class="tv">${z}</div></div><div class="tile"><div class="tl">Fastball? ${pn}</div><div class="tv">${p}</div></div><div class="tile"><div class="tl">Median ms, n=${rts.length}</div><div class="tv">${rts[Math.floor(rts.length/2)]}</div></div>`:""}
+// ---------- the pitch ----------
+async function startPitch(auto){
+  if(state==="playing"||state==="q")return;
+  if(!player()){showTab("set");say("now","Enter a player name or ID first");return}
+  if(!cur){const its=items();if(!its.length){say("now","No pitches yet. Connect once to load the queue.");return}cur=its[+$("pitch").value||0];curPack=cur._pack}
+  if(!(await hasClip(cur.id))&&!(await fetchClip(cur))){say("now","This clip is not on the phone and there is no signal.");return}
+  const c=await getClip(cur.id);if(urlNow)URL.revokeObjectURL(urlNow);urlNow=URL.createObjectURL(c.blob);v.src=urlNow;v.muted=true;v.currentTime=0;
+  $("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";
+  pauseAt=cur.release+parseFloat($("off").value);state="playing";$("hint").classList.add("on");pendingAns={};clipTrial++;
+  const ask=$("ask").value;qOrder=ask==="both"?(rng(hash(player()+session+cur.id))()<0.5?["zone","pitch"]:["pitch","zone"]):[ask];qi=0;
+  $("hlab").textContent=curPack.title;$("hnum").innerHTML=`Watch<small>the pitch</small>`;$("hmeta").textContent=cur.label||"";
+  try{await v.play()}catch(e){say("now","Tap Start pitch to allow video");state="idle";$("start").style.display="";return}
+  watch()}
+function watch(){const check=(now,meta)=>{if(state!=="playing")return;const mt=meta?meta.mediaTime:v.currentTime;
+    if(mt>=pauseAt-0.0085){window.__pauseMT=mt;v.pause();v.currentTime=pauseAt;state="q";$("hint").classList.remove("on");showQ();return}
+    v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))};
+  v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))}
+function showQ(){const task=qOrder[qi];$("hlab").textContent=qOrder.length>1?`Question ${qi+1} of ${qOrder.length}`:"Question";$("hnum").innerHTML=task==="zone"?"Strike?":"Fastball?";
+  $("qn").textContent=task==="zone"?"GO if it crosses the zone. NO-GO if it does not.":"GO if it is a fastball. NO-GO if it is not.";$("q").style.display="";t0=performance.now()}
+async function answer(go){if(state!=="q")return;const rt=Math.round(performance.now()-t0),task=qOrder[qi];const key=keyFor(cur,task);const m=cur.meta||{};
+  const t={id:uuid(),player:player(),session,mode:$("mode").value,ts:new Date().toISOString(),pack:curPack.id,clip:cur.id,clip_trial:clipTrial,task,q_order:qi+1,ask:$("ask").value,pause_ms:Math.round(parseFloat($("off").value)*1000),
+    call:go?"GO":"NO-GO",rt_ms:rt,key:key==null?"":(key?"GO":"NO-GO"),correct:key==null?"":(key===go?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
+    sz_top:m.sz_top??"",sz_bot:m.sz_bot??"",speed:m.speed??"",stand:m.stand??"",p_throws:m.p_throws??"",release_frame:cur.release_frame??"",app:APP,synced:0};
+  await putTrial(t);sessionLog.push(t);pendingAns[task]={go,key,rt};addRow(t);navigator.vibrate&&navigator.vibrate(15);
+  qi++;if(qi<qOrder.length){showQ();updateChips();return}
+  $("q").style.display="none";finishClip()}
+function edgeIn(m){if(m.px==null||m.px===""||m.pz==null)return null;const zt=m.sz_top||3.5,zb=m.sz_bot||1.5;const d=Math.max(Math.abs(m.px)-0.83,m.pz-zt,zb-m.pz)*12;return d}
+const num=(x,d=1)=>x==null||x===""?null:Number(x).toFixed(d);
+function resultCard(m,answerRows){
+  const tracked=m.px!=null&&m.px!=="";const d=edgeIn(m);
+  const edge=d==null?"":(d<0?`${Math.abs(d).toFixed(1)} in inside the edge of the zone`:`${d.toFixed(1)} in outside the edge of the zone`);
+  const run=m.run_in==null?null:(Math.abs(m.run_in)<0.05?"none":`${Math.abs(m.run_in).toFixed(1)} in ${m.run_in>0?"away from the batter":"toward the batter"}`);
+  const pitch=[PN[m.pitch_type]||m.pitch_type,m.speed!=null&&m.speed!==""?num(m.speed)+" mph":null].filter(Boolean).join(", ");
+  const rows=[["Pitch",pitch||null],["Where it crossed",tracked?where(m):null],["Zone edge",edge||null],["Ride, induced vertical break",m.ride_in==null?null:num(m.ride_in)+" in"],["Run, horizontal break",run],
+    ["Spin",m.spin==null?null:Math.round(m.spin).toLocaleString()+" rpm"],["Extension",m.extension==null?null:num(m.extension)+" ft"],["Flight time",m.flight_ms==null?null:m.flight_ms+" ms"],["Result",m.outcome||null]].filter(r=>r[1]);
+  return `<div class="card"><dl class="det">${answerRows}${rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("")}</dl></div>${tracked?`<div class="zonecard">${zoneSVG(m)}</div>`:""}<div class="note" style="margin-top:6px">Zone view is from the catcher. Ride and run are the pitch's own movement, in inches.</div>`}
+function finishClip(){const assess=$("mode").value==="assess";const r=$("res");renderTiles();updateChips();renderStats();
+  if(assess){$("hlab").textContent="Recorded";$("hnum").innerHTML=`${sessionLog.length}<small>answers this session</small>`;r.innerHTML="";state="idle";v.pause();after(true);return}
+  const row=(task,lab)=>{const a=pendingAns[task];if(!a)return"";const sc=a.key==null?`<span class="mut">no answer on file</span>`:(a.key===a.go?`<span class="lab-ok">Correct</span>`:`<span class="lab-bad">Wrong</span>`);
+    const ans=a.key==null?"unknown":(a.key?"GO":"NO-GO");return `<dt>${lab}</dt><dd>${a.go?"GO":"NO-GO"}, ${a.rt} ms <span class="mut">(answer ${ans})</span> ${sc}</dd>`};
+  const m=cur.meta||{};const right=Object.values(pendingAns).filter(a=>a.key!=null&&a.key===a.go).length,scored=Object.values(pendingAns).filter(a=>a.key!=null).length;
+  $("hlab").textContent="Result";$("hnum").innerHTML=scored?`${right} of ${scored}<small>correct</small>`:`Recorded<small>no answers on file</small>`;
+  r.innerHTML=resultCard(m,row("zone","Strike?")+row("pitch","Fastball?"));
+  state="reveal";
+  if($("reveal").value==="1"){v.muted=false;v.play().catch(()=>{});v.onended=()=>{if(state==="reveal"){state="idle";after(false)}}}else{state="idle";after(false)}}
+function after(auto){if(packQ){if(auto)setTimeout(nextInQueue,900);else{$("next").style.display="";$("next").onclick=nextInQueue}}else{$("start").style.display="";$("next").style.display="none"}}
+$("bgo").onclick=()=>answer(true);$("bno").onclick=()=>answer(false);$("start").onclick=()=>startPitch(false);
+document.addEventListener("keydown",e=>{if(["SELECT","INPUT"].includes(e.target.tagName))return;if(e.key==="g"||e.key==="G")answer(true);else if(e.key==="n"||e.key==="N")answer(false);else if(e.key===" "||e.key==="Enter"){e.preventDefault();if($("next").style.display!=="none")$("next").click();else startPitch(false)}});
+// ---------- log, csv, sync ----------
+const TCOLS="player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",");
+const q=x=>{x=String(x??"");return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
+const toCSV=ts=>[TCOLS.join(","),...ts.map(t=>TCOLS.map(c=>q(t[c])).join(","))].join("\n");
+function addRow(t){const assess=t.mode==="assess";const tb=document.querySelector("#log tbody");const tr=document.createElement("tr");
+  tr.innerHTML=`<td>${sessionLog.length}</td><td>${(t.clip||"").slice(0,6)}</td><td>${t.task==="zone"?"strike":"fastball"}</td><td class="num">${t.pause_ms}</td><td>${t.call}</td><td class="num">${t.rt_ms}</td><td>${assess?"hidden":(t.key||"unknown")}</td><td>${assess?"hidden":(t.correct===""?"no key":t.correct?"correct":"wrong")}</td>`;tb.appendChild(tr)}
+function renderStats(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;const rts=s.map(t=>t.rt_ms).sort((a,b)=>a-b);return n?`<b>${pct(k/n)}</b> (${k} of ${n}), median ${rts[Math.floor(n/2)]} ms`:"no scored answers"};
+  $("stats").innerHTML=`<span>This session: <b>${sessionLog.length}</b> answers</span><span>Strike? ${f("zone")}</span><span>Fastball? ${f("pitch")}</span>`}
+async function updateChips(){const t=await allTrials();const n=t.filter(x=>!x.synced).length;$("pend").textContent=n+" to sync";$("pend").className="chip"+(n>0&&!navigator.onLine?" warn":"")}
+$("copy").onclick=async()=>{try{await navigator.clipboard.writeText(toCSV(sessionLog));say("syncmsg","Copied.")}catch(e){say("syncmsg","Copy failed.")}};
+$("dl").onclick=async()=>{const f=new File([toCSV(await allTrials())],"gonogo_trials.csv",{type:"text/csv"});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Go/No-Go trials"});return}catch(e){}}
+  const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download="gonogo_trials.csv";a.click()};
+async function sync(){if(!CFG.sync_url){say("syncmsg","No sync server is set. Use Download to share the file.");return false}
+  const un=(await allTrials()).filter(t=>!t.synced);if(!un.length){say("syncmsg","Nothing to sync.");return true}
+  try{const r=await fetch(CFG.sync_url,{method:"POST",headers:Object.assign({"Content-Type":"application/json"},CFG.token?{"X-Token":CFG.token}:{}),body:JSON.stringify({trials:un})});
+    if(!r.ok)throw new Error(r.status);for(const t of un){t.synced=1;await putTrial(t)}say("syncmsg",`Synced ${un.length}.`);updateChips();return true}catch(e){say("syncmsg","Sync failed. It will retry when you are back online.");return false}}
+$("sync").onclick=sync;
+window.addEventListener("online",()=>{$("net").textContent="online";$("net").className="chip";sync()});window.addEventListener("offline",()=>{$("net").textContent="offline";$("net").className="chip warn"});
+// ---------- keys ----------
+function renderKeys(){const el=$("keys");el.innerHTML="";items().forEach(it=>{const o=keys[it.id]||{};const d=document.createElement("div");d.className="card";const k=it.keys||{};
+  const sel=(f,shipped)=>{const s=document.createElement("select");[["","unknown"],["true","GO"],["false","NO-GO"]].forEach(([val,txt])=>{const op=document.createElement("option");op.value=val;op.textContent=txt;const c=o[f]!=null?o[f]:shipped;if(String(c)===val||(c==null&&val===""))op.selected=true;s.appendChild(op)});
+    s.onchange=async()=>{keys[it.id]=keys[it.id]||{};keys[it.id][f]=s.value===""?null:s.value==="true";await kvSet("keys",keys)};return s};
+  d.innerHTML=`<h2>${it.label||it.id.slice(0,8)}</h2><div class="note">${it._pack.title}${it._pack.mode==="assess"?", assessment: no shipped answer":""}</div><dl class="det"><dt>Strike? (GO = in zone)</dt><dd></dd><dt>Fastball? (GO = fastball)</dt><dd></dd></dl>`;
+  const dds=d.querySelectorAll("dd");dds[0].appendChild(sel("zone_go",k.zone_go));dds[1].appendChild(sel("pitch_go",k.pitch_go));el.appendChild(d)})}
+// ---------- tabs, info, boot ----------
+function showTab(t){document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id==="t-"+t));document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(t==="queue")renderQueue();window.scrollTo(0,0)}
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.t));
+async function refreshInfo(){const t=await allTrials();let n=0;try{n=(await navigator.storage.estimate()).usage||0}catch(e){}
+  $("dataInfo").textContent=`${t.length} answers stored, ${t.filter(x=>!x.synced).length} not synced. Storage used about ${(n/1e6).toFixed(1)} MB. Queue: ${Q?(Q.generated||"loaded"):"not loaded"}.`}
+$("refresh").onclick=async()=>{await loadQueue();say("dlmsg","Queue refreshed.")};
+$("wipe").onclick=async()=>{if(!confirm("Erase all answers on this phone? Unsynced answers are lost."))return;const t=await allTrials();for(const x of t)await pr(tx("trials","readwrite").delete(x.id));sessionLog=[];document.querySelector("#log tbody").innerHTML="";renderStats();renderTiles();updateChips();refreshInfo()};
+async function boot(){
+  await openDB();try{const r=await fetch("config.json",{cache:"no-cache"});CFG=Object.assign(CFG,await r.json())}catch(e){CFG=Object.assign(CFG,await kvGet("config",{}))}await kvSet("config",CFG);
+  await loadSettings();await loadQueue();renderStats();updateChips();refreshInfo();
+  if(!player())showTab("set");
+  $("net").textContent=navigator.onLine?"online":"offline";if(!navigator.onLine)$("net").className="chip warn";
+  if(Q&&navigator.onLine){const seen=await seenSet();const first=Q.packs.find(p=>p.items.some(i=>!seen.has(i.id)))||Q.packs[0];if(first)prefetch(first.items.map(i=>Object.assign({},i,{_pack:first})))}
+  if(navigator.onLine)sync();
+  window.__gonogo={state:()=>state,pauseAt:()=>pauseAt,trials:allTrials,session:()=>session,queue:()=>Q,sessionLog:()=>sessionLog};
+  if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{})}
+boot();
+</script></body></html>

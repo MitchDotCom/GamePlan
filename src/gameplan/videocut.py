@@ -204,9 +204,24 @@ def answer_keys(p: dict) -> dict:
 
 
 def pitch_meta(p: dict) -> dict:
-    """What a trial log needs to know about the pitch: type, family, pocket, location, zone, speed, sides. Values from tracking, nothing inferred."""
+    """What a trial log and the result card need to know about the pitch, all from tracking: type, family, pocket, location, zone, speed, sides, movement, spin, extension, flight time, outcome.
+    ride_in = induced vertical break in inches. run_in = horizontal break in inches, positive away from the batter, negative toward him (the study's column)."""
+    def f(k):
+        try:
+            x = float(p.get(k))
+            return x if x == x else None
+        except (TypeError, ValueError):
+            return None
+    ride, run = (p["_ride_in"], p["_run_in"]) if p.get("_ride_in") is not None else (None, None)
+    if ride is None and f("pfxZ") is not None and f("pfxX") is not None and p.get("stand") in ("L", "R"):
+        ride = f("pfxZ") * 12.0
+        run = (f("pfxX") if p["stand"] == "R" else -f("pfxX")) * 12.0     # the feed's pfxX is positive toward first base
+    pt = f("plateTime")
     return dict(pitch_type=p.get("pitch_type"), family=pitch_family(p.get("pitch_type", "")), pocket=pocket(p), px=p.get("px"), pz=p.get("pz"), sz_top=p.get("sz_top"),
-                sz_bot=p.get("sz_bot"), speed=p.get("start_speed"), stand=p.get("stand"), p_throws=p.get("p_throws"))
+                sz_bot=p.get("sz_bot"), speed=p.get("start_speed"), stand=p.get("stand"), p_throws=p.get("p_throws"),
+                ride_in=None if ride is None else round(ride, 1), run_in=None if run is None else round(run, 1),
+                spin=f("spin_rate"), extension=None if f("extension") is None else round(f("extension"), 1),
+                flight_ms=round(pt * 1000) if pt and pt > 0 else None, outcome=p.get("description") or p.get("pitch_call"))
 
 
 def top_shapes(pitches: list[dict], pitcher: str, stand: str, n: int = 3) -> list[tuple]:
