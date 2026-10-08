@@ -84,18 +84,42 @@ def reliability(hist: dict, min_each: int = PR.MIN_EACH) -> dict:
     return out
 
 
+def year_over_year(prev: dict, cur: dict, min_swings: int = PR.MIN_EACH) -> dict:
+    """Slope in the earlier season vs the later one, for hitters with at least min_swings swings in the family in both. Plain r with a hitter bootstrap interval."""
+    out = {}
+    for trait, fam in (("ride", "FB"), ("run", "BRK")):
+        a, b = [], []
+        for k in set(prev) & set(cur):
+            x = PL.trait_slope(prev[k], fam, trait, min_swings=min_swings, boot=0)
+            y = PL.trait_slope(cur[k], fam, trait, min_swings=min_swings, boot=0)
+            if x["ok"] and y["ok"]:
+                a.append(x["slope"]); b.append(y["slope"])
+        if len(a) >= 8:
+            lo, hi = PR.boot_r(a, b)
+            out[trait] = dict(n=len(a), r=round(float(np.corrcoef(a, b)[0, 1]), 3), ci=[round(float(lo), 3), round(float(hi), 3)])
+        else:
+            out[trait] = dict(n=len(a), r=None)
+    out["hitters_in_both_seasons"] = len(set(prev) & set(cur))
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", required=True)
     ap.add_argument("--label", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--midseason", default="2025-06-15")
+    ap.add_argument("--prior-cache", default=None, help="the previous season's cache, for the year-over-year check")
     ap.add_argument("--min-pitches", type=int, default=300, help="hitters with fewer tracked rows than this are ignored")
     a = ap.parse_args(argv)
     pitches = MF.load(pathlib.Path(a.cache))
     hist = {k: v for k, v in by_hitter(pitches).items() if len(v) >= a.min_pitches}
     res = dict(label=a.label, tracked_pitches=len(pitches), hitters=len(hist), coverage_full=coverage(hist), coverage_midseason=coverage(hist, cutoff=a.midseason),
                reliability=reliability(hist))
+    if a.prior_cache:
+        prev = {k: v for k, v in by_hitter(MF.load(pathlib.Path(a.prior_cache))).items() if len(v) >= a.min_pitches}
+        res["year_over_year"] = year_over_year(prev, hist)
+        res["prior_hitters"] = len(prev)
     pathlib.Path(a.out, f"milb_study_{a.label}.json").write_text(json.dumps(res, indent=1))
     print(json.dumps(res, indent=1))
     return 0
