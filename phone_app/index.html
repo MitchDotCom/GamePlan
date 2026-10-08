@@ -81,6 +81,7 @@ video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
  --panel:#4a2a7a;--ink:#f6f0ff;--ink2:#d4c4ee;--ink3:#b39dd8;--line:#6a46a0;--mid:#573488;--brand:#e3b9a1;--good:#7fe3de;--pos:#2fb3b0;--neg:#c79a80}
 svg.zone{display:block;width:100%;height:auto;max-width:300px;margin:0 auto}.zlab{font-size:10px;fill:var(--ink3)}
 .pt circle{stroke:var(--ink2);stroke-width:1.5}.pt .k-ball{fill:var(--panel);stroke:var(--ink);stroke-width:2}
+#res .card{padding:var(--s4)}#res dl.det dt{padding-right:var(--s3)}#res dl.det dd{overflow-wrap:anywhere}.nw{white-space:nowrap}
 section{display:none}section.on{display:block}
 @media(prefers-reduced-motion:no-preference){button{transition:border-color .12s ease-out,background-color .12s ease-out}}
 </style></head><body><div class="wrap">
@@ -150,7 +151,9 @@ const getClip=id=>pr(tx("clips","readonly").get(id));
 const putClip=(id,blob)=>pr(tx("clips","readwrite").put({id,blob}));
 // ---------- state ----------
 let Q=null,keys={},session=new Date().toISOString().slice(0,19).replace(/[:T-]/g,""),state="idle",cur=null,curPack=null,pauseAt=0,t0=0,packQ=null,sessionLog=[],pendingAns={},qOrder=[],qi=0,clipTrial=0;
-const v=$("v");let urlNow=null;
+const v=$("v");let urlNow=null;let reach=true;
+// "online" means a request actually got through, not just that the radio is on (navigator.onLine is unreliable on phones)
+function setNet(ok){if(ok!==undefined)reach=ok;const on=navigator.onLine&&reach;$("net").textContent=on?"online":"offline";$("net").className="chip"+(on?"":" warn");updateChips&&updateChips()}
 const items=()=>Q?Q.packs.flatMap(p=>p.items.map(i=>Object.assign({},i,{_pack:p}))):[];
 const pct=x=>Math.round(100*x)+"%";
 function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
@@ -180,13 +183,15 @@ async function saveSettings(){const s={};SETK.forEach(k=>s[k]=$(k).value);await 
 SETK.forEach(k=>$(k).addEventListener("change",async()=>{await saveSettings();if(k==="bats")await loadQueue();if(k==="player")renderQueue()}));
 // ---------- queue ----------
 async function loadQueue(){
-  try{const r=await fetch(CFG.content+"queue_"+$("bats").value+".json",{cache:"no-cache"});if(!r.ok)throw 0;Q=await r.json();await kvSet("queue_"+$("bats").value,Q)}catch(e){Q=await kvGet("queue_"+$("bats").value,null)}
+  try{const r=await fetch(CFG.content+"queue_"+$("bats").value+".json",{cache:"no-cache"});if(!r.ok)throw 0;Q=await r.json();await kvSet("queue_"+$("bats").value,Q);setNet(!r.headers.get("X-From-Cache"))}catch(e){Q=await kvGet("queue_"+$("bats").value,null);setNet(false)}
   keys=await kvGet("keys",{});renderQueue();renderKeys();fillPitchSelect();refreshInfo();renderHeroIdle()}
 async function fetchClip(it){if(await hasClip(it.id))return true;try{const r=await fetch(CFG.content+it._pack.dir+"/"+it.file);if(!r.ok)return false;await putClip(it.id,await r.blob());return true}catch(e){return false}}
 async function prefetch(list){let n=0;for(const it of list){if(await fetchClip(it))n++;say("dlmsg",`${n} of ${list.length} clips on this phone`)}renderQueue()}
 async function seenSet(){const t=await allTrials();return new Set(t.filter(x=>x.player===player()).map(x=>x.clip))}
+let renderTok=0;
 async function renderQueue(){
-  const el=$("packs");el.innerHTML="";if(!Q){el.innerHTML="<div class='card note'>No queue yet. Connect once to load it.</div>";return}
+  const my=++renderTok;const el=$("packs");if(!Q){el.innerHTML="<div class='card note'>No queue yet. Connect once to load it.</div>";return}
+  const frag=document.createDocumentFragment();           // build off-screen; only the newest call is allowed to put its result on the page
   const seen=await seenSet();let nextSet=false;
   for(const p of Q.packs){
     let on=0;for(const i of p.items)if(await hasClip(i.id))on++;
@@ -194,9 +199,11 @@ async function renderQueue(){
     const d=document.createElement("div");d.className="card";
     d.innerHTML=`<h2>${p.title}</h2><div class="note">${p.subtitle||""}</div><dl class="det"><dt>Pitches</dt><dd>${p.items.length}</dd><dt>Done</dt><dd>${done} of ${p.items.length}</dd><dt>On this phone</dt><dd>${on} of ${p.items.length}</dd><dt>Mode</dt><dd>${p.mode==="assess"?"Assessment":"Training"}</dd></dl><div class="row"><button class="pri">Start</button><button>Download</button></div>`;
     const [bs,bd]=d.querySelectorAll("button");bs.onclick=()=>startPack(p);bd.onclick=()=>prefetch(p.items.map(i=>Object.assign({},i,{_pack:p})));
-    el.appendChild(d);
-    if(!nextSet&&done<p.items.length){nextSet=true;$("nextTitle").textContent="Next up: "+p.title;$("nextNum").innerHTML=`${p.items.length-done}<small>new pitches</small>`;$("goNext").onclick=()=>startPack(p)}
+    frag.appendChild(d);
+    if(!nextSet&&done<p.items.length){nextSet=true;$("nextTitle").textContent=p.title.startsWith("Next")?p.title:"Next up: "+p.title;$("nextNum").innerHTML=`${p.items.length-done}<small>new pitches</small>`;$("goNext").onclick=()=>startPack(p)}
   }
+  if(my!==renderTok)return;
+  el.replaceChildren(frag);
   if(!nextSet){$("nextTitle").textContent="All caught up";$("nextNum").innerHTML=`0<small>new pitches</small>`;$("goNext").onclick=()=>startPack(Q.packs[0])}
   $("block").onclick=()=>runBlock(items())}
 function fillPitchSelect(){const s=$("pitch");s.innerHTML="";items().forEach((it,i)=>{const o=document.createElement("option");o.value=i;o.textContent=`${it._pack.title.slice(0,18)} / ${it.label||it.id.slice(0,8)}`;s.appendChild(o)})}
@@ -209,7 +216,7 @@ async function startPack(p){if(!player()){showTab("set");say("now","Enter a play
 function runBlock(all){if(!player()){showTab("set");say("now","Enter a player name or ID first");return}
   const r=rng(hash(player()+session+"block"));const a=all.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}packQ=a;showTab("play");nextInQueue()}
 function nextInQueue(){if(!packQ)return;if(!packQ.length){packQ=null;say("now","Done. Your numbers are in Log. Sync to send them.");renderHeroIdle();$("start").style.display="";$("next").style.display="none";return}
-  const it=packQ.shift();say("now",`${packQ.length+1} left in ${it._pack.title}`);cur=it;curPack=it._pack;setTimeout(()=>startPitch(true),500)}
+  const it=packQ.shift();say("now",`${packQ.length+1} ${packQ.length+1===1?"pitch":"pitches"} left in this pack`);cur=it;curPack=it._pack;setTimeout(()=>startPitch(true),500)}
 // ---------- hero ----------
 function renderHeroIdle(){const p=curPack||(Q&&Q.packs[0]);$("hlab").textContent=p?p.title:"Next up";$("hnum").innerHTML=`${p?p.items.length:"-"}<small>pitches in this pack</small>`;$("hmeta").textContent=p?(p.subtitle||""):"";renderTiles()}
 function renderTiles(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;return[n?pct(k/n):"-","n="+n]};
@@ -223,7 +230,7 @@ async function startPitch(auto){
   if(!(await hasClip(cur.id))&&!(await fetchClip(cur))){say("now","This clip is not on the phone and there is no signal.");return}
   const c=await getClip(cur.id);if(urlNow)URL.revokeObjectURL(urlNow);urlNow=URL.createObjectURL(c.blob);v.src=urlNow;v.muted=true;v.currentTime=0;
   $("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";
-  pauseAt=cur.release+parseFloat($("off").value);state="playing";$("hint").classList.add("on");pendingAns={};clipTrial++;
+  $("tiles").innerHTML="";pauseAt=cur.release+parseFloat($("off").value);state="playing";$("hint").classList.add("on");pendingAns={};clipTrial++;
   const ask=$("ask").value;qOrder=ask==="both"?(rng(hash(player()+session+cur.id))()<0.5?["zone","pitch"]:["pitch","zone"]):[ask];qi=0;
   $("hlab").textContent=curPack.title;$("hnum").innerHTML=`Watch<small>the pitch</small>`;$("hmeta").textContent=cur.label||"";
   try{await v.play()}catch(e){say("now","Tap Start pitch to allow video");state="idle";$("start").style.display="";return}
@@ -245,18 +252,20 @@ function edgeIn(m){if(m.px==null||m.px===""||m.pz==null)return null;const zt=m.s
 const num=(x,d=1)=>x==null||x===""?null:Number(x).toFixed(d);
 function resultCard(m,answerRows){
   const tracked=m.px!=null&&m.px!=="";const d=edgeIn(m);
-  const edge=d==null?"":(d<0?`${Math.abs(d).toFixed(1)} in inside the edge of the zone`:`${d.toFixed(1)} in outside the edge of the zone`);
+  const edge=d==null?"":(d<0?`${Math.abs(d).toFixed(1)} in inside`:`${d.toFixed(1)} in outside`);
   const run=m.run_in==null?null:(Math.abs(m.run_in)<0.05?"none":`${Math.abs(m.run_in).toFixed(1)} in ${m.run_in>0?"away from the batter":"toward the batter"}`);
   const pitch=[PN[m.pitch_type]||m.pitch_type,m.speed!=null&&m.speed!==""?num(m.speed)+" mph":null].filter(Boolean).join(", ");
-  const rows=[["Pitch",pitch||null],["Where it crossed",tracked?where(m):null],["Zone edge",edge||null],["Ride, induced vertical break",m.ride_in==null?null:num(m.ride_in)+" in"],["Run, horizontal break",run],
+  const rows=[["Pitch",pitch||null],["Location",tracked?where(m):null],["Zone edge",edge||null],["Ride",m.ride_in==null?null:num(m.ride_in)+" in"],["Run",run],
     ["Spin",m.spin==null?null:Math.round(m.spin).toLocaleString()+" rpm"],["Extension",m.extension==null?null:num(m.extension)+" ft"],["Flight time",m.flight_ms==null?null:m.flight_ms+" ms"],["Result",m.outcome||null]].filter(r=>r[1]);
-  return `<div class="card"><dl class="det">${answerRows}${rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("")}</dl></div>${tracked?`<div class="zonecard">${zoneSVG(m)}</div>`:""}<div class="note" style="margin-top:6px">Zone view is from the catcher. Ride and run are the pitch's own movement, in inches.</div>`}
-function finishClip(){const assess=$("mode").value==="assess";const r=$("res");renderTiles();updateChips();renderStats();
+  return `<div class="card"><dl class="det">${answerRows}${rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("")}</dl></div>${tracked?`<div class="zonecard">${zoneSVG(m)}</div>`:""}<div class="note" style="margin-top:6px">Zone view is from the catcher. Ride is induced vertical break and run is horizontal break, both in inches. Run is measured away from or toward the batter. Zone edge is how far the pitch was from the edge of the zone.</div>`}
+function finishClip(){const assess=$("mode").value==="assess";const r=$("res");$("tiles").innerHTML="";updateChips();renderStats();
   if(assess){$("hlab").textContent="Recorded";$("hnum").innerHTML=`${sessionLog.length}<small>answers this session</small>`;r.innerHTML="";state="idle";v.pause();after(true);return}
-  const row=(task,lab)=>{const a=pendingAns[task];if(!a)return"";const sc=a.key==null?`<span class="mut">no answer on file</span>`:(a.key===a.go?`<span class="lab-ok">Correct</span>`:`<span class="lab-bad">Wrong</span>`);
-    const ans=a.key==null?"unknown":(a.key?"GO":"NO-GO");return `<dt>${lab}</dt><dd>${a.go?"GO":"NO-GO"}, ${a.rt} ms <span class="mut">(answer ${ans})</span> ${sc}</dd>`};
+  const row=(task,lab)=>{const a=pendingAns[task];if(!a)return"";
+    const verdict=a.key==null?`<span class="mut">no answer on file</span>`:(a.key===a.go?`<span class="lab-ok">Correct</span>`:`<span class="lab-bad">Wrong</span>`);
+    const ans=a.key==null?"unknown":(a.key?"GO":"NO-GO");
+    return `<dt>${lab}</dt><dd><span class="nw">${a.go?"GO":"NO-GO"} ${verdict}</span></dd><dt>Right answer</dt><dd class="mut">${ans}</dd>`};
   const m=cur.meta||{};const right=Object.values(pendingAns).filter(a=>a.key!=null&&a.key===a.go).length,scored=Object.values(pendingAns).filter(a=>a.key!=null).length;
-  $("hlab").textContent="Result";$("hnum").innerHTML=scored?`${right} of ${scored}<small>correct</small>`:`Recorded<small>no answers on file</small>`;
+  $("hlab").textContent="Result";$("hmeta").textContent="Your times: "+qOrder.map(t=>pendingAns[t]?pendingAns[t].rt+" ms":"").filter(Boolean).join(", ");$("hnum").innerHTML=scored?`${right} of ${scored}<small>correct</small>`:`Recorded<small>no answers on file</small>`;
   r.innerHTML=resultCard(m,row("zone","Strike?")+row("pitch","Fastball?"));
   state="reveal";
   if($("reveal").value==="1"){v.muted=false;v.play().catch(()=>{});v.onended=()=>{if(state==="reveal"){state="idle";after(false)}}}else{state="idle";after(false)}}
@@ -271,7 +280,7 @@ function addRow(t){const assess=t.mode==="assess";const tb=document.querySelecto
   tr.innerHTML=`<td>${sessionLog.length}</td><td>${(t.clip||"").slice(0,6)}</td><td>${t.task==="zone"?"strike":"fastball"}</td><td class="num">${t.pause_ms}</td><td>${t.call}</td><td class="num">${t.rt_ms}</td><td>${assess?"hidden":(t.key||"unknown")}</td><td>${assess?"hidden":(t.correct===""?"no key":t.correct?"correct":"wrong")}</td>`;tb.appendChild(tr)}
 function renderStats(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;const rts=s.map(t=>t.rt_ms).sort((a,b)=>a-b);return n?`<b>${pct(k/n)}</b> (${k} of ${n}), median ${rts[Math.floor(n/2)]} ms`:"no scored answers"};
   $("stats").innerHTML=`<span>This session: <b>${sessionLog.length}</b> answers</span><span>Strike? ${f("zone")}</span><span>Fastball? ${f("pitch")}</span>`}
-async function updateChips(){const t=await allTrials();const n=t.filter(x=>!x.synced).length;$("pend").textContent=n+" to sync";$("pend").className="chip"+(n>0&&!navigator.onLine?" warn":"")}
+async function updateChips(){if(!DB)return;const t=await allTrials();const n=t.filter(x=>!x.synced).length;$("pend").textContent=n+" to sync";$("pend").className="chip"+(n>0&&!(navigator.onLine&&reach)?" warn":"")}
 $("copy").onclick=async()=>{try{await navigator.clipboard.writeText(toCSV(sessionLog));say("syncmsg","Copied.")}catch(e){say("syncmsg","Copy failed.")}};
 $("dl").onclick=async()=>{const f=new File([toCSV(await allTrials())],"gonogo_trials.csv",{type:"text/csv"});
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Go/No-Go trials"});return}catch(e){}}
@@ -279,9 +288,9 @@ $("dl").onclick=async()=>{const f=new File([toCSV(await allTrials())],"gonogo_tr
 async function sync(){if(!CFG.sync_url){say("syncmsg","No sync server is set. Use Download to share the file.");return false}
   const un=(await allTrials()).filter(t=>!t.synced);if(!un.length){say("syncmsg","Nothing to sync.");return true}
   try{const r=await fetch(CFG.sync_url,{method:"POST",headers:Object.assign({"Content-Type":"application/json"},CFG.token?{"X-Token":CFG.token}:{}),body:JSON.stringify({trials:un})});
-    if(!r.ok)throw new Error(r.status);for(const t of un){t.synced=1;await putTrial(t)}say("syncmsg",`Synced ${un.length}.`);updateChips();return true}catch(e){say("syncmsg","Sync failed. It will retry when you are back online.");return false}}
+    if(!r.ok)throw new Error(r.status);for(const t of un){t.synced=1;await putTrial(t)}say("syncmsg",`Synced ${un.length}.`);setNet(true);return true}catch(e){say("syncmsg","Sync failed. It will retry when you are back online.");setNet(false);return false}}
 $("sync").onclick=sync;
-window.addEventListener("online",()=>{$("net").textContent="online";$("net").className="chip";sync()});window.addEventListener("offline",()=>{$("net").textContent="offline";$("net").className="chip warn"});
+window.addEventListener("online",()=>{setNet(true);sync()});window.addEventListener("offline",()=>setNet(false));
 // ---------- keys ----------
 function renderKeys(){const el=$("keys");el.innerHTML="";items().forEach(it=>{const o=keys[it.id]||{};const d=document.createElement("div");d.className="card";const k=it.keys||{};
   const sel=(f,shipped)=>{const s=document.createElement("select");[["","unknown"],["true","GO"],["false","NO-GO"]].forEach(([val,txt])=>{const op=document.createElement("option");op.value=val;op.textContent=txt;const c=o[f]!=null?o[f]:shipped;if(String(c)===val||(c==null&&val===""))op.selected=true;s.appendChild(op)});
@@ -299,9 +308,9 @@ async function boot(){
   await openDB();try{const r=await fetch("config.json",{cache:"no-cache"});CFG=Object.assign(CFG,await r.json())}catch(e){CFG=Object.assign(CFG,await kvGet("config",{}))}await kvSet("config",CFG);
   await loadSettings();await loadQueue();renderStats();updateChips();refreshInfo();
   if(!player())showTab("set");
-  $("net").textContent=navigator.onLine?"online":"offline";if(!navigator.onLine)$("net").className="chip warn";
-  if(Q&&navigator.onLine){const seen=await seenSet();const first=Q.packs.find(p=>p.items.some(i=>!seen.has(i.id)))||Q.packs[0];if(first)prefetch(first.items.map(i=>Object.assign({},i,{_pack:first})))}
-  if(navigator.onLine)sync();
+  setNet();
+  if(Q&&navigator.onLine&&reach){const seen=await seenSet();const first=Q.packs.find(p=>p.items.some(i=>!seen.has(i.id)))||Q.packs[0];if(first)prefetch(first.items.map(i=>Object.assign({},i,{_pack:first})))}
+  if(navigator.onLine&&reach)sync();
   window.__gonogo={state:()=>state,pauseAt:()=>pauseAt,trials:allTrials,session:()=>session,queue:()=>Q,sessionLog:()=>sessionLog};
   if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{})}
 boot();

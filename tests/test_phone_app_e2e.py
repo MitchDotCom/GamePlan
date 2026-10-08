@@ -32,7 +32,10 @@ def test_phone_flow(tmp_path):
         p.select_option("#bats", "R")
         p.dispatch_event("#player", "change")
         p.click("#tabs button[data-t=queue]")
-        assert "Next starter" in p.inner_text("#nextTitle")
+        assert "next starter" in p.inner_text("#nextTitle").lower()
+        p.wait_for_timeout(800)
+        titles = p.eval_on_selector_all("#packs .card h2", "els => els.map(e => e.textContent)")
+        assert len(titles) == len(set(titles)), titles       # the same pack must not be listed twice
         # clips download into IndexedDB
         p.wait_for_function("document.getElementById('dlmsg').textContent.includes('clips on this phone')", timeout=60000)
         p.click("#goNext")
@@ -49,7 +52,7 @@ def test_phone_flow(tmp_path):
         p.click("#bno")
         p.wait_for_selector("#res .card")
         card = p.inner_text("#res")
-        for needle in ("Strike?", "Fastball?", "Pitch", "Where it crossed", "Ride", "Run", "Flight time"):
+        for needle in ("Strike?", "Fastball?", "Pitch", "Location", "Ride", "Run", "Flight time"):
             assert needle in card, needle
         assert p.is_visible("#res .zonecard svg")
         trials = p.evaluate("window.__gonogo.trials()")
