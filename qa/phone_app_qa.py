@@ -306,7 +306,7 @@ def main():
             qs = answer_clip(p)
             p.wait_for_function("document.getElementById('hlab').textContent==='Recorded'", timeout=5000)
             p.wait_for_timeout(1500)
-            html = p.content()
+            html = p.inner_text("body")          # what a player can see, not the page source (the script itself contains the word)
             t = trials(p)
             paused = p.evaluate("document.getElementById('v').paused")
             ctx.close()

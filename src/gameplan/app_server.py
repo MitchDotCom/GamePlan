@@ -147,7 +147,15 @@ def main(argv=None) -> int:
     ap.add_argument("--keys", default=None)
     a = ap.parse_args(argv)
     srv, _ = serve(a.content, a.data, a.port, a.token, a.keys)
-    print(f"serving on port {a.port}")
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as u:
+            u.connect(("10.255.255.255", 1))
+            ip = u.getsockname()[0]
+    except OSError:
+        ip = "your-computer-ip"
+    print(f"On this computer: http://localhost:{a.port}")
+    print(f"On a phone on the same Wi-Fi: http://{ip}:{a.port}   (plain HTTP: play and sync work; install and offline need HTTPS, see docs/PHONE_TEST.md)")
     srv.serve_forever()
     return 0
 
