@@ -76,6 +76,30 @@ def usage(rows: list[dict], hitter: dict, n: int = 3) -> list[tuple]:
     return [k for k, _ in c.most_common(n)]
 
 
+BUCKETS = ("first", "ahead", "even", "behind", "two_strike")
+MIN_BUCKET = 25     # pitches to this side in a count bucket before a count-specific list is offered
+
+EVIDENCE = {
+    "usage": "validated rule (V2: nothing beat it), MLB 2022-2025",
+    "hitter_cost": "descriptive; did not beat usage in V2",
+    "ride": "thin: split-half r 0.63 but year over year r 0.21, interval includes zero (2026-10-08, MLB)",
+    "run": "reliable: split-half r 0.75, year over year r 0.46 (2026-10-08, MLB)",
+}
+COUNT_EVIDENCE = "count-specific lists are descriptive, not validated"
+
+
+def count_bucket(p: dict):
+    try:
+        b, k = int(p["balls"]), int(p["strikes"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if k == 2:
+        return "two_strike"
+    if b == 0 and k == 0:
+        return "first"
+    return "ahead" if b > k else "even" if b == k else "behind"
+
+
 def read_rows(csv_text: str, season: int) -> list[dict]:
     return [dict(r, _season=season) for r in csv.DictReader(io.StringIO(csv_text))]
 
@@ -216,8 +240,22 @@ def _gen(trait):
 GENERATORS = {"usage": usage, "hitter_cost": hitter_cost, "ride": _gen("ride"), "run": _gen("run")}
 
 
-def playlist(name: str, rows: list[dict], hitter: dict, n: int = 3, limit: int = 8, seed: int = 1) -> dict:
-    """Shapes from the named generator and the pooled pitches that fall in them (this hitter's side), most recent starts first within a fixed-seed shuffle."""
+def playlist(name: str, rows: list[dict], hitter: dict, n: int = 3, limit: int = 8, seed: int = 1, bucket: str | None = None) -> dict:
+    """Shapes from the named generator and the pooled pitches that fall in them (this hitter's side), most recent starts first within a fixed-seed shuffle.
+    bucket restricts the pool to one count state; if it holds fewer than MIN_BUCKET pitches to his side the list is empty and says why."""
+    if bucket:
+        rows = [p for p in rows if count_bucket(p) == bucket]
+        side = sum(1 for p in rows if p.get("stand") == hitter["stand"])
+        if side < MIN_BUCKET:
+            return dict(name=name, hitter=hitter.get("name"), shapes=[], pitches=[], pool=len(rows), starts=0, bucket=bucket, why=f"only {side} pitches to {hitter['stand']}HH in this count state (need {MIN_BUCKET})", evidence=EVIDENCE[name] + "; " + COUNT_EVIDENCE)
+    out = _playlist(name, rows, hitter, n, limit, seed)
+    out["evidence"] = EVIDENCE[name] + ("; " + COUNT_EVIDENCE if bucket else "")
+    if bucket:
+        out["bucket"] = bucket
+    return out
+
+
+def _playlist(name: str, rows: list[dict], hitter: dict, n: int, limit: int, seed: int) -> dict:
     gen = GENERATORS[name]
     if getattr(gen, "returns_pitches", False):
         top = gen(rows, hitter, max(limit, n))

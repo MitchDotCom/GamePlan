@@ -28,7 +28,7 @@ def lineup_from_game(game_pk: int, pitcher_id: int) -> list[dict]:
     return list(seen.values())
 
 
-def plan_hitter(rows: list[dict], h: dict, seasons: list[int], work: pathlib.Path, names=NAMES, n_shapes: int = 3, limit: int = 8) -> dict:
+def plan_hitter(rows: list[dict], h: dict, seasons: list[int], work: pathlib.Path, names=NAMES, n_shapes: int = 3, limit: int = 8, counts: bool = False) -> dict:
     out = dict(id=h["id"], name=h["name"], stand=h["stand"], lists={})
     hitter = dict(stand=h["stand"], name=h["name"])
     try:
@@ -46,8 +46,14 @@ def plan_hitter(rows: list[dict], h: dict, seasons: list[int], work: pathlib.Pat
             entry["trait"] = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in pl["note"].items()}
             if not pl["pitches"]:
                 entry["why"] = entry["trait"].get("why") or "slope interval includes zero"
+        entry["evidence"] = pl["evidence"]
         out["lists"][nm] = entry
         out.setdefault("_pl", {})[nm] = pl
+    if counts:
+        for b in PL.BUCKETS:
+            pl = PL.playlist("usage", rows, hitter, n_shapes, limit, bucket=b)
+            out.setdefault("counts", {})[b] = dict(status="ok" if pl["pitches"] else "none", shapes=[list(x) for x in pl["shapes"]], pitches=[p["play_id"] for p in pl["pitches"]],
+                                                   pool=pl["pool"], **({"why": pl["why"]} if pl.get("why") else {}), evidence=pl["evidence"])
     return out
 
 
@@ -68,7 +74,12 @@ def to_markdown(starter: str, meta: dict, plans: list[dict]) -> str:
         ls = p["lists"]
         L.append(f"| {p['name']} | {p['stand']} | {shp(ls.get('usage', {}))} | {shp(ls.get('hitter_cost', {}))} | {tr(ls.get('ride'))} | {tr(ls.get('run'))} |"
                  + (f" {p['error']}" if p.get("error") else ""))
-    L += ["", "Usage is the validated rule. Hitter-cost is descriptive (did not beat usage in V2). Ride and run use a simplified Gate 0b slope and are listed only when its 95% interval excludes zero."]
+    if any(p.get("counts") for p in plans):
+        L += ["", "## By count (descriptive, not validated)", "", "| Hitter | Side | " + " | ".join(PL.BUCKETS) + " |", "|---|---|" + "---|" * len(PL.BUCKETS)]
+        for p in plans:
+            c = p.get("counts", {})
+            L.append(f"| {p['name']} | {p['stand']} | " + " | ".join((shp(c[b]) if c.get(b, {}).get("status") == "ok" else f"none ({c.get(b, {}).get('why', '')})") for b in PL.BUCKETS) + " |")
+    L += ["", "Evidence: " + "; ".join(f"{k}: {v}" for k, v in PL.EVIDENCE.items()) + ". Ride and run are listed only when the slope's 95% interval excludes zero, and ride lists carry the thin tag."]
     return "\n".join(L) + "\n"
 
 
@@ -84,6 +95,7 @@ def main(argv=None) -> int:
     ap.add_argument("--from-game", type=int, default=None, help="take the lineup from the batters who faced the pitcher in this game")
     ap.add_argument("--names", default=",".join(NAMES))
     ap.add_argument("--limit", type=int, default=8)
+    ap.add_argument("--counts", action="store_true", help="add count-specific usage lists (first pitch, ahead, even, behind, two strikes); descriptive only")
     ap.add_argument("--pages", action="store_true", help="also build a go/no-go page per hitter and list (downloads clips)")
     ap.add_argument("--work", required=True)
     a = ap.parse_args(argv)
@@ -99,14 +111,14 @@ def main(argv=None) -> int:
     names = tuple(x for x in a.names.split(",") if x)
     plans = []
     for h in hitters:
-        p = plan_hitter(rows, h, seasons, work, names, limit=a.limit)
+        p = plan_hitter(rows, h, seasons, work, names, limit=a.limit, counts=a.counts)
         print(h["name"], {k: (v["status"], len(v.get("pitches", []))) for k, v in p["lists"].items()}, flush=True)
         if a.pages:
             for nm, pl in p.get("_pl", {}).items():
                 if pl["pitches"]:
                     pg = work / "pages" / f"{h['id']}_{nm}.html"
                     pg.parent.mkdir(exist_ok=True)
-                    mlb_demo.build_rows(pl["pitches"], work / "clips", pg, a.limit, title=f"Go / No-Go: {h['name']} ({h['stand']}), {nm}, last {pl['starts']} starts")
+                    mlb_demo.build_rows(pl["pitches"], work / "clips", pg, a.limit, title=f"Go / No-Go: {h['name']} ({h['stand']}), {nm}, last {pl['starts']} starts [{pl['evidence']}]")
                     p["lists"][nm]["page"] = str(pg)
         p.pop("_pl", None)
         plans.append(p)

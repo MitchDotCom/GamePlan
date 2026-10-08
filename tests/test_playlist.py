@@ -27,3 +27,15 @@ def test_playlist_selects_only_requested_side_and_shapes():
     pl = PL.playlist("usage", rows, dict(stand="L", name="x"), n=1, limit=5)
     assert pl["shapes"] == [("FB", "high-away")]
     assert [p["play_id"] for p in pl["pitches"]] == ["a", "b"]
+
+
+def test_count_bucket_and_thin_bucket_refuses():
+    def cp(b, k, i):
+        return dict(row("FF", -0.6, 3.2, 0, f"p{i}"), balls=b, strikes=k)
+    assert [PL.count_bucket(dict(balls=b, strikes=k)) for b, k in ((0, 0), (2, 1), (1, 1), (0, 1), (1, 2))] == ["first", "ahead", "even", "behind", "two_strike"]
+    rows = [cp(0, 0, i) for i in range(30)] + [cp(3, 0, 99)]
+    ok = PL.playlist("usage", rows, dict(stand="L", name="x"), n=1, limit=5, bucket="first")
+    assert ok["shapes"] == [("FB", "high-away")] and "descriptive" in ok["evidence"]
+    thin = PL.playlist("usage", rows, dict(stand="L", name="x"), n=1, limit=5, bucket="ahead")
+    assert thin["pitches"] == [] and "only 1 pitches to LHH" in thin["why"]
+    assert "thin" in PL.EVIDENCE["ride"] and "validated" in PL.playlist("usage", rows, dict(stand="L", name="x"))["evidence"]
