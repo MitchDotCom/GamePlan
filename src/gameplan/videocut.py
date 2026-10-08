@@ -203,6 +203,12 @@ def answer_keys(p: dict) -> dict:
     return dict(family=fam, pitch_go=(fam == "FB"), zone_go=in_zone)
 
 
+def pitch_meta(p: dict) -> dict:
+    """What a trial log needs to know about the pitch: type, family, pocket, location, zone, speed, sides. Values from tracking, nothing inferred."""
+    return dict(pitch_type=p.get("pitch_type"), family=pitch_family(p.get("pitch_type", "")), pocket=pocket(p), px=p.get("px"), pz=p.get("pz"), sz_top=p.get("sz_top"),
+                sz_bot=p.get("sz_bot"), speed=p.get("start_speed"), stand=p.get("stand"), p_throws=p.get("p_throws"))
+
+
 def top_shapes(pitches: list[dict], pitcher: str, stand: str, n: int = 3) -> list[tuple]:
     """The pitcher's n most-used (family, pocket) shapes against batters of this side. Usage only: the validated rule (V2) found no model beats it."""
     from collections import Counter

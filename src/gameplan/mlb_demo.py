@@ -60,7 +60,7 @@ def build_rows(rows: list[dict], work: pathlib.Path, out_html: pathlib.Path, lim
         info = f"{p.get('pitch_type')} {p.get('start_speed')} mph, {V.pocket(p)}, {p.get('description')}"
         items.append(dict(id=p["play_id"][:8], label=f"Pitch {len(items) + 1} ({p.get('pitcher_name')} to {p.get('batter_name')})", mime="video/mp4",
                           b64=base64.b64encode(f.read_bytes()).decode(), release=round(release - start, 4), release_frame=None,
-                          zone_go=k["zone_go"], pitch_go=k["pitch_go"], result=info))
+                          zone_go=k["zone_go"], pitch_go=k["pitch_go"], result=info, meta=V.pitch_meta(p)))
         print(items[-1]["label"], info, f"release {release:.3f} s (audio)")
     head = title or "Go / No-Go, MLB (center field view)"
     out_html.write_text(PAGE.replace("/*ITEMS*/[]", json.dumps(items)).replace("Go No-Go, Low Home", "Go No-Go, MLB").replace("Go / No-Go, low home", head), encoding="utf-8")

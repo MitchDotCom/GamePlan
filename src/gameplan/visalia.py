@@ -102,7 +102,7 @@ def build(trackman_csv: str, pitcher_id, before: str, n_starts: int, hitter_id, 
             if stem and stem in by_stem and len(use) < limit:
                 k = V.answer_keys(p)
                 use.append(str(by_stem[stem]))
-                answers[stem] = dict(zone_go=k["zone_go"], pitch_go=k["pitch_go"], result=f"{p['pitch_type']} {p['start_speed']} mph, {V.pocket(p)}, {p.get('pitch_call')}")
+                answers[stem] = dict(zone_go=k["zone_go"], pitch_go=k["pitch_go"], result=f"{p['pitch_type']} {p['start_speed']} mph, {V.pocket(p)}, {p.get('pitch_call')}", meta=V.pitch_meta(p))
     items = LD.build(use, out / "gonogo.html", profile, answers) if use else []
     rep = dict(playlist=name, shapes=[list(s) for s in pl["shapes"]], evidence=pl["evidence"], pool_pitches=len(pool), playlist_pitches=len(wanted), with_clip=len(use),
                pages_built=len(items), problems=problems, signs=dict(plate=signs.plate, arm=signs.arm))

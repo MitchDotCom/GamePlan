@@ -47,7 +47,7 @@ def build(clips: list[str], out_html: pathlib.Path, profile: L.CameraProfile, an
         b64 = base64.b64encode(f.read_bytes()).decode()
         key = (answers or {}).get(name, {})
         items.append(dict(id=name, label=f"Pitch {len(items) + 1}", mime="video/mp4" if codec == "h264" else "video/webm", b64=b64, release=meta["release_in_clip"],
-                          release_frame=r["release_frame"], zone_go=key.get("zone_go"), pitch_go=key.get("pitch_go"), result=key.get("result")))
+                          release_frame=r["release_frame"], zone_go=key.get("zone_go"), pitch_go=key.get("pitch_go"), result=key.get("result"), meta=key.get("meta") or {}))
         print(f"{name}: release frame {r['release_frame']} ({release:.3f} s); clip trimmed to {meta['duration']} s, {f.stat().st_size / 1e6:.1f} MB")
     out_html.write_text(PAGE.replace("/*ITEMS*/[]", json.dumps(items)), encoding="utf-8")
     return items
@@ -85,6 +85,12 @@ table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}th,td{p
 <h1>Go / No-Go, low home</h1>
 <p class="sub">The pitch plays, pauses a set time after release, then you decide. Space or Enter starts. G = Go, N = No-Go.</p>
 <div class="bar">
+  <label>Player <input id="player" placeholder="name or ID" size="16"></label>
+  <label>Mode <select id="mode"><option value="train">Training (feedback each pitch)</option><option value="assess">Assessment (no feedback)</option></select></label>
+  <button id="block">Run block (all pitches, random order)</button>
+  <button id="dl">Download trials (CSV)</button><span id="who" class="sub"></span>
+</div>
+<div class="bar">
   <label>Pitch <select id="pitch"></select></label>
   <label>Task <select id="task"><option value="zone_go">Swing at strikes (zone)</option><option value="pitch_go">Swing at fastballs (pitch type)</option></select></label>
   <label>Pause after release <select id="off"><option value="0.050">50 ms</option><option value="0.080">80 ms</option><option value="0.100" selected>100 ms</option><option value="0.150">150 ms</option><option value="0.200">200 ms</option></select></label>
@@ -104,6 +110,11 @@ const KEYS_STORE="gonogo_keys_v1";
 let keys={};try{keys=JSON.parse(localStorage.getItem(KEYS_STORE)||"{}")}catch(e){}
 ITEMS.forEach(it=>{const k=keys[it.id]||{};if(it.zone_go!=null&&k.zone_go==null)(keys[it.id]=keys[it.id]||{}).zone_go=it.zone_go;if(it.pitch_go!=null&&k.pitch_go==null)(keys[it.id]=keys[it.id]||{}).pitch_go=it.pitch_go;});
 function saveKeys(){try{localStorage.setItem(KEYS_STORE,JSON.stringify(keys))}catch(e){}}
+const TR_STORE="gonogo_trials_v1";let trials=[];try{trials=JSON.parse(localStorage.getItem(TR_STORE)||"[]")}catch(e){}
+function saveTrials(){try{localStorage.setItem(TR_STORE,JSON.stringify(trials))}catch(e){}}
+const SESSION=new Date().toISOString().slice(0,19).replace(/[:T-]/g,"");
+const TCOLS=["player","session","mode","ts","clip","task","pause_ms","call","rt_ms","key","correct","pitch_type","family","pocket","px","pz","sz_top","sz_bot","speed","stand","p_throws","release_frame"];
+let blockQ=null;
 const urls={};
 ITEMS.forEach(it=>{const bin=atob(it.b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);urls[it.id]=URL.createObjectURL(new Blob([u8],{type:it.mime}));it.b64=null;});
 const sel=$("pitch");ITEMS.forEach((it,i)=>{const o=document.createElement("option");o.value=i;o.textContent=it.label+"  ("+it.id.slice(0,8)+")";sel.appendChild(o)});
@@ -121,18 +132,27 @@ function watch(){ // frame-accurate pause where requestVideoFrameCallback exists
     if(mt>=pauseAt-0.0085){window.__pauseMT=mt;v.pause();v.currentTime=pauseAt;prompt();return}
     v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))};
   v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))}
-function startPitch(){if(state==="playing"||state==="deciding")return;load();pauseAt=cur.release+parseFloat($("off").value);state="playing";$("hint").classList.add("on");$("res").classList.remove("on");v.muted=true;v.currentTime=0;v.play();watch()}
+function startPitch(){if(state==="playing"||state==="deciding")return;if(!$("player").value.trim()){$("who").textContent="enter a player name or ID first";return}$("who").textContent="";load();pauseAt=cur.release+parseFloat($("off").value);state="playing";$("hint").classList.add("on");$("res").classList.remove("on");v.muted=true;v.currentTime=0;v.play();watch()}
 function prompt(){state="deciding";t0=performance.now();$("hint").classList.remove("on");$("ov").classList.add("on")}
-function decide(go){if(state!=="deciding")return;const rt=Math.round(performance.now()-t0);state="reveal";$("ov").classList.remove("on");v.muted=false;v.play();
+function decide(go){if(state!=="deciding")return;const rt=Math.round(performance.now()-t0);state="reveal";$("ov").classList.remove("on");v.muted=false;if($("mode").value!=="assess")v.play();
   const task=$("task").value;const key=(keys[cur.id]||{})[task];let score="no key",cls="";if(key!=null){score=(key===go)?"correct":"wrong";cls=key===go?"ok":"no"}
   const row={n:log.length+1,pitch:cur.label,task:task==="zone_go"?"zone":"pitch type",pause:Math.round(parseFloat($("off").value)*1000)+" ms",call:go?"GO":"NO-GO",rt,answer:key==null?"unknown":key?"GO":"NO-GO",score};
-  log.push(row);const r=$("res");r.innerHTML=`<b>You said ${row.call}</b> in ${rt} ms. Answer: ${row.answer}. <span class="${cls}"><b>${score.toUpperCase()}</b></span>`;r.classList.add("on");addRow(row)}
+  log.push(row);const assess=$("mode").value==="assess";const m=cur.meta||{};
+  trials.push({player:$("player").value.trim(),session:SESSION,mode:$("mode").value,ts:new Date().toISOString(),clip:cur.id,task:task==="zone_go"?"zone":"pitch",pause_ms:Math.round(parseFloat($("off").value)*1000),call:row.call,rt_ms:rt,
+    key:key==null?"":(key?"GO":"NO-GO"),correct:key==null?"":(key===go?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",sz_top:m.sz_top??"",sz_bot:m.sz_bot??"",speed:m.speed??"",stand:m.stand??"",p_throws:m.p_throws??"",release_frame:cur.release_frame??""});saveTrials();
+  const r=$("res");r.innerHTML=assess?`<b>Recorded.</b> (${trials.filter(t=>t.player===$("player").value.trim()&&t.session===SESSION).length} this session)`:`<b>You said ${row.call}</b> in ${rt} ms. Answer: ${row.answer}. <span class="${cls}"><b>${score.toUpperCase()}</b></span>`;r.classList.add("on");addRow(assess?Object.assign({},row,{answer:"hidden",score:"hidden"}):row);
+  if(assess){v.pause();state="idle";nextInBlock()}}
 function addRow(r){const tb=document.querySelector("#log tbody");const tr=document.createElement("tr");tr.innerHTML=`<td>${r.n}</td><td>${r.pitch}</td><td>${r.task}</td><td>${r.pause}</td><td>${r.call}</td><td>${r.rt} ms</td><td>${r.answer}</td><td>${r.score}</td>`;tb.appendChild(tr)}
 $("start").onclick=startPitch;$("bgo").onclick=()=>decide(true);$("bno").onclick=()=>decide(false);
 document.addEventListener("keydown",e=>{if(e.target.tagName==="SELECT")return;if(e.key==="g"||e.key==="G")decide(true);else if(e.key==="n"||e.key==="N")decide(false);else if(e.key===" "||e.key==="Enter"){e.preventDefault();startPitch()}});
 $("copy").onclick=async()=>{const h="n,pitch,task,pause,call,decision_ms,answer,score";const csv=[h,...log.map(r=>[r.n,r.pitch,r.task,r.pause,r.call,r.rt,r.answer,r.score].join(","))].join("\n");try{await navigator.clipboard.writeText(csv);$("copied").textContent="copied"}catch(e){$("copied").textContent="copy failed";}};
-v.addEventListener("ended",()=>{if(state==="reveal")state="idle"});
-window.__gonogo={state:()=>state,pauseAt:()=>pauseAt,item:()=>cur,log:()=>log,time:()=>v.currentTime};
+v.addEventListener("ended",()=>{if(state==="reveal"){state="idle";nextInBlock()}});
+function rng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+function hash(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function nextInBlock(){if(!blockQ)return;if(!blockQ.length){blockQ=null;$("who").textContent="block done";return}const i=blockQ.shift();$("who").textContent=`block: ${blockQ.length} left`;sel.value=i;setTimeout(startPitch,800)}
+$("block").onclick=()=>{if(!$("player").value.trim()){$("who").textContent="enter a player name or ID first";return}const r=rng(hash($("player").value+SESSION+$("task").value));const idx=ITEMS.map((_,i)=>i);for(let i=idx.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]]}blockQ=idx;nextInBlock()};
+$("dl").onclick=()=>{const q=x=>{x=String(x);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};const csv=[TCOLS.join(","),...trials.map(t=>TCOLS.map(c=>q(t[c]??"")).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="gonogo_trials.csv";a.click()};
+window.__gonogo={state:()=>state,pauseAt:()=>pauseAt,item:()=>cur,log:()=>log,time:()=>v.currentTime,trials:()=>trials,session:SESSION};
 </script></body></html>
 """
 
