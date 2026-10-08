@@ -81,6 +81,8 @@ video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
  --panel:#4a2a7a;--ink:#f6f0ff;--ink2:#d4c4ee;--ink3:#b39dd8;--line:#6a46a0;--mid:#573488;--brand:#e3b9a1;--good:#7fe3de;--pos:#2fb3b0;--neg:#c79a80}
 svg.zone{display:block;width:100%;height:auto;max-width:300px;margin:0 auto}.zlab{font-size:10px;fill:var(--ink3)}
 .pt circle{stroke:var(--ink2);stroke-width:1.5}.pt .k-ball{fill:var(--panel);stroke:var(--ink);stroke-width:2}
+/* focus mode: while a clip plays and a question is open, only the title, headline, video and buttons stay, so the answer buttons are always on screen */
+body.focus .bar .tools,body.focus .bar .proto,body.focus .bar .chip{display:none}body.focus .bar{padding-top:8px;padding-bottom:8px;margin-bottom:8px}body.focus .hero{padding:12px var(--s4)}body.focus .hnum{font-size:30px;margin:0}body.focus .hrow,body.focus .tiles{display:none}body.focus .note{display:none}
 #res .card{padding:var(--s4)}#res dl.det dt{padding-right:var(--s3)}#res dl.det dd{overflow-wrap:anywhere}.nw{white-space:nowrap}
 #t-set dl.det,#t-keys dl.det{grid-template-columns:1fr}#t-set dl.det dt,#t-keys dl.det dt{border-bottom:0;padding:10px 0 0}#t-set dl.det dd,#t-keys dl.det dd{text-align:left;padding:6px 0 10px}
 #t-set select,#t-set input[type=text],#t-keys select{width:100%;max-width:100%}
@@ -229,7 +231,9 @@ function renderTiles(){const f=task=>{const s=sessionLog.filter(t=>t.task===task
   const [z,zn]=f("zone"),[p,pn]=f("pitch");const rts=sessionLog.map(t=>t.rt_ms).sort((a,b)=>a-b);
   $("tiles").innerHTML=sessionLog.length?`<div class="tile"><div class="tl">Strike? ${zn}</div><div class="tv">${z}</div></div><div class="tile"><div class="tl">Fastball? ${pn}</div><div class="tv">${p}</div></div><div class="tile"><div class="tl">Median ms, n=${rts.length}</div><div class="tv">${rts[Math.floor(rts.length/2)]}</div></div>`:""}
 // ---------- the pitch ----------
-let busy=false,answering=false;
+let busy=false,answering=false,playTok=0;
+function abortPlay(msg){if(state!=="playing")return;state="idle";document.body.classList.remove("focus");$("hint").classList.remove("on");say("now",msg);$("start").style.display="";v.pause()}
+v.addEventListener("error",()=>abortPlay("This clip could not be played. Tap Start pitch to try again, or pick another pitch."));
 async function startPitch(auto){
   if(busy||state==="playing"||state==="q")return;busy=true;try{await startPitch1()}finally{busy=false}}
 async function startPitch1(){
@@ -238,10 +242,10 @@ async function startPitch1(){
   if(!(await hasClip(cur.id))&&!(await fetchClip(cur))){say("now","This clip is not on the phone and there is no signal.");return}
   const c=await getClip(cur.id);if(urlNow)URL.revokeObjectURL(urlNow);urlNow=URL.createObjectURL(clipBlob(c));v.src=urlNow;v.muted=true;v.currentTime=0;
   $("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";
-  $("tiles").innerHTML="";pauseAt=cur.release+parseFloat($("off").value);state="playing";$("hint").classList.add("on");pendingAns={};clipTrial++;
+  $("tiles").innerHTML="";pauseAt=cur.release+parseFloat($("off").value);state="playing";document.body.classList.add("focus");const tok=++playTok;setTimeout(()=>{if(playTok===tok)abortPlay("The clip did not start. Tap Start pitch to try again.")},10000);$("hint").classList.add("on");pendingAns={};clipTrial++;
   const ask=$("ask").value;qOrder=ask==="both"?(rng(hash(player()+session+cur.id))()<0.5?["zone","pitch"]:["pitch","zone"]):[ask];qi=0;
   $("hlab").textContent=curPack.title;$("hnum").innerHTML=`Watch<small>the pitch</small>`;$("hmeta").textContent=cur.label||"";
-  try{await v.play()}catch(e){say("now","Tap Start pitch to allow video");state="idle";$("start").style.display="";return}
+  try{await v.play()}catch(e){say("now","Tap Start pitch to allow video");state="idle";document.body.classList.remove("focus");$("start").style.display="";return}
   watch()}
 function watch(){const check=(now,meta)=>{if(state!=="playing")return;const mt=meta?meta.mediaTime:v.currentTime;
     if(mt>=pauseAt-0.0085){window.__pauseMT=mt;v.pause();v.currentTime=pauseAt;state="q";$("hint").classList.remove("on");showQ();return}
@@ -267,7 +271,7 @@ function resultCard(m,answerRows){
   const rows=[["Pitch",pitch||null],["Location",tracked?where(m):null],["Zone edge",edge||null],["Ride",m.ride_in==null?null:num(m.ride_in)+" in"],["Run",run],
     ["Spin",m.spin==null?null:Math.round(m.spin).toLocaleString()+" rpm"],["Extension",m.extension==null?null:num(m.extension)+" ft"],["Flight time",m.flight_ms==null?null:m.flight_ms+" ms"],["Result",m.outcome||null]].filter(r=>r[1]);
   return `<div class="card"><dl class="det">${answerRows}${rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("")}</dl></div>${tracked?`<div class="zonecard">${zoneSVG(m)}</div>`:""}<div class="note" style="margin-top:6px">Zone view is from the catcher. Ride is induced vertical break and run is horizontal break, both in inches. Run is measured away from or toward the batter. Zone edge is how far the pitch was from the edge of the zone.</div>`}
-function finishClip(){const assess=$("mode").value==="assess";const r=$("res");$("tiles").innerHTML="";updateChips();renderStats();
+function finishClip(){document.body.classList.remove("focus");const assess=$("mode").value==="assess";const r=$("res");$("tiles").innerHTML="";updateChips();renderStats();
   if(assess){$("hlab").textContent="Recorded";$("hnum").innerHTML=`${sessionLog.length}<small>answers this session</small>`;r.innerHTML="";state="idle";v.pause();after(true);return}
   const row=(task,lab)=>{const a=pendingAns[task];if(!a)return"";
     const verdict=a.key==null?`<span class="mut">no answer on file</span>`:(a.key===a.go?`<span class="lab-ok">Correct</span>`:`<span class="lab-bad">Wrong</span>`);
