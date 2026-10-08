@@ -35,6 +35,8 @@ ARGS = {}
 
 def check(tid, area, desc, severity="S2"):
     def deco(fn):
+        if ARGS.get("only") and not any(tid.startswith(x) for x in ARGS["only"]):
+            return fn
         t0 = time.time()
         try:
             ev = fn()
@@ -120,8 +122,10 @@ def main():
     ap.add_argument("--content", default="/tmp/claude-0/app/content")
     ap.add_argument("--keys", default="/tmp/claude-0/app/work/private_keys.json")
     ap.add_argument("--engine", choices=["chromium", "webkit"], default="chromium")
+    ap.add_argument("--only", default="", help="comma separated check id prefixes to run, e.g. E1,F3,F6")
     a = ap.parse_args()
     ARGS["engine"] = a.engine
+    ARGS["only"] = [x for x in a.only.split(",") if x]
     content = pathlib.Path(a.content)
     keys = pathlib.Path(a.keys)
     qR = json.loads((content / "queue_R.json").read_text())
@@ -537,7 +541,8 @@ def main():
         def _():
             ctx, p = E.open()
             setup(p, ask="zone")
-            p.wait_for_timeout(1500)
+            p.click("#tabs button[data-t=queue]")
+            clips_ready(p, 6)                      # let the background download finish, otherwise it refills the store after we clear it
             p.evaluate("""() => new Promise(res => { const r = indexedDB.open('gonogo', 1); r.onsuccess = () => { const t = r.result.transaction('clips', 'readwrite'); t.objectStore('clips').clear(); t.oncomplete = () => res(1); }; })""")
             ctx.set_offline(True)
             p.click("#tabs button[data-t=play]")
@@ -592,21 +597,22 @@ def main():
             ctx.close()
             assert n == 1, n
 
-        @check("F3", "Robustness", "Switching tabs while a clip plays: the question still appears and can be answered after coming back", "S2")
+        @check("F3", "Robustness", "During a pitch the tab bar is hidden (focus mode); the question appears and is answered; the tabs return afterwards", "S2")
         def _():
             ctx, p = E.open()
             setup(p, ask="zone")
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
-            p.click("#tabs button[data-t=log]")
-            p.wait_for_timeout(2500)
-            p.click("#tabs button[data-t=play]")
+            p.wait_for_function("window.__gonogo.state()==='playing' || window.__gonogo.state()==='q'", timeout=10000)
+            hidden = p.evaluate("getComputedStyle(document.querySelector('#tabs')).display === 'none' || document.querySelector('#tabs').offsetParent === null")
+            assert hidden, "tab bar should be hidden while a pitch is on (focus mode), so a player cannot wander off mid-question"
             wait_q(p)
             p.click("#bgo")
-            p.wait_for_timeout(300)
+            p.wait_for_selector("#res .card")
+            back = p.is_visible("#tabs")
             n = len(trials(p))
             ctx.close()
-            assert n == 1, n
+            assert n == 1 and back, (n, back)
 
         @check("F4", "Robustness", "Reload in the middle of a question: no half-written answers, app recovers to idle", "S2")
         def _():
