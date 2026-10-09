@@ -243,7 +243,7 @@ function renderTiles(){const f=task=>{const s=sessionLog.filter(t=>t.task===task
 // ---------- a pitch drawn from its tracking ----------
 // Statcast feet: x lateral (+ = catcher's right), y distance from the plate (50 at release, 17/12 at the front of the plate), z height. p(t) = p0 + v0 t + a t^2 / 2.
 const SIM_EYE_MAX=0.25,SIM_LEAD=0.8,SIM_YP=17/12,SIM_BALL_R=0.121,SIM_MAX_GAP=0.25;
-const SIM_VIEWS={hitter_eye:(st)=>({pos:[st==="L"?2.4:-2.4,0,5.4],tgt:[0,50,3.0],fov:26}),low_home:()=>({pos:[0,-12,3.2],tgt:[0,40,5.0],fov:22})};
+const SIM_VIEWS={hitter_eye:(st)=>({pos:[st==="L"?2.4:-2.4,0,5.4],tgt:[0,50,3.0],fov:26}),low_home:()=>({pos:[0,-12,3.2],tgt:[0,40,-2.3],fov:28})};
 const simPos=(q,t)=>["x","y","z"].map(c=>q[c+"0"]+q["v"+c+"0"]*t+0.5*q["a"+c]*t*t);
 const v3={sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],norm:a=>{const n=Math.hypot(...a);return a.map(x=>x/n)}};
 // pinhole camera: returns project(point) -> {x,y,depth,r} in canvas pixels (r = radius of a baseball there), or null when the point is behind the camera

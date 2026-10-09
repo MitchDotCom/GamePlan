@@ -88,14 +88,14 @@ def main():
                     p.wait_for_timeout(150)
                     d = p.evaluate("() => ({drawn: window.__sim.drawn(), q: window.__sim.q(), exp: (() => { const q = window.__sim.q(), t = window.__sim.drawn().tmax; return window.__sim.cam()(window.__sim.pos(q, t)); })()})")
                     px = p.evaluate(PX)
+                    lum = p.evaluate("""() => { const c = document.getElementById('sim'), g = c.getContext('2d'), P = window.__sim.cam()([0, 0.7, 0]); if (!P) return -1; let m = 0;
+                      for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) { const d = g.getImageData(Math.round(P.x) + dx, Math.round(P.y) + dy, 1, 1).data; m = Math.max(m, Math.min(d[0], d[1], d[2])) } return m }""")
                     ctx.close()
                     assert abs(d["drawn"]["tmax"] - float(off)) < 1e-9 and d["drawn"]["trail"] is False, d["drawn"]
                     assert px["ball"]["n"] > 3 and abs(px["ball"]["x"] - d["exp"]["x"]) < 1.0 and abs(px["ball"]["y"] - d["exp"]["y"]) < 1.0, (px["ball"], d["exp"])
                     assert px["orange"]["n"] == 0 and px["zone"]["n"] == 0, ("future/answer marks on screen before the answer", px)
                     assert px["ground"] > 0.10 * px["w"] * px["h"], ("scene is empty: no ground", px["ground"])
                     if view == "low_home":
-                        lum = p.evaluate("""() => { const c = document.getElementById('sim'), g = c.getContext('2d'), P = window.__sim.cam()([0, 0.7, 0]); if (!P) return -1; let m = 0;
-                          for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) { const d = g.getImageData(Math.round(P.x) + dx, Math.round(P.y) + dy, 1, 1).data; m = Math.max(m, Math.min(d[0], d[1], d[2])) } return m }""")
                         assert lum > 150, ("no plate at its projected position in the behind-home view", lum)
                     out.append(f"{view} {off}: ball r={d['exp']['r']:.1f}px")
             return "; ".join(out)

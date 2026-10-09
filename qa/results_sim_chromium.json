@@ -5,7 +5,7 @@
   "test": "Projection: centre, +x is screen right, +z is screen up, size falls with distance, points behind the camera are refused",
   "result": "PASS",
   "evidence": "F=567.1; ball radius at 10 ft 6.86 px, at 20 ft 3.43 px",
-  "seconds": 0.2,
+  "seconds": 0.3,
   "severity": "S1"
  },
  {
@@ -23,16 +23,16 @@
   "test": "Every drawn pitch: in the browser, the path's own end point decides strike or ball exactly as the shipped key says, and no video is requested",
   "result": "PASS",
   "evidence": "38 drawn pitches consistent; video requests: 0",
-  "seconds": 0.2,
+  "seconds": 0.3,
   "severity": "S1"
  },
  {
   "id": "S4",
   "area": "Core",
   "test": "Pause: the ball freezes at exactly the chosen time, drawn where the math puts it (within 1 device pixel), the future path is not on screen, and the questions appear",
-  "result": "FAIL",
-  "evidence": "('scene is empty: no ground, or no plate in the behind-home view', 98142, 4)",
-  "seconds": 8.5,
+  "result": "PASS",
+  "evidence": "hitter_eye 0.100: ball r=2.8px; hitter_eye 0.200: ball r=4.0px; hitter_eye 0.250: ball r=5.1px; low_home 0.100: ball r=2.0px; low_home 0.200: ball r=2.6px; low_home 0.300: ball r=3.7px",
+  "seconds": 13.1,
   "severity": "S1"
  },
  {
@@ -40,7 +40,7 @@
   "area": "Core",
   "test": "Reveal: after both answers the ball runs on, then a behind-the-plate recap shows trail, zone and a crossing marker on the tracked location (within 1.5 device pixels); the end point equals the tracked crossing",
   "result": "PASS",
-  "evidence": "hitter_eye: marker off by (-0.46, -0.57) px; low_home: marker off by (-0.60, -0.57) px",
+  "evidence": "hitter_eye: marker off by (-0.47, -0.69) px; low_home: marker off by (-0.47, -0.69) px",
   "seconds": 4.9,
   "severity": "S1"
  },
@@ -59,7 +59,7 @@
   "test": "390 wide: for EVERY shipped pitch, both views and every allowed pause, the ball is inside the picture (3% margin) from release to the pause, and the recap frames zone, crossing and whole path",
   "result": "PASS",
   "evidence": "6460 checks on a 716x403 picture, none out of frame",
-  "seconds": 0.5,
+  "seconds": 0.4,
   "severity": "S1"
  },
  {
@@ -68,7 +68,7 @@
   "test": "Guards: a pause over 250 ms in the hitter's-eye view is used as 250 ms (setting untouched, trial logs 250), and a pitch that would leave the picture is shown from low-home and logged that way",
   "result": "PASS",
   "evidence": "250 ms cap used without rewriting the setting; fallback logged as sim:low_home",
-  "seconds": 4.6,
+  "seconds": 4.7,
   "severity": "S1"
  },
  {
@@ -76,7 +76,7 @@
   "area": "Timing",
   "test": "Timing: the question appears 0.8 s lead-in + offset after the pitch starts (within 80 ms, measured inside the page), for three offsets",
   "result": "PASS",
-  "evidence": "0.100: 0.912s (expected 0.900); 0.200: 1.012s (expected 1.000); 0.300: 1.061s (expected 1.100)",
+  "evidence": "0.100: 0.911s (expected 0.900); 0.200: 1.011s (expected 1.000); 0.300: 1.061s (expected 1.100)",
   "seconds": 5.9,
   "severity": "S2"
  },
@@ -86,7 +86,7 @@
   "test": "A stalled picture (a frame gap over 250 ms) aborts the pitch with a message instead of jumping to the pause",
   "result": "PASS",
   "evidence": "",
-  "seconds": 1.7,
+  "seconds": 1.8,
   "severity": "S1"
  },
  {
@@ -95,7 +95,7 @@
   "test": "Answers: log carries camera sim:<view>, keys score, no key text in assessment; both views log their own name",
   "result": "PASS",
   "evidence": "logged hitter_eye, low_home; assessment keys blank",
-  "seconds": 7.1,
+  "seconds": 7.0,
   "severity": "S1"
  },
  {
@@ -104,7 +104,7 @@
   "test": "320x568: the drawing fills the stage, nothing scrolls sideways, and the Strike/Ball buttons and then every pitch choice are on screen",
   "result": "PASS",
   "evidence": "buttons bottom 425/568, choices bottom 531/568 (5 choices)",
-  "seconds": 2.2,
+  "seconds": 2.1,
   "severity": "S1"
  },
  {
@@ -122,7 +122,7 @@
   "test": "390x844: the drawing fills the stage, nothing scrolls sideways, and the Strike/Ball buttons and then every pitch choice are on screen",
   "result": "PASS",
   "evidence": "buttons bottom 432/844, choices bottom 571/844 (5 choices)",
-  "seconds": 2.2,
+  "seconds": 2.1,
   "severity": "S1"
  },
  {
