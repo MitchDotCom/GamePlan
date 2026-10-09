@@ -70,10 +70,11 @@ dl.det dd{text-align:right;font-weight:600}dl.det dd .mut{font-weight:400}
 .stage{position:relative;background:#000;border-radius:20px;overflow:hidden;aspect-ratio:16/9;width:100%;margin-top:var(--s3);box-shadow:var(--shadow)}
 video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
 .hint{position:absolute;top:10px;left:12px;color:#fff;background:rgba(0,0,0,.55);padding:3px 10px;border-radius:999px;font-size:var(--t-label);display:none}.hint.on{display:block}
-/* answer buttons: GO is teal (swing), NO-GO is copper (take), as in the viewer */
+/* answer buttons: Strike is teal, Ball is copper */
 .ans{display:flex;gap:var(--s3);margin-top:var(--s3)}
 .ans button{flex:1;border:0;border-radius:999px;padding:22px 0;font-size:22px;font-weight:800;letter-spacing:.04em;color:#fff}
 .ans .go{background:var(--teal)}.ans .nogo{background:var(--copper)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s3)}.opts button{border:2px solid var(--purple);background:var(--panel);color:var(--ink);border-radius:18px;min-height:64px;padding:12px 8px;font-size:19px;font-weight:700}.opts button:active{background:var(--purple);color:#fff}.opts button:last-child:nth-child(odd){grid-column:1/-1}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ans button{color:#0f2a2e}}
 :root[data-theme="dark"] .ans button{color:#0f2a2e}
 /* strike-zone card, same treatment as the viewer's zone card */
@@ -102,7 +103,7 @@ section{display:none}section.on{display:block}
   <div class="hero"><div class="hlab" id="hlab">Next up</div><div class="hnum" id="hnum">-<small id="hsub"></small></div>
    <div class="hrow"><span class="hlab" id="hmeta"></span></div><div class="tiles" id="tiles"></div></div>
   <div class="stage"><video id="v" playsinline muted preload="auto"></video><div class="hint" id="hint">Watch the pitch</div></div>
-  <div id="q" style="display:none"><div class="ans"><button class="go" id="bgo">GO</button><button class="nogo" id="bno">NO-GO</button></div><div class="note" style="margin-top:6px" id="qn"></div></div>
+  <div id="q" style="display:none"><div class="ans" id="ansSB"><button class="go" id="bstrike">Strike</button><button class="nogo" id="bball">Ball</button></div><div class="opts" id="opts"></div><div class="note" style="margin-top:6px" id="qn"></div></div>
   <div id="res"></div>
   <div class="row"><button class="pri" id="start">Start pitch</button><button id="next" style="display:none">Next</button></div>
   <div class="note" id="now" style="margin-top:8px"></div>
@@ -122,7 +123,7 @@ section{display:none}section.on{display:block}
 </section>
 
 <section id="t-keys">
-  <div class="note">Packs built from tracking carry their answers. For a pitch with no answer, set the truth here (from the TrackMan row or the umpire call). A pitch left unknown is timed but not scored. Assessment packs ship without answers and are scored on the server.</div>
+  <div class="note">Packs built from tracking carry their answers. For a pitch with no answer, set the truth here (from the TrackMan row). A pitch left unknown is timed but not scored. Assessment packs ship without answers and are scored on the server.</div>
   <div id="keys"></div>
 </section>
 
@@ -131,11 +132,11 @@ section{display:none}section.on{display:block}
    <dl class="det"><dt>Name or ID</dt><dd><input type="text" id="player" autocomplete="off" size="14"></dd>
    <dt>Batting side today</dt><dd><select id="bats"><option value="R">Right</option><option value="L">Left</option></select></dd>
    <dt>Mode</dt><dd><select id="mode"><option value="train">Training, feedback each pitch</option><option value="assess">Assessment, no feedback</option></select></dd>
-   <dt>Questions per clip</dt><dd><select id="ask"><option value="both">Strike? and fastball?</option><option value="zone">Strike? only</option><option value="pitch">Fastball? only</option></select></dd>
+   <dt>Questions per clip</dt><dd><select id="ask"><option value="both">Strike or ball, then which pitch</option><option value="zone">Strike or ball only</option><option value="pitch">Which pitch only</option></select></dd>
    <dt>Pause after release</dt><dd><select id="off"><option value="0.050">50 ms</option><option value="0.080">80 ms</option><option value="0.100" selected>100 ms</option><option value="0.150">150 ms</option><option value="0.200">200 ms</option></select></dd>
    <dt>Play the rest after answering</dt><dd><select id="reveal"><option value="1">Yes</option><option value="0">No</option></select></dd></dl></div>
   <div class="card"><h2>Data on this phone</h2><div class="note" id="dataInfo"></div><div class="row"><button id="refresh">Check for new queue</button><button id="wipe">Erase trials on this phone</button></div></div>
-  <div class="note" style="margin-top:12px">Keyboard: G = GO, N = NO-GO, Space or Enter = start or next. Mode and questions per clip are logged with every answer.</div>
+  <div class="note" style="margin-top:12px">Keyboard: S = Strike, B = Ball, 1 to 9 = the pitch choices in order, Space or Enter = start or next. Mode and questions per clip are logged with every answer.</div>
 </section>
 </main></div>
 
@@ -171,7 +172,12 @@ function rng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math
 const uuid=()=>(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2));
 const player=()=>$("player").value.trim();
 const say=(el,t)=>{$(el).textContent=t};
-function keyFor(it,task){const o=keys[it.id]||{};const f=task==="zone"?"zone_go":"pitch_go";if(o[f]!=null)return o[f];const k=it.keys||{};return k[f]==null?null:k[f]}
+// the right answer for a question: "Strike" or "Ball", or the pitch type code that was thrown; null when not known
+function keyFor(it,task){const o=keys[it.id]||{};const f=task==="zone"?"strike":"pitch_type";let x=o[f]!==undefined?o[f]:(it.keys||{})[f];if(x==null||x==="")return null;return task==="zone"?(x?"Strike":"Ball"):String(x)}
+// the choices for "which pitch": this pitcher's own pitch types; falls back to the types in the pack, and always holds the thrown type
+function optionsFor(it){let o=(it.arsenal||[]).slice();if(!o.length){const c={};(it._pack?it._pack.items:[]).forEach(i=>{const t=(i.meta||{}).pitch_type;if(t)c[t]=(c[t]||0)+1});o=Object.keys(c).sort((a,b)=>c[b]-c[a])}
+  const t=(it.meta||{}).pitch_type;if(t&&!o.includes(t))o.push(t);return o}
+const disp=(task,x)=>task==="pitch"?(PN[x]||x):x;
 const PN={FF:"Four-seam",SI:"Sinker",FC:"Cutter",SL:"Slider",ST:"Sweeper",SV:"Slurve",CU:"Curveball",KC:"Knuckle curve",CH:"Changeup",FS:"Splitter",FO:"Forkball",KN:"Knuckleball"};
 // where() is the viewer's wording for a pitch location
 function where(m){if(m.px==null||m.px==="")return"Not tracked";const zt=m.sz_top||3.5,zb=m.sz_bot||1.5,fr=(m.pz-zb)/(zt-zb),ax=Math.abs(m.px);
@@ -231,7 +237,7 @@ function nextInQueue(){if(!packQ)return;if(!packQ.length){packQ=null;say("now","
 function renderHeroIdle(){const p=curPack||(Q&&Q.packs[0]);$("hlab").textContent=p?p.title:"Next up";$("hnum").innerHTML=`${p?p.items.length:"-"}<small>pitches in this pack</small>`;$("hmeta").textContent=p?(p.subtitle||""):"";renderTiles()}
 function renderTiles(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;return[n?pct(k/n):"-","n="+n]};
   const [z,zn]=f("zone"),[p,pn]=f("pitch");const rts=sessionLog.map(t=>t.rt_ms).sort((a,b)=>a-b);
-  $("tiles").innerHTML=sessionLog.length?`<div class="tile"><div class="tl">Strike? ${zn}</div><div class="tv">${z}</div></div><div class="tile"><div class="tl">Fastball? ${pn}</div><div class="tv">${p}</div></div><div class="tile"><div class="tl">Median ms, n=${rts.length}</div><div class="tv">${rts[Math.floor(rts.length/2)]}</div></div>`:""}
+  $("tiles").innerHTML=sessionLog.length?`<div class="tile"><div class="tl">Strike or ball ${zn}</div><div class="tv">${z}</div></div><div class="tile"><div class="tl">Pitch type ${pn}</div><div class="tv">${p}</div></div><div class="tile"><div class="tl">Median ms, n=${rts.length}</div><div class="tv">${rts[Math.floor(rts.length/2)]}</div></div>`:""}
 // ---------- the pitch ----------
 let busy=false,answering=false,playTok=0;
 function abortPlay(msg){if(state!=="playing")return;state="idle";document.body.classList.remove("focus");$("hint").classList.remove("on");say("now",msg);$("start").style.display="";v.pause()}
@@ -245,7 +251,7 @@ async function startPitch1(){
   const c=await getClip(cur.id);if(urlNow)URL.revokeObjectURL(urlNow);urlNow=URL.createObjectURL(clipBlob(c));v.src=urlNow;v.muted=true;v.currentTime=0;
   $("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";
   $("tiles").innerHTML="";pauseAt=cur.release+parseFloat($("off").value);state="playing";document.body.classList.add("focus");const tok=++playTok;setTimeout(()=>{if(playTok===tok)abortPlay("The clip did not start. Tap Start pitch to try again.")},10000);$("hint").classList.add("on");pendingAns={};clipTrial++;
-  const ask=$("ask").value;qOrder=ask==="both"?(rng(hash(player()+session+cur.id))()<0.5?["zone","pitch"]:["pitch","zone"]):[ask];qi=0;
+  const ask=$("ask").value;qOrder=ask==="both"?["zone","pitch"]:[ask];qi=0;
   $("hlab").textContent=curPack.title;$("hnum").innerHTML=`Watch<small>the pitch</small>`;$("hmeta").textContent=cur.label||"";
   try{await v.play()}catch(e){say("now","Tap Start pitch to allow video");state="idle";document.body.classList.remove("focus");$("start").style.display="";return}
   watch()}
@@ -253,14 +259,18 @@ function watch(){const check=(now,meta)=>{if(state!=="playing")return;const mt=m
     if(mt>=pauseAt-0.0085){window.__pauseMT=mt;v.pause();v.currentTime=pauseAt;state="q";$("hint").classList.remove("on");showQ();return}
     v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))};
   v.requestVideoFrameCallback?v.requestVideoFrameCallback(check):requestAnimationFrame(()=>check(0,null))}
-function showQ(){const task=qOrder[qi];$("hlab").textContent=qOrder.length>1?`Question ${qi+1} of ${qOrder.length}`:"Question";$("hnum").innerHTML=task==="zone"?"Strike?":"Fastball?";
-  $("qn").textContent=task==="zone"?"GO if it crosses the zone. NO-GO if it does not.":"GO if it is a fastball. NO-GO if it is not.";$("q").style.display="";t0=performance.now()}
-async function answer(go){if(state!=="q"||answering)return;answering=true;try{await answer1(go)}finally{answering=false}}
-async function answer1(go){const rt=Math.round(performance.now()-t0),task=qOrder[qi];const key=keyFor(cur,task);const m=cur.meta||{};
+let curOpts=[];
+function showQ(){const task=qOrder[qi];$("hlab").textContent=qOrder.length>1?`Question ${qi+1} of ${qOrder.length}`:"Question";const zone=task==="zone";
+  $("hnum").innerHTML=zone?"Strike or Ball?":"Which pitch?";
+  $("ansSB").style.display=zone?"":"none";$("opts").style.display=zone?"none":"";
+  if(!zone){curOpts=optionsFor(cur);$("opts").replaceChildren(...curOpts.map((c,i)=>{const b=document.createElement("button");b.textContent=PN[c]||c;b.dataset.code=c;b.onclick=()=>answer(c);return b}))}
+  $("qn").textContent=zone?"Did it cross the zone? Tracking decides, not the umpire.":"Pick one of this pitcher's pitches.";$("q").style.display="";t0=performance.now()}
+async function answer(call){if(state!=="q"||answering)return;answering=true;try{await answer1(call)}finally{answering=false}}
+async function answer1(call){const rt=Math.round(performance.now()-t0),task=qOrder[qi];const key=keyFor(cur,task);const m=cur.meta||{};
   const t={id:uuid(),player:player(),session,mode:$("mode").value,ts:new Date().toISOString(),pack:curPack.id,clip:cur.id,clip_trial:clipTrial,task,q_order:qi+1,ask:$("ask").value,pause_ms:Math.round(parseFloat($("off").value)*1000),
-    call:go?"GO":"NO-GO",rt_ms:rt,key:key==null?"":(key?"GO":"NO-GO"),correct:key==null?"":(key===go?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
+    options:task==="zone"?"Strike|Ball":curOpts.join("|"),call,rt_ms:rt,key:key==null?"":key,correct:key==null?"":(key===call?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
     sz_top:m.sz_top??"",sz_bot:m.sz_bot??"",speed:m.speed??"",stand:m.stand??"",p_throws:m.p_throws??"",release_frame:cur.release_frame??"",app:APP,synced:0};
-  await putTrial(t);sessionLog.push(t);pendingAns[task]={go,key,rt};addRow(t);navigator.vibrate&&navigator.vibrate(15);
+  await putTrial(t);sessionLog.push(t);pendingAns[task]={call,key,rt};addRow(t);navigator.vibrate&&navigator.vibrate(15);
   qi++;if(qi<qOrder.length){showQ();updateChips();return}
   $("q").style.display="none";finishClip()}
 function edgeIn(m){if(m.px==null||m.px===""||m.pz==null)return null;const zt=m.sz_top||3.5,zb=m.sz_bot||1.5;const d=Math.max(Math.abs(m.px)-0.83,m.pz-zt,zb-m.pz)*12;return d}
@@ -276,25 +286,25 @@ function resultCard(m,answerRows){
 function finishClip(){document.body.classList.remove("focus");const assess=$("mode").value==="assess";const r=$("res");$("tiles").innerHTML="";updateChips();renderStats();
   if(assess){$("hlab").textContent="Recorded";$("hnum").innerHTML=`${sessionLog.length}<small>answers this session</small>`;r.innerHTML="";state="idle";v.pause();after(true);return}
   const row=(task,lab)=>{const a=pendingAns[task];if(!a)return"";
-    const verdict=a.key==null?`<span class="mut">no answer on file</span>`:(a.key===a.go?`<span class="lab-ok">Correct</span>`:`<span class="lab-bad">Wrong</span>`);
-    const ans=a.key==null?"unknown":(a.key?"GO":"NO-GO");
-    return `<dt>${lab}</dt><dd><span class="nw">${a.go?"GO":"NO-GO"} ${verdict}</span></dd><dt>Right answer</dt><dd class="mut">${ans}</dd>`};
-  const m=cur.meta||{};const right=Object.values(pendingAns).filter(a=>a.key!=null&&a.key===a.go).length,scored=Object.values(pendingAns).filter(a=>a.key!=null).length;
+    const verdict=a.key==null?`<span class="mut">no answer on file</span>`:(a.key===a.call?`<span class="lab-ok">Correct</span>`:`<span class="lab-bad">Wrong</span>`);
+    const ans=a.key==null?"unknown":disp(task,a.key);
+    return `<dt>${lab}</dt><dd><span class="nw">${esc(disp(task,a.call))} ${verdict}</span></dd><dt>Right answer</dt><dd class="mut">${esc(ans)}</dd>`};
+  const m=cur.meta||{};const right=Object.values(pendingAns).filter(a=>a.key!=null&&a.key===a.call).length,scored=Object.values(pendingAns).filter(a=>a.key!=null).length;
   $("hlab").textContent="Result";$("hmeta").textContent="Your times: "+qOrder.map(t=>pendingAns[t]?pendingAns[t].rt+" ms":"").filter(Boolean).join(", ");$("hnum").innerHTML=scored?`${right} of ${scored}<small>correct</small>`:`Recorded<small>no answers on file</small>`;
-  r.innerHTML=resultCard(m,row("zone","Strike?")+row("pitch","Fastball?"));
+  r.innerHTML=resultCard(m,row("zone","Strike or ball?")+row("pitch","Which pitch?"));
   state="reveal";
   if($("reveal").value==="1"){v.muted=false;v.play().catch(()=>{});v.onended=()=>{if(state==="reveal"){state="idle";after(false)}}}else{state="idle";after(false)}}
 function after(auto){if(packQ){if(auto)setTimeout(nextInQueue,900);else{$("next").style.display="";$("next").onclick=nextInQueue}}else{$("start").style.display="";$("next").style.display="none"}}
-$("bgo").onclick=()=>answer(true);$("bno").onclick=()=>answer(false);$("start").onclick=()=>startPitch(false);
-document.addEventListener("keydown",e=>{if(["SELECT","INPUT"].includes(e.target.tagName))return;if(e.key==="g"||e.key==="G")answer(true);else if(e.key==="n"||e.key==="N")answer(false);else if(e.key===" "||e.key==="Enter"){e.preventDefault();if($("next").style.display!=="none")$("next").click();else startPitch(false)}});
+$("bstrike").onclick=()=>answer("Strike");$("bball").onclick=()=>answer("Ball");$("start").onclick=()=>startPitch(false);
+document.addEventListener("keydown",e=>{if(["SELECT","INPUT"].includes(e.target.tagName))return;if(state==="q"&&qOrder[qi]==="zone"&&(e.key==="s"||e.key==="S"))answer("Strike");else if(state==="q"&&qOrder[qi]==="zone"&&(e.key==="b"||e.key==="B"))answer("Ball");else if(state==="q"&&qOrder[qi]==="pitch"&&/^[1-9]$/.test(e.key)&&curOpts[+e.key-1])answer(curOpts[+e.key-1]);else if(e.key===" "||e.key==="Enter"){e.preventDefault();if($("next").style.display!=="none")$("next").click();else startPitch(false)}});
 // ---------- log, csv, sync ----------
-const TCOLS="player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",");
+const TCOLS="player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,options,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",");
 const q=x=>{x=String(x??"");if(/^[=+\-@\t\r]/.test(x)&&!/^-?\d+(\.\d+)?$/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
 const toCSV=ts=>[TCOLS.join(","),...ts.map(t=>TCOLS.map(c=>q(t[c])).join(","))].join("\n");
 function addRow(t){const assess=t.mode==="assess";const tb=document.querySelector("#log tbody");const tr=document.createElement("tr");
-  tr.innerHTML=`<td>${sessionLog.length}</td><td>${esc((t.clip||"").slice(0,6))}</td><td>${t.task==="zone"?"strike":"fastball"}</td><td class="num">${t.pause_ms}</td><td>${t.call}</td><td class="num">${t.rt_ms}</td><td>${assess?"hidden":(t.key||"unknown")}</td><td>${assess?"hidden":(t.correct===""?"no key":t.correct?"correct":"wrong")}</td>`;tb.appendChild(tr)}
+  tr.innerHTML=`<td>${sessionLog.length}</td><td>${esc((t.clip||"").slice(0,6))}</td><td>${t.task==="zone"?"strike/ball":"pitch"}</td><td class="num">${t.pause_ms}</td><td>${esc(disp(t.task,t.call))}</td><td class="num">${t.rt_ms}</td><td>${assess?"hidden":esc(t.key?disp(t.task,t.key):"unknown")}</td><td>${assess?"hidden":(t.correct===""?"no key":t.correct?"correct":"wrong")}</td>`;tb.appendChild(tr)}
 function renderStats(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;const rts=s.map(t=>t.rt_ms).sort((a,b)=>a-b);return n?`<b>${pct(k/n)}</b> (${k} of ${n}), median ${rts[Math.floor(n/2)]} ms`:"no scored answers"};
-  $("stats").innerHTML=`<span>This session: <b>${sessionLog.length}</b> answers</span><span>Strike? ${f("zone")}</span><span>Fastball? ${f("pitch")}</span>`}
+  $("stats").innerHTML=`<span>This session: <b>${sessionLog.length}</b> answers</span><span>Strike or ball ${f("zone")}</span><span>Pitch type ${f("pitch")}</span>`}
 async function updateChips(){if(!DB)return;const t=await allTrials();const n=t.filter(x=>!x.synced).length;$("pend").textContent=n+" to sync";$("pend").className="chip"+(n>0&&!(navigator.onLine&&reach)?" warn":"")}
 $("copy").onclick=async()=>{try{await navigator.clipboard.writeText(toCSV(sessionLog));say("syncmsg","Copied.")}catch(e){say("syncmsg","Copy failed.")}};
 $("dl").onclick=async()=>{const f=new File([toCSV(await allTrials())],"gonogo_trials.csv",{type:"text/csv"});
@@ -308,10 +318,10 @@ $("sync").onclick=sync;
 window.addEventListener("online",()=>{setNet(true);sync()});window.addEventListener("offline",()=>setNet(false));
 // ---------- keys ----------
 function renderKeys(){const el=$("keys");el.innerHTML="";items().forEach(it=>{const o=keys[it.id]||{};const d=document.createElement("div");d.className="card";const k=it.keys||{};
-  const sel=(f,shipped)=>{const s=document.createElement("select");[["","unknown"],["true","GO"],["false","NO-GO"]].forEach(([val,txt])=>{const op=document.createElement("option");op.value=val;op.textContent=txt;const c=o[f]!=null?o[f]:shipped;if(String(c)===val||(c==null&&val===""))op.selected=true;s.appendChild(op)});
-    s.onchange=async()=>{keys[it.id]=keys[it.id]||{};keys[it.id][f]=s.value===""?null:s.value==="true";await kvSet("keys",keys)};return s};
-  d.innerHTML=`<h2>${esc(it.label||it.id.slice(0,8))}</h2><div class="note">${esc(it._pack.title)}${it._pack.mode==="assess"?", assessment: no shipped answer":""}</div><dl class="det"><dt>Strike? (GO = in zone)</dt><dd></dd><dt>Fastball? (GO = fastball)</dt><dd></dd></dl>`;
-  const dds=d.querySelectorAll("dd");dds[0].appendChild(sel("zone_go",k.zone_go));dds[1].appendChild(sel("pitch_go",k.pitch_go));el.appendChild(d)})}
+  const sel=(f,shipped,choices)=>{const s=document.createElement("select");[["","unknown"],...choices].forEach(([val,txt])=>{const op=document.createElement("option");op.value=val;op.textContent=txt;const c=o[f]!==undefined?o[f]:shipped;if(String(c)===val||((c==null||c==="")&&val===""))op.selected=true;s.appendChild(op)});
+    s.onchange=async()=>{keys[it.id]=keys[it.id]||{};keys[it.id][f]=s.value===""?null:(f==="strike"?s.value==="true":s.value);await kvSet("keys",keys)};return s};
+  d.innerHTML=`<h2>${esc(it.label||it.id.slice(0,8))}</h2><div class="note">${esc(it._pack.title)}${it._pack.mode==="assess"?", assessment: no shipped answer":""}</div><dl class="det"><dt>Strike or ball?</dt><dd></dd><dt>Which pitch?</dt><dd></dd></dl>`;
+  const dds=d.querySelectorAll("dd");dds[0].appendChild(sel("strike",k.strike,[["true","Strike"],["false","Ball"]]));dds[1].appendChild(sel("pitch_type",k.pitch_type,optionsFor(it).map(c=>[c,PN[c]||c])));el.appendChild(d)})}
 // ---------- tabs, info, boot ----------
 function showTab(t){document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id==="t-"+t));document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(t==="queue")renderQueue();window.scrollTo(0,0)}
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.t));

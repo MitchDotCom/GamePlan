@@ -51,20 +51,41 @@ def cut_clip(p: dict, work: pathlib.Path, out: pathlib.Path, scale_w: int = 640)
     return dict(release=round(release - start, 4))
 
 
-def build_pack(pid: str, title: str, subtitle: str, rows: list[dict], content: pathlib.Path, work: pathlib.Path, mode: str = "train", limit: int = 8, cutter=cut_clip) -> tuple:
-    """-> (pack dict for the queue, {item id: keys} for the private file). In an assessment pack the keys are withheld from the pack."""
+ARSENAL_MIN_SHARE, ARSENAL_MIN_N = 0.03, 5
+
+
+def arsenals(rows: list[dict]) -> dict:
+    """{pitcher id: pitch types he throws, most used first}. A type counts when it is at least 3% of his pitches and at least 5 of them, so a one-off does not become a choice."""
+    from collections import Counter
+    by = {}
+    for p in rows:
+        if p.get("type") == "pitch" and p.get("pitcher") is not None and p.get("pitch_type"):
+            by.setdefault(p["pitcher"], Counter())[p["pitch_type"]] += 1
+    return {k: [t for t, n in c.most_common() if n >= ARSENAL_MIN_N and n / sum(c.values()) >= ARSENAL_MIN_SHARE] for k, c in by.items()}
+
+
+def build_pack(pid: str, title: str, subtitle: str, rows: list[dict], content: pathlib.Path, work: pathlib.Path, mode: str = "train", limit: int = 8, cutter=cut_clip,
+               arsenal: dict | None = None) -> tuple:
+    """-> (pack dict for the queue, {item id: keys} for the private file). In an assessment pack the keys are withheld from the pack.
+    Keys: strike (True when the ball crossed the zone by tracking, not the umpire's call) and pitch_type (what was thrown).
+    Each item carries `arsenal`, that pitcher's own pitch types, which are the choices for the second question. A pitch whose type is not in his arsenal list is skipped, never added to the choices."""
     items, private = [], {}
     for p in rows:
         if len(items) >= limit:
             break
         iid = p["play_id"][:12]
+        opts = list((arsenal or {}).get(p.get("pitcher"), []))
+        if arsenal is not None and p.get("pitch_type") not in opts:
+            continue          # a rare pitch outside his arsenal list would stand out as the only odd choice, so it is not asked
+        if arsenal is None:
+            opts = [p["pitch_type"]] if p.get("pitch_type") else []
         r = cutter(p, work, content / pid / f"{iid}.mp4")
         if not r:
             continue
         k = V.answer_keys(p)
-        keys = dict(zone_go=k["zone_go"], pitch_go=k["pitch_go"])
+        keys = dict(strike=k["zone_go"], pitch_type=p.get("pitch_type"))
         private[iid] = keys
-        items.append(dict(id=iid, file=f"{iid}.mp4", release=r["release"], keys=keys if mode == "train" else None, meta=V.pitch_meta(p),
+        items.append(dict(id=iid, file=f"{iid}.mp4", release=r["release"], keys=keys if mode == "train" else None, arsenal=opts, meta=V.pitch_meta(p),
                           label=f"Pitch {len(items) + 1}", result=None))
     return dict(id=pid, dir=pid, title=title, subtitle=subtitle, mode=mode, items=items), private
 
@@ -89,13 +110,14 @@ def build_queues(pitcher_id: int, season: int, before: str, n_starts: int, work:
     name, team = pool[0].get("pitcher_name"), pool[0].get("team_fielding_id")
     mates = team_pool(work / "feeds", team, pitcher_id)
     rnd = random.Random(seed or before)
+    ars = arsenals(pool + mates)
     private, queues = {}, {}
     for side in ("L", "R"):
         hit = dict(stand=side, name=side)
         pl = PL.playlist("usage", pool, hit, 3, 10 ** 6)
         packs = []
         sp, pk = build_pack(f"starter_{pitcher_id}_{side}", f"Next starter: {name}", f"Vs {'left' if side == 'L' else 'right'}-handed batters. His most-used pitches from his last {len(starts)} starts.",
-                            pl["pitches"][: per_pack * 3], content, work, "train", per_pack, cutter)
+                            pl["pitches"][: per_pack * 3], content, work, "train", per_pack, cutter, ars)
         packs.append(sp); private.update({f"{sp['id']}/{k}": v for k, v in pk.items()})
         by_p = {}
         for p in mates:
@@ -106,12 +128,12 @@ def build_queues(pitcher_id: int, season: int, before: str, n_starts: int, work:
         for i, pid_ in enumerate(names[:n_random]):
             rs = by_p[pid_][:]
             rnd.shuffle(rs)
-            rp, pk = build_pack(f"random_{pid_}_{side}", f"Random: {rs[0].get('pitcher_name')}", f"{rs[0].get('team_fielding') or 'Same team'}, mixed pitches.", rs[: per_pack * 3], content, work, "train", per_pack, cutter)
+            rp, pk = build_pack(f"random_{pid_}_{side}", f"Random: {rs[0].get('pitcher_name')}", f"{rs[0].get('team_fielding') or 'Same team'}, mixed pitches.", rs[: per_pack * 3], content, work, "train", per_pack, cutter, ars)
             packs.append(rp); private.update({f"{rp['id']}/{k}": v for k, v in pk.items()})
         if assess_pitches:
             allr = [p for p in mates + pool if p.get("stand") == side]
             rnd.shuffle(allr)
-            ap, pk = build_pack(f"assess_{side}", "Assessment", "No feedback. Scored later.", allr[: assess_pitches * 3], content, work, "assess", assess_pitches, cutter)
+            ap, pk = build_pack(f"assess_{side}", "Assessment", "No feedback. Scored later.", allr[: assess_pitches * 3], content, work, "assess", assess_pitches, cutter, ars)
             packs.append(ap); private.update({f"{ap['id']}/{k}": v for k, v in pk.items()})
         packs = [p for p in packs if p["items"]]
         q = dict(version=1, generated=datetime.datetime.now().isoformat(timespec="minutes"), side=side, pause_ms=PAUSE_MS, packs=packs)

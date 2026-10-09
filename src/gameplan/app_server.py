@@ -20,7 +20,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 MAX_BODY = 5 * 1024 * 1024
 APP_DIR = pathlib.Path(__file__).resolve().parents[2] / "phone_app"
-COLS = "player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",")
+COLS = "player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,options,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",")
 
 
 def _safe(v):
@@ -63,10 +63,14 @@ class Store:
             if t.get("key") in ("", None) and self.keys:
                 k = self.keys.get(f"{t.get('pack')}/{t.get('clip')}")
                 if k:
-                    a = k.get("zone_go" if t.get("task") == "zone" else "pitch_go")
-                    if a is not None:
-                        t["key"] = "GO" if a else "NO-GO"
-                        t["correct"] = int((t["call"] == "GO") == a)
+                    if t.get("task") == "zone":
+                        a = k.get("strike")
+                        a = None if a is None else ("Strike" if a else "Ball")
+                    else:
+                        a = k.get("pitch_type")
+                    if a:
+                        t["key"] = a
+                        t["correct"] = int(t["call"] == a)
         return out
 
     def csv(self) -> str:

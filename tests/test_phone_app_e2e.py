@@ -39,20 +39,21 @@ def test_phone_flow(tmp_path):
         # clips download into IndexedDB
         p.wait_for_function("document.getElementById('dlmsg').textContent.includes('clips on this phone')", timeout=60000)
         p.click("#goNext")
-        # both questions per clip, GO then NO-GO
+        # both questions per clip: strike or ball first, then which of this pitcher's pitches
         p.wait_for_function("window.__gonogo.state()==='q'", timeout=20000)
         first = p.inner_text("#hnum")
-        assert first in ("Strike?", "Fastball?")
+        assert first == "Strike or Ball?"
         dev = p.evaluate("(window.__pauseMT - window.__gonogo.pauseAt())*60")
         assert abs(dev) < 1.5                                   # paused within a frame and a half of the target
-        p.click("#bgo")
+        p.click("#bstrike")
         p.wait_for_function("document.getElementById('hlab').textContent.startsWith('Question 2')")
         second = p.inner_text("#hnum")
-        assert {first, second} == {"Strike?", "Fastball?"}
-        p.click("#bno")
+        assert second == "Which pitch?"
+        assert p.locator("#opts button").count() >= 2
+        p.click("#opts button:nth-child(1)")
         p.wait_for_selector("#res .card")
         card = p.inner_text("#res")
-        for needle in ("Strike?", "Fastball?", "Pitch", "Location", "Ride", "Run", "Flight time"):
+        for needle in ("Strike or ball?", "Which pitch?", "Pitch", "Location", "Ride", "Run", "Flight time"):
             assert needle in card, needle
         assert p.is_visible("#res .zonecard svg")
         trials = p.evaluate("window.__gonogo.trials()")

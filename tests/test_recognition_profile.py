@@ -14,10 +14,10 @@ def make(path, player="A", session="s1", n=600, base=0.75, weak=("low-away", 0.3
     pockets = [f"{h}-{s}" for h in ("high", "mid", "low") for s in ("in", "mid", "away")]
     for i in range(n):
         pk = pockets[i % 9]
-        key = "GO" if rng.random() < 0.5 else "NO-GO"
+        key = "Strike" if rng.random() < 0.5 else "Ball"
         acc = weak[1] if pk == weak[0] else base
         ok = rng.random() < acc
-        call = key if ok else ("NO-GO" if key == "GO" else "GO")
+        call = key if ok else ("Ball" if key == "Strike" else "Strike")
         rows.append(dict(player=player, session=session, mode="assess", ts="t", clip=f"c{i}", task=task, pause_ms=100, call=call, rt_ms=int(rng.normal(450, 60)), key=key, correct=int(ok),
                          pitch_type="FF", family="FB", pocket=pk, px=0.2, pz=2.5, sz_top=3.5, sz_bot=1.5, speed=93, stand="R", p_throws="R", release_frame=400))
     with open(path, "a", newline="") as f:
@@ -68,6 +68,29 @@ def test_html_and_edge_buckets(tmp_path):
     make(f)
     pr = RP.profile(RP.load([str(f)]), "A")
     page = RP.render_html(pr)
-    assert "Zone recognition" in page and "low-away" in page
+    assert "Strike or ball" in page and "low-away" in page
     assert RP.edge_bucket(dict(px=1.2, pz=2.5, sz_top=3.5, sz_bot=1.5)).startswith("outside")
     assert RP.edge_bucket(dict(px=0.0, pz=2.5, sz_top=3.5, sz_bot=1.5)).startswith("inside, deeper")
+
+
+def test_pitch_task_scores_against_the_offered_choices_and_lists_confusions(tmp_path):
+    f = tmp_path / "t.csv"
+    cols = COLS + ["options"]
+    rng = np.random.default_rng(5)
+    rows = []
+    for i in range(120):
+        key = ["FF", "SL", "CH"][i % 3]
+        ok = rng.random() < 0.7
+        call = key if ok else ("SL" if key == "FF" else "FF")
+        rows.append(dict(player="A", session="s1", mode="train", ts="t", clip=f"c{i}", task="pitch", pause_ms=100, call=call, rt_ms=500, key=key, correct=int(ok), pitch_type=key, family="FB",
+                         pocket="mid-mid", px=0.1, pz=2.5, sz_top=3.5, sz_bot=1.5, speed=90, stand="R", p_throws="R", release_frame=1, options="FF|SL|CH"))
+    with open(f, "w", newline="") as fh:
+        w = csv.DictWriter(fh, cols)
+        w.writeheader()
+        w.writerows(rows)
+    pr = RP.profile(RP.load([str(f)]), "A")
+    t = pr["pitch"]["summary"]
+    assert t["chance_baseline"] == 0.333 and "d_prime" not in t and 0.6 < t["accuracy"] < 0.8
+    assert pr["pitch"]["confusions"] and pr["pitch"]["confusions"][0][0] in ("FF", "SL", "CH")
+    assert set(pr["pitch"]["by_pitch_type"]) == {"FF", "SL", "CH"}
+    assert "What he named instead" in RP.render_html(pr)

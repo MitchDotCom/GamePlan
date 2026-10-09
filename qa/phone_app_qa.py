@@ -102,13 +102,16 @@ def wait_q(p, timeout=25000):
     p.wait_for_function("window.__gonogo.state()==='q'", timeout=timeout)
 
 
-def answer_clip(p, calls=("GO", "NO-GO")):
-    """Answer every question of the current clip. Returns the question texts in the order asked."""
+def answer_clip(p, calls=("Strike", 0)):
+    """Answer every question of the current clip: "Strike" or "Ball" for the first, the index of a pitch choice for the second. Returns the question texts in the order asked."""
     seen = []
     for c in calls:
         wait_q(p)
         seen.append(p.inner_text("#hnum"))
-        p.click("#bgo" if c == "GO" else "#bno")
+        if c in ("Strike", "Ball"):
+            p.click("#bstrike" if c == "Strike" else "#bball")
+        else:
+            p.click(f"#opts button:nth-child({c + 1})")
         p.wait_for_timeout(120)
     return seen
 
@@ -251,20 +254,28 @@ def main():
             assert len(t) == 2 and {x["task"] for x in t} == {"zone", "pitch"} and t[0]["clip_trial"] == t[1]["clip_trial"] and {x["q_order"] for x in t} == {1, 2}, t
             return f"questions asked: {qs}"
 
-        @check("C2", "Core", "Question order is randomized: across the pack both orders occur, and the same clip keeps the same order", "S3")
+        @check("C2", "Core", "Strike or ball is always asked first; the pitch question then offers that pitcher's own pitch types, with the thrown one among them and no duplicates", "S1")
         def _():
             ctx, p = E.open()
             setup(p)
             p.click("#tabs button[data-t=queue]")
             p.click("#block")
-            firsts = []
+            firsts, seconds, shown = [], [], []
             for _i in range(8):
-                firsts.append(answer_clip(p)[0])
+                qs = answer_clip(p, ("Strike",))
+                firsts.append(qs[0])
+                wait_q(p)
+                seconds.append(p.inner_text("#hnum"))
+                shown.append(p.eval_on_selector_all("#opts button", "els => els.map(e => e.dataset.code)"))
+                p.click("#opts button:nth-child(1)")
                 next_clip(p)
                 p.wait_for_timeout(600)
+            t = [x for x in trials(p) if x["task"] == "pitch"]
             ctx.close()
-            assert len(set(firsts)) == 2, firsts
-            return f"first questions over {len(firsts)} clips: {firsts}"
+            assert set(firsts) == {"Strike or Ball?"} and set(seconds) == {"Which pitch?"}, (firsts, seconds)
+            assert all(2 <= len(s_) <= 7 and len(set(s_)) == len(s_) for s_ in shown), shown
+            assert len(t) == 8 and all(x["pitch_type"] in x["options"].split("|") for x in t), [(x["pitch_type"], x["options"]) for x in t]
+            return f"first question always 'Strike or Ball?'; pitch choices per clip: {sorted({tuple(s_) for s_ in shown})}"
 
         for tid, ask, task in (("C3a", "zone", "zone"), ("C3b", "pitch", "pitch")):
             @check(tid, "Core", f"Ask '{ask}' only: one row per clip, task {task}", "S2")
@@ -273,7 +284,7 @@ def main():
                 setup(p, ask=ask)
                 p.click("#tabs button[data-t=queue]")
                 p.click("#goNext")
-                answer_clip(p, ("GO",))
+                answer_clip(p, ("Strike",) if task == "zone" else (0,))
                 p.wait_for_timeout(300)
                 t = trials(p)
                 ctx.close()
@@ -285,13 +296,14 @@ def main():
             setup(p)
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
-            answer_clip(p, ("GO", "GO"))
+            answer_clip(p, ("Strike", 0))
             p.wait_for_selector("#res .card")
             card = p.inner_text("#res")
             t = trials(p)
             ctx.close()
             for x in t:
-                assert x["key"] in ("GO", "NO-GO") and x["correct"] in (0, 1), x
+                assert x["key"] and x["correct"] in (0, 1), x
+                assert (x["key"] in ("Strike", "Ball")) == (x["task"] == "zone"), x
                 assert (x["call"] == x["key"]) == bool(x["correct"]), x
             wrong = sum(1 for x in t if not x["correct"])
             assert card.count("Wrong") == wrong and card.count("Correct") == len(t) - wrong, (card, t)
@@ -331,7 +343,7 @@ def main():
                     p.wait_for_function("window.__gonogo.state()==='q'", timeout=12000)
                 except Exception:
                     break
-                p.click("#bgo")
+                p.click("#bstrike")
                 done += 1
                 next_clip(p)
                 p.wait_for_timeout(100)
@@ -341,18 +353,20 @@ def main():
             assert done == n_items, (done, n_items)
             return f"{done} pitches answered, {len(clips)} distinct clips"
 
-        @check("C7", "Core", "Keyboard: G, N and Space work (for a desktop or Bluetooth keyboard)", "S3")
+        @check("C7", "Core", "Keyboard: S and B answer strike or ball, 1 to 9 pick the pitch, Space starts (for a desktop or Bluetooth keyboard)", "S3")
         def _():
             ctx, p = E.open(mobile=False)
-            setup(p, ask="zone")
+            setup(p, ask="both")
             p.click("#tabs button[data-t=play]")
             p.keyboard.press("Space")
             wait_q(p)
-            p.keyboard.press("n")
-            p.wait_for_timeout(300)
+            p.keyboard.press("b")
+            p.wait_for_function("document.getElementById('hlab').textContent.startsWith('Question 2')")
+            p.keyboard.press("2")
+            p.wait_for_timeout(400)
             t = trials(p)
             ctx.close()
-            assert len(t) == 1 and t[0]["call"] == "NO-GO", t
+            assert len(t) == 2 and t[0]["call"] == "Ball" and t[1]["call"] == t[1]["options"].split("|")[1], t
 
         @check("C8", "Core", "Pack completion: the Start button comes back and the queue marks the pitches done after a reload", "S2")
         def _():
@@ -362,7 +376,7 @@ def main():
             p.click("#goNext")
             for _i in range(6):
                 wait_q(p)
-                p.click("#bgo")
+                p.click("#bstrike")
                 next_clip(p)
                 p.wait_for_timeout(100)
             p.wait_for_function("document.getElementById('now').textContent.startsWith('Done')", timeout=30000)
@@ -393,7 +407,7 @@ def main():
             for x in t:
                 for k in need:
                     assert k in x and x[k] is not None, (k, x)
-                assert 0 <= x["rt_ms"] < 60000 and x["call"] in ("GO", "NO-GO") and x["pause_ms"] == 100
+                assert 0 <= x["rt_ms"] < 60000 and x["call"] and x["pause_ms"] == 100
             assert len({x["id"] for x in t}) == len(t)
             return f"{len(t)} rows"
 
@@ -453,7 +467,7 @@ def main():
             setup(p, name="Persist Test", bats="L", ask="zone", off="0.150", mode="assess")
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
-            answer_clip(p, ("GO",))
+            answer_clip(p, ("Strike",))
             p.wait_for_timeout(500)
             p.reload()
             p.wait_for_function("window.__gonogo && window.__gonogo.queue()")
@@ -470,7 +484,7 @@ def main():
             setup(p, ask="zone")
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
-            answer_clip(p, ("GO",))
+            answer_clip(p, ("Strike",))
             p.wait_for_timeout(400)
             p.click("#tabs button[data-t=set]")
             p.once("dialog", lambda d: d.accept())
@@ -490,7 +504,7 @@ def main():
             setup(p, ask="zone")
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
-            answer_clip(p, ("GO",))
+            answer_clip(p, ("Strike",))
             p.wait_for_timeout(300)
             p.route("**/api/trials", lambda r: r.abort())
             p.click("#tabs button[data-t=log]")
@@ -516,7 +530,7 @@ def main():
             setup(p, name=evil, ask="zone")
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
-            answer_clip(p, ("GO",))
+            answer_clip(p, ("Strike",))
             p.wait_for_timeout(300)
             p.click("#tabs button[data-t=log]")
             with p.expect_download() as d:
@@ -567,7 +581,7 @@ def main():
             s5.shutdown()
             s5.server_close()
             wait_q(p)
-            p.click("#bgo")
+            p.click("#bstrike")
             p.wait_for_timeout(400)
             n = len(trials(p))
             ctx.close()
@@ -575,14 +589,14 @@ def main():
             assert n == 1, n
 
         # ------------------------------------------------------------------ F. robustness
-        @check("F1", "Robustness", "Double-tapping GO records ONE answer for that question", "S1")
+        @check("F1", "Robustness", "Double-tapping Strike records ONE answer for that question", "S1")
         def _():
             ctx, p = E.open()
             setup(p, ask="zone")
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
             wait_q(p)
-            p.evaluate("(()=>{const b=document.getElementById('bgo');b.click();b.click();b.click()})()")
+            p.evaluate("(()=>{const b=document.getElementById('bstrike');b.click();b.click();b.click()})()")
             p.wait_for_timeout(600)
             n = len(trials(p))
             ctx.close()
@@ -596,7 +610,7 @@ def main():
             p.click("#start")
             p.evaluate("(()=>{const b=document.getElementById('start');b.click();b.click()})()")
             wait_q(p)
-            p.click("#bgo")
+            p.click("#bstrike")
             p.wait_for_timeout(1500)
             n = len(trials(p))
             ctx.close()
@@ -612,7 +626,7 @@ def main():
             hidden = p.evaluate("getComputedStyle(document.querySelector('#tabs')).display === 'none' || document.querySelector('#tabs').offsetParent === null")
             assert hidden, "tab bar should be hidden while a pitch is on (focus mode), so a player cannot wander off mid-question"
             wait_q(p)
-            p.click("#bgo")
+            p.click("#bstrike")
             p.wait_for_selector("#res .card")
             back = p.is_visible("#tabs")
             n = len(trials(p))
@@ -626,7 +640,7 @@ def main():
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
             wait_q(p)
-            p.click("#bgo")
+            p.click("#bstrike")
             p.wait_for_timeout(200)
             p.reload()
             p.wait_for_function("window.__gonogo && window.__gonogo.queue()")
@@ -661,14 +675,14 @@ def main():
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
             wait_q(p)
-            box = p.evaluate("(()=>{const r=document.getElementById('bgo').getBoundingClientRect();return [r.top,r.bottom,innerHeight]})()")
+            box = p.evaluate("(()=>{const r=document.getElementById('bstrike').getBoundingClientRect();return [r.top,r.bottom,innerHeight]})()")
             ctx.close()
             assert box[0] >= 0 and box[1] <= box[2] + 1, box
             return str(box)
 
         # ------------------------------------------------------------------ G. layout and accessibility
         for w, h, name in ((320, 568, "iPhone SE 1st gen"), (360, 640, "small Android"), (375, 667, "iPhone SE 2/3"), (390, 844, "iPhone 14"), (412, 915, "Pixel 7"), (820, 1180, "iPad")):
-            @check(f"G1-{w}", "Layout", f"{name} {w}x{h}: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows", "S1")
+            @check(f"G1-{w}", "Layout", f"{name} {w}x{h}: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows", "S1")
             def _(w=w, h=h):
                 ctx, p = E.open(w=w, h=h)
                 setup(p, ask="both")
@@ -682,22 +696,28 @@ def main():
                 p.click("#goNext")
                 wait_q(p)
                 p.wait_for_timeout(200)
-                b = p.evaluate("(()=>{const r=document.getElementById('bgo').getBoundingClientRect();return [r.top,r.bottom,innerHeight,r.height]})()")
+                b = p.evaluate("(()=>{const r=document.getElementById('bstrike').getBoundingClientRect();return [r.top,r.bottom,innerHeight,r.height]})()")
+                p.click("#bstrike")
+                p.wait_for_function("document.getElementById('hlab').textContent.startsWith('Question 2')")
+                p.wait_for_timeout(200)
+                o = p.evaluate("(()=>{const bs=[...document.querySelectorAll('#opts button')];const r=bs[bs.length-1].getBoundingClientRect();return [Math.max(...bs.map(e=>e.getBoundingClientRect().bottom)),innerHeight,Math.min(...bs.map(e=>e.getBoundingClientRect().height)),bs.length,document.documentElement.scrollWidth-document.documentElement.clientWidth]})()")
                 ctx.close()
                 assert all(v <= 1 for v in over.values()), over
                 assert b[1] <= b[2] + 1, f"answer buttons below the fold: bottom {b[1]:.0f} > viewport {b[2]}"
-                return f"overflow {over}; buttons bottom {b[1]:.0f}/{b[2]}, height {b[3]:.0f}"
+                assert o[0] <= o[1] + 1, f"pitch choices below the fold: bottom {o[0]:.0f} > viewport {o[1]} ({o[3]} choices)"
+                assert o[2] >= 44 and o[4] <= 1, o
+                return f"overflow {over}; strike/ball bottom {b[1]:.0f}/{b[2]}, height {b[3]:.0f}; {o[3]} pitch choices bottom {o[0]:.0f}/{o[1]}, smallest {o[2]:.0f} px"
 
-        @check("G2", "Accessibility", "Tap targets: GO, NO-GO, Start, tabs and sync are at least 44 px tall", "S2")
+        @check("G2", "Accessibility", "Tap targets: Strike, Ball, Start, tabs and sync are at least 44 px tall", "S2")
         def _():
             ctx, p = E.open(w=375, h=667)
             setup(p, ask="zone")
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
             wait_q(p)
-            hs = p.evaluate("""() => Object.fromEntries(['bgo','bno'].map(i => [i, document.getElementById(i).getBoundingClientRect().height]).concat(
+            hs = p.evaluate("""() => Object.fromEntries(['bstrike','bball'].map(i => [i, document.getElementById(i).getBoundingClientRect().height]).concat(
                 [...document.querySelectorAll('#tabs button')].map(b => ['tab ' + b.textContent, b.getBoundingClientRect().height])))""")
-            p.click("#bgo")
+            p.click("#bstrike")
             p.wait_for_selector("#res .card")
             hs["start"] = p.evaluate("document.getElementById('start').getBoundingClientRect().height") if p.is_visible("#start") else None
             p.click("#tabs button[data-t=log]")
@@ -714,7 +734,7 @@ def main():
             p.click("#tabs button[data-t=queue]")
             p.click("#goNext")
             wait_q(p)
-            p.click("#bgo")
+            p.click("#bstrike")
             p.wait_for_selector("#res .card")
             info = p.evaluate("""() => ({lang: document.documentElement.lang, title: document.title,
                unnamed: [...document.querySelectorAll('button,select,input')].filter(e => !(e.textContent.trim() || e.getAttribute('aria-label') || (e.labels && e.labels.length) || e.closest('label') || e.closest('dl') )).map(e => e.id || e.tagName),
@@ -763,7 +783,7 @@ def main():
                         p.click("#start")
                         wait_q(p)
                         devs.append(p.evaluate("(window.__pauseMT - window.__gonogo.pauseAt())*60"))
-                        p.click("#bgo")
+                        p.click("#bstrike")
                         p.wait_for_timeout(120)
                         p.evaluate("document.getElementById('v').pause()")
                         p.wait_for_function("window.__gonogo.state()==='idle' || window.__gonogo.state()==='reveal'", timeout=6000)
@@ -820,8 +840,10 @@ def main():
                         m_ = it["meta"]
                         in_zone = abs(m_["px"]) <= 0.83 and m_["sz_bot"] <= m_["pz"] <= m_["sz_top"]
                         fb = m_["family"] == "FB"
-                        if it["keys"] is not None and (it["keys"]["zone_go"] != in_zone or it["keys"]["pitch_go"] != fb):
+                        if it["keys"] is not None and (it["keys"]["strike"] != in_zone or it["keys"]["pitch_type"] != m_["pitch_type"]):
                             bad.append(("key/meta mismatch", pk["id"], it["id"]))
+                        if m_["pitch_type"] not in it["arsenal"] or len(set(it["arsenal"])) != len(it["arsenal"]) or len(it["arsenal"]) < 2:
+                            bad.append(("arsenal missing the thrown type, duplicated, or fewer than two choices", pk["id"], it["id"], it["arsenal"]))
             assert not bad, bad[:5]
             return f"{n} items checked"
 
