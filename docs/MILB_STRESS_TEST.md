@@ -55,6 +55,15 @@ Reliability (odd/even games, at least 100 swings in each half):
 | Ride | 225 | 0.40 [0.28, 0.50] | 0.57 | met |
 | Run | 92 | 0.05 [-0.13, 0.23] | 0.10 | not met |
 
+Year over year (2024 feed: 1,587 games, 468,195 pitches, 100% tracked; 190 hitters in both seasons):
+
+| Trait | Hitters with a slope in both seasons | r [95% CI] |
+|---|---|---|
+| Ride | 174 | 0.39 [0.27, 0.50] |
+| Run | 107 | 0.03 [-0.17, 0.23] |
+
+Triple-A ride carries from one season to the next (about as strong as within a season), which is stronger than the MLB three-season figure (0.205, interval includes 0) and the Florida State League (0.14). Run does not carry. Both agree with the within-season split: ride is usable at Triple-A, run is not.
+
 Reading it: Triple-A ride is stable within a season (clears the bar with a lower end well above zero), unlike the Florida State League. Run is not stable at Triple-A even with 92 hitters, which is the opposite of MLB (0.75 corrected over three seasons). I do not know why; candidates are tracking differences between parks, a different pitch-label mix, or breaking-ball samples that are thin per half. I have not tested any of them.
 
 ## The lineup command on minor-league feeds (`milb_lineup.py`)
@@ -84,5 +93,4 @@ Caveat: the MLB hitters here are mostly regulars with full seasons; the Florida 
 4. Multiple seasons of the same hitter, carried across levels, are what would make ride and run usable. That needs a stable player ID across levels and the org's own history (the earlier CSV and ID discussion).
 
 ## Not done yet
-- Triple-A year over year (needs the 2024 Triple-A season fetched; only the Florida State League has both seasons).
 - Pacific Coast League (Triple-A West) is supported by the fetcher but not fetched.
