@@ -14,7 +14,7 @@
   "test": "Service worker registers, activates and controls the page after one reload",
   "result": "PASS",
   "evidence": "controller active after reload",
-  "seconds": 0.8,
+  "seconds": 0.5,
   "severity": "S1"
  },
  {
@@ -23,7 +23,7 @@
   "test": "iOS home-screen tags present (apple-touch-icon 180px, capable, status bar, title) and theme-color set",
   "result": "PASS",
   "evidence": "{'touch': True, 'cap': 'yes', 'theme': '#5f249f', 'title': 'Go/No-Go', 'vp': 'width=device-width,initial-scale=1,viewport-fit=cover'}",
-  "seconds": 0.8,
+  "seconds": 0.5,
   "severity": "S2"
  },
  {
@@ -32,7 +32,7 @@
   "test": "With the SERVER STOPPED, the installed shell still opens, shows the cached queue and plays a cached clip",
   "result": "PASS",
   "evidence": "opened and played with the server down; chip said offline",
-  "seconds": 3.4,
+  "seconds": 2.7,
   "severity": "S1"
  },
  {
@@ -41,7 +41,7 @@
   "test": "Start with no player name: blocked with a message, no answer is recorded",
   "result": "PASS",
   "evidence": "Enter a player name or ID first",
-  "seconds": 2.2,
+  "seconds": 1.2,
   "severity": "S1"
  },
  {
@@ -50,7 +50,7 @@
   "test": "Empty content folder (no queue yet): app opens, says so, no script errors",
   "result": "PASS",
   "evidence": "queue says 'No queue yet. Connect once to load it.', play says 'No pitches yet. Connect once to load the queue.'",
-  "seconds": 3.0,
+  "seconds": 1.8,
   "severity": "S2"
  },
  {
@@ -59,7 +59,7 @@
   "test": "Very first load while offline (nothing cached): fails safely, no crash loop",
   "result": "PASS",
   "evidence": "browser shows its offline page; the app needs one online visit to install (documented)",
-  "seconds": 0.4,
+  "seconds": 0.2,
   "severity": "S2"
  },
  {
@@ -67,18 +67,18 @@
   "area": "Core",
   "test": "Both questions per clip: 2 rows, same clip_trial, q_order 1 and 2, different tasks",
   "result": "PASS",
-  "evidence": "questions asked: ['Strike?', 'Fastball?']",
-  "seconds": 4.7,
+  "evidence": "questions asked: ['Strike or Ball?', 'Which pitch?']",
+  "seconds": 3.8,
   "severity": "S1"
  },
  {
   "id": "C2",
   "area": "Core",
-  "test": "Question order is randomized: across the pack both orders occur, and the same clip keeps the same order",
+  "test": "Strike or ball is always asked first; the pitch question then offers that pitcher's own pitch types, with the thrown one among them and no duplicates",
   "result": "PASS",
-  "evidence": "first questions over 8 clips: ['Strike?', 'Strike?', 'Strike?', 'Strike?', 'Strike?', 'Strike?', 'Fastball?', 'Fastball?']",
-  "seconds": 38.1,
-  "severity": "S3"
+  "evidence": "first question always 'Strike or Ball?'; pitch choices per clip: [('CU', 'SL', 'ST', 'FF'), ('FF', 'SL', 'FC'), ('SI', 'SL', 'FC', 'FF', 'ST')]",
+  "seconds": 38.5,
+  "severity": "S1"
  },
  {
   "id": "C3a",
@@ -86,7 +86,7 @@
   "test": "Ask 'zone' only: one row per clip, task zone",
   "result": "PASS",
   "evidence": "",
-  "seconds": 4.9,
+  "seconds": 3.9,
   "severity": "S2"
  },
  {
@@ -95,7 +95,7 @@
   "test": "Ask 'pitch' only: one row per clip, task pitch",
   "result": "PASS",
   "evidence": "",
-  "seconds": 5.1,
+  "seconds": 4.1,
   "severity": "S2"
  },
  {
@@ -103,8 +103,8 @@
   "area": "Core",
   "test": "Training: each answer is scored against the shipped key; verdicts on screen match the stored correct flag",
   "result": "PASS",
-  "evidence": "0 of 2 correct, screen agrees",
-  "seconds": 4.6,
+  "evidence": "2 of 2 correct, screen agrees",
+  "seconds": 3.8,
   "severity": "S1"
  },
  {
@@ -113,7 +113,7 @@
   "test": "Assessment: no feedback, no reveal playback, no answers in the page or the queue file, stored key is blank",
   "result": "PASS",
   "evidence": "mode=assess, video paused=False",
-  "seconds": 5.4,
+  "seconds": 4.6,
   "severity": "S1"
  },
  {
@@ -122,16 +122,16 @@
   "test": "Run block: plays every pitch in the queue once, auto-advances, ends with 'Done'",
   "result": "PASS",
   "evidence": "24 pitches answered, 23 distinct clips",
-  "seconds": 123.1,
+  "seconds": 118.8,
   "severity": "S2"
  },
  {
   "id": "C7",
   "area": "Core",
-  "test": "Keyboard: G, N and Space work (for a desktop or Bluetooth keyboard)",
+  "test": "Keyboard: S and B answer strike or ball, 1 to 9 pick the pitch, Space starts (for a desktop or Bluetooth keyboard)",
   "result": "PASS",
   "evidence": "",
-  "seconds": 3.4,
+  "seconds": 3.1,
   "severity": "S3"
  },
  {
@@ -140,7 +140,7 @@
   "test": "Pack completion: the Start button comes back and the queue marks the pitches done after a reload",
   "result": "PASS",
   "evidence": "hero now says: NEXT UP: RANDOM: SCOTT BARLOW",
-  "seconds": 32.0,
+  "seconds": 30.2,
   "severity": "S2"
  },
  {
@@ -149,7 +149,7 @@
   "test": "Every stored answer has all fields; times are plausible; ids unique",
   "result": "PASS",
   "evidence": "6 rows",
-  "seconds": 17.0,
+  "seconds": 15.4,
   "severity": "S1"
  },
  {
@@ -158,7 +158,7 @@
   "test": "Sync twice and concurrently: server holds exactly the local count, nothing duplicated",
   "result": "PASS",
   "evidence": "local 2, server 2, chip '0 to sync'",
-  "seconds": 7.2,
+  "seconds": 6.9,
   "severity": "S1"
  },
  {
@@ -167,7 +167,7 @@
   "test": "Server CSV is read by the recognition profile code and produces a profile (end to end, no exceptions)",
   "result": "PASS",
   "evidence": "8 rows, zone n=4, pitch n=4",
-  "seconds": 22.5,
+  "seconds": 21.3,
   "severity": "S1"
  },
  {
@@ -176,7 +176,7 @@
   "test": "Reload keeps answers, settings and the 'done' state",
   "result": "PASS",
   "evidence": "{'player': 'Persist Test', 'bats': 'L', 'ask': 'zone', 'off': '0.150'}",
-  "seconds": 5.2,
+  "seconds": 5.1,
   "severity": "S1"
  },
  {
@@ -185,7 +185,7 @@
   "test": "Erase on this phone really clears answers and resets the sync chip",
   "result": "PASS",
   "evidence": "",
-  "seconds": 5.8,
+  "seconds": 5.1,
   "severity": "S2"
  },
  {
@@ -194,7 +194,7 @@
   "test": "Server unreachable during sync: clear message, answers stay unsynced, later sync succeeds with nothing lost",
   "result": "PASS",
   "evidence": "failed sync -> chip '1 to sync', net 'offline'; retry stored 1",
-  "seconds": 5.6,
+  "seconds": 5.0,
   "severity": "S1"
  },
  {
@@ -203,7 +203,7 @@
   "test": "CSV formula injection: a player name like =cmd|... must not reach a spreadsheet cell as a formula (app export and server CSV)",
   "result": "PASS",
   "evidence": "neutralised in both exports",
-  "seconds": 6.0,
+  "seconds": 5.1,
   "severity": "S1"
  },
  {
@@ -212,7 +212,7 @@
   "test": "Clip not on the phone and no signal: a clear message, no crash, state recovers",
   "result": "PASS",
   "evidence": "This clip is not on the phone and there is no signal.",
-  "seconds": 3.7,
+  "seconds": 2.7,
   "severity": "S1"
  },
  {
@@ -221,16 +221,16 @@
   "test": "The server disappears right after a clip starts: the pitch, the question and the answer all still work (server really stopped, not browser offline emulation)",
   "result": "PASS",
   "evidence": "",
-  "seconds": 5.1,
+  "seconds": 4.1,
   "severity": "S2"
  },
  {
   "id": "F1",
   "area": "Robustness",
-  "test": "Double-tapping GO records ONE answer for that question",
+  "test": "Double-tapping Strike records ONE answer for that question",
   "result": "PASS",
   "evidence": "",
-  "seconds": 5.1,
+  "seconds": 4.3,
   "severity": "S1"
  },
  {
@@ -239,7 +239,7 @@
   "test": "Start tapped repeatedly: one playback, one set of trials",
   "result": "PASS",
   "evidence": "",
-  "seconds": 4.7,
+  "seconds": 4.6,
   "severity": "S2"
  },
  {
@@ -248,7 +248,7 @@
   "test": "During a pitch the tab bar is hidden (focus mode); the question appears and is answered; the tabs return afterwards",
   "result": "PASS",
   "evidence": "",
-  "seconds": 4.4,
+  "seconds": 3.5,
   "severity": "S2"
  },
  {
@@ -257,7 +257,7 @@
   "test": "Reload in the middle of a question: no half-written answers, app recovers to idle",
   "result": "PASS",
   "evidence": "kept the one completed answer; the unfinished clip is simply asked again",
-  "seconds": 4.8,
+  "seconds": 3.9,
   "severity": "S2"
  },
  {
@@ -266,7 +266,7 @@
   "test": "Corrupt clip file in storage: the app reports it and recovers, it does not hang in 'playing'",
   "result": "PASS",
   "evidence": "state after corrupt clip: idle; message 'Tap Start pitch to allow video'",
-  "seconds": 6.3,
+  "seconds": 5.5,
   "severity": "S1"
  },
  {
@@ -275,70 +275,70 @@
   "test": "Landscape orientation: question buttons are on screen without scrolling",
   "result": "PASS",
   "evidence": "[278.390625, 355.390625, 390]",
-  "seconds": 4.2,
+  "seconds": 3.7,
   "severity": "S2"
  },
  {
   "id": "G1-320",
   "area": "Layout",
-  "test": "iPhone SE 1st gen 320x568: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "test": "iPhone SE 1st gen 320x568: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
-  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 392/568, height 77",
-  "seconds": 5.4,
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 425/568, height 77; 5 pitch choices bottom 531/568, smallest 64 px",
+  "seconds": 5.2,
   "severity": "S1"
  },
  {
   "id": "G1-360",
   "area": "Layout",
-  "test": "small Android 360x640: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "test": "small Android 360x640: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
-  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 415/640, height 77",
-  "seconds": 5.6,
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 415/640, height 77; 5 pitch choices bottom 554/640, smallest 64 px",
+  "seconds": 5.4,
   "severity": "S1"
  },
  {
   "id": "G1-375",
   "area": "Layout",
-  "test": "iPhone SE 2/3 375x667: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "test": "iPhone SE 2/3 375x667: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
-  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 423/667, height 77",
-  "seconds": 5.9,
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 423/667, height 77; 5 pitch choices bottom 562/667, smallest 64 px",
+  "seconds": 5.0,
   "severity": "S1"
  },
  {
   "id": "G1-390",
   "area": "Layout",
-  "test": "iPhone 14 390x844: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "test": "iPhone 14 390x844: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
-  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 432/844, height 77",
-  "seconds": 6.1,
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 432/844, height 77; 5 pitch choices bottom 571/844, smallest 64 px",
+  "seconds": 4.9,
   "severity": "S1"
  },
  {
   "id": "G1-412",
   "area": "Layout",
-  "test": "Pixel 7 412x915: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "test": "Pixel 7 412x915: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
-  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 444/915, height 77",
-  "seconds": 5.5,
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 444/915, height 77; 5 pitch choices bottom 583/915, smallest 64 px",
+  "seconds": 5.0,
   "severity": "S1"
  },
  {
   "id": "G1-820",
   "area": "Layout",
-  "test": "iPad 820x1180: no sideways scroll on any tab; GO/NO-GO visible without scrolling when a question shows",
+  "test": "iPad 820x1180: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
-  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; buttons bottom 527/1180, height 77",
-  "seconds": 7.4,
+  "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 527/1180, height 77; 5 pitch choices bottom 666/1180, smallest 64 px",
+  "seconds": 5.3,
   "severity": "S1"
  },
  {
   "id": "G2",
   "area": "Accessibility",
-  "test": "Tap targets: GO, NO-GO, Start, tabs and sync are at least 44 px tall",
+  "test": "Tap targets: Strike, Ball, Start, tabs and sync are at least 44 px tall",
   "result": "PASS",
-  "evidence": "{'bgo': 77, 'bno': 77, 'sync': 44}",
-  "seconds": 4.4,
+  "evidence": "{'bstrike': 77, 'bball': 77, 'sync': 44}",
+  "seconds": 3.5,
   "severity": "S2"
  },
  {
@@ -347,7 +347,7 @@
   "test": "Controls have accessible names; images/svg labelled; page has a title and lang",
   "result": "PASS",
   "evidence": "{'lang': 'en', 'title': 'Go / No-Go', 'unnamed': [], 'svg': True}",
-  "seconds": 4.6,
+  "seconds": 3.6,
   "severity": "S3"
  },
  {
@@ -356,7 +356,7 @@
   "test": "light theme: every tab renders, no script or console errors",
   "result": "PASS",
   "evidence": "background rgb(255, 255, 255)",
-  "seconds": 5.6,
+  "seconds": 4.4,
   "severity": "S2"
  },
  {
@@ -365,7 +365,7 @@
   "test": "dark theme: every tab renders, no script or console errors",
   "result": "PASS",
   "evidence": "background rgb(21, 11, 36)",
-  "seconds": 4.4,
+  "seconds": 3.7,
   "severity": "S2"
  },
  {
@@ -373,8 +373,8 @@
   "area": "Timing",
   "test": "Pause lands within 1.5 frames of release+offset for EVERY clip in both queues at 50, 100 and 200 ms",
   "result": "PASS",
-  "evidence": "144 runs, median +0.10 frames, worst 0.49",
-  "seconds": 402.3,
+  "evidence": "144 runs, median +0.10 frames, worst 1.11",
+  "seconds": 357.7,
   "severity": "S1"
  },
  {
@@ -382,8 +382,8 @@
   "area": "Timing",
   "test": "Speed: tap Start to question under 3 s (cached clip); app ready under 2 s on localhost",
   "result": "PASS",
-  "evidence": "ready 0.40 s, start-to-question 2.04 s (includes the clip's own lead-in)",
-  "seconds": 3.8,
+  "evidence": "ready 0.47 s, start-to-question 2.04 s (includes the clip's own lead-in)",
+  "seconds": 3.7,
   "severity": "S3"
  },
  {
@@ -392,7 +392,7 @@
   "test": "Every queue item: file exists, plays, release inside the clip with at least 0.4 s after it; keys agree with the pitch's own location and type",
   "result": "PASS",
   "evidence": "48 items checked",
-  "seconds": 0.5,
+  "seconds": 0.4,
   "severity": "S1"
  },
  {
@@ -446,7 +446,7 @@
   "test": "Script injection: hostile player name and hostile pack title never execute",
   "result": "PASS",
   "evidence": "",
-  "seconds": 3.3,
+  "seconds": 3.5,
   "severity": "S1"
  },
  {
