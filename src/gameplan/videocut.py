@@ -193,6 +193,14 @@ def pocket(p: dict) -> str | None:
     return f"{height}-{side}"
 
 
+def edge_ft(p: dict):
+    """Feet from the zone edge, negative inside (same definition as the recognition profile's buckets); None when the pitch has no usable location."""
+    try:
+        return max(abs(float(p["px"])) - ZONE_HALF_WIDTH, float(p["pz"]) - float(p["sz_top"]), float(p["sz_bot"]) - float(p["pz"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def answer_keys(p: dict) -> dict:
     """Go/no-go truth from tracking, no hand labeling. Pitch go/no-go: Go on fastballs. Zone go/no-go: Go on pitches through the zone."""
     fam = pitch_family(p.get("pitch_type", ""))

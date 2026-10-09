@@ -65,9 +65,10 @@ def arsenals(rows: list[dict]) -> dict:
 
 
 def build_pack(pid: str, title: str, subtitle: str, rows: list[dict], content: pathlib.Path, work: pathlib.Path, mode: str = "train", limit: int = 8, cutter=cut_clip,
-               arsenal: dict | None = None) -> tuple:
+               arsenal: dict | None = None, camera: str = "broadcast") -> tuple:
     """-> (pack dict for the queue, {item id: keys} for the private file). In an assessment pack the keys are withheld from the pack.
     Keys: strike (True when the ball crossed the zone by tracking, not the umpire's call) and pitch_type (what was thrown).
+    Each item carries `camera` (what angle the clip was shot from: "broadcast" for MLB clips, "low_home" for Visalia footage) so results are never compared across angles.
     Each item carries `arsenal`, that pitcher's own pitch types, which are the choices for the second question. A pitch whose type is not in his arsenal list is skipped, never added to the choices."""
     items, private = [], {}
     for p in rows:
@@ -85,7 +86,7 @@ def build_pack(pid: str, title: str, subtitle: str, rows: list[dict], content: p
         k = V.answer_keys(p)
         keys = dict(strike=k["zone_go"], pitch_type=p.get("pitch_type"))
         private[iid] = keys
-        items.append(dict(id=iid, file=f"{iid}.mp4", release=r["release"], keys=keys if mode == "train" else None, arsenal=opts, meta=V.pitch_meta(p),
+        items.append(dict(id=iid, file=f"{iid}.mp4", release=r["release"], keys=keys if mode == "train" else None, arsenal=opts, camera=camera, meta=V.pitch_meta(p),
                           label=f"Pitch {len(items) + 1}", result=None))
     return dict(id=pid, dir=pid, title=title, subtitle=subtitle, mode=mode, items=items), private
 
@@ -98,6 +99,25 @@ def team_pool(feeds: pathlib.Path, team_id, exclude_pitcher) -> list[dict]:
                     and p.get("px") is not None and p.get("pfxX") is not None):
                 out.append(dict(p, game_pk=str(p.get("game_pk") or f.stem)))
     return out
+
+
+EDGE_FT = 0.25          # 3 inches
+
+
+def edge_rows(pool: list[dict], side: str, rnd: random.Random) -> list[dict]:
+    """His pitches to this side that finished within 3 inches of the zone edge, alternating inside and outside so strike or ball is a real question, in a fixed-seed order.
+    Extra rows are returned beyond the pack size because some clips will not cut cleanly (build_pack stops at its limit)."""
+    ins, outs = [], []
+    for p in pool:
+        d = V.edge_ft(p)
+        if p.get("stand") == side and d is not None and abs(d) < EDGE_FT and p.get("play_id") and p.get("plateTime"):
+            (ins if d < 0 else outs).append(p)
+    rnd.shuffle(ins)
+    rnd.shuffle(outs)
+    mixed = []
+    for i in range(max(len(ins), len(outs))):
+        mixed += ins[i:i + 1] + outs[i:i + 1]
+    return mixed
 
 
 def build_queues(pitcher_id: int, season: int, before: str, n_starts: int, work: pathlib.Path, content: pathlib.Path, n_random: int = 2, assess_pitches: int = 0,
@@ -119,6 +139,10 @@ def build_queues(pitcher_id: int, season: int, before: str, n_starts: int, work:
         sp, pk = build_pack(f"starter_{pitcher_id}_{side}", f"Next starter: {name}", f"Vs {'left' if side == 'L' else 'right'}-handed batters. His most-used pitches from his last {len(starts)} starts.",
                             pl["pitches"][: per_pack * 3], content, work, "train", per_pack, cutter, ars)
         packs.append(sp); private.update({f"{sp['id']}/{k}": v for k, v in pk.items()})
+        ep, pk = build_pack(f"edges_{pitcher_id}_{side}", f"Edges: {name}", f"Vs {'left' if side == 'L' else 'right'}-handed batters. His pitches within 3 inches of the zone edge, half in and half out, from any spot.",
+                            edge_rows(pool, side, random.Random(f"{seed or before}-edges-{side}")), content, work, "train", per_pack, cutter, ars)
+        if ep["items"]:
+            packs.append(ep); private.update({f"{ep['id']}/{k}": v for k, v in pk.items()})
         by_p = {}
         for p in mates:
             if p.get("stand") == side:

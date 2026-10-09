@@ -20,7 +20,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 MAX_BODY = 5 * 1024 * 1024
 APP_DIR = pathlib.Path(__file__).resolve().parents[2] / "phone_app"
-COLS = "player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,options,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",")
+COLS = "player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,options,camera,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",")
 
 
 def _safe(v):

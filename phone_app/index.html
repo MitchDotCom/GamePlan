@@ -268,7 +268,7 @@ function showQ(){const task=qOrder[qi];$("hlab").textContent=qOrder.length>1?`Qu
 async function answer(call){if(state!=="q"||answering)return;answering=true;try{await answer1(call)}finally{answering=false}}
 async function answer1(call){const rt=Math.round(performance.now()-t0),task=qOrder[qi];const key=keyFor(cur,task);const m=cur.meta||{};
   const t={id:uuid(),player:player(),session,mode:$("mode").value,ts:new Date().toISOString(),pack:curPack.id,clip:cur.id,clip_trial:clipTrial,task,q_order:qi+1,ask:$("ask").value,pause_ms:Math.round(parseFloat($("off").value)*1000),
-    options:task==="zone"?"Strike|Ball":curOpts.join("|"),call,rt_ms:rt,key:key==null?"":key,correct:key==null?"":(key===call?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
+    options:task==="zone"?"Strike|Ball":curOpts.join("|"),camera:cur.camera||"broadcast",call,rt_ms:rt,key:key==null?"":key,correct:key==null?"":(key===call?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
     sz_top:m.sz_top??"",sz_bot:m.sz_bot??"",speed:m.speed??"",stand:m.stand??"",p_throws:m.p_throws??"",release_frame:cur.release_frame??"",app:APP,synced:0};
   await putTrial(t);sessionLog.push(t);pendingAns[task]={call,key,rt};addRow(t);navigator.vibrate&&navigator.vibrate(15);
   qi++;if(qi<qOrder.length){showQ();updateChips();return}
@@ -298,7 +298,7 @@ function after(auto){if(packQ){if(auto)setTimeout(nextInQueue,900);else{$("next"
 $("bstrike").onclick=()=>answer("Strike");$("bball").onclick=()=>answer("Ball");$("start").onclick=()=>startPitch(false);
 document.addEventListener("keydown",e=>{if(["SELECT","INPUT"].includes(e.target.tagName))return;if(state==="q"&&qOrder[qi]==="zone"&&(e.key==="s"||e.key==="S"))answer("Strike");else if(state==="q"&&qOrder[qi]==="zone"&&(e.key==="b"||e.key==="B"))answer("Ball");else if(state==="q"&&qOrder[qi]==="pitch"&&/^[1-9]$/.test(e.key)&&curOpts[+e.key-1])answer(curOpts[+e.key-1]);else if(e.key===" "||e.key==="Enter"){e.preventDefault();if($("next").style.display!=="none")$("next").click();else startPitch(false)}});
 // ---------- log, csv, sync ----------
-const TCOLS="player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,options,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",");
+const TCOLS="player,session,mode,ts,pack,clip,clip_trial,task,q_order,ask,pause_ms,options,camera,call,rt_ms,key,correct,pitch_type,family,pocket,px,pz,sz_top,sz_bot,speed,stand,p_throws,release_frame,id".split(",");
 const q=x=>{x=String(x??"");if(/^[=+\-@\t\r]/.test(x)&&!/^-?\d+(\.\d+)?$/.test(x))x="'"+x;return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x};
 const toCSV=ts=>[TCOLS.join(","),...ts.map(t=>TCOLS.map(c=>q(t[c])).join(","))].join("\n");
 function addRow(t){const assess=t.mode==="assess";const tb=document.querySelector("#log tbody");const tr=document.createElement("tr");
