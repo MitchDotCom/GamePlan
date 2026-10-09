@@ -57,6 +57,18 @@ Reliability (odd/even games, at least 100 swings in each half):
 
 Reading it: Triple-A ride is stable within a season (clears the bar with a lower end well above zero), unlike the Florida State League. Run is not stable at Triple-A even with 92 hitters, which is the opposite of MLB (0.75 corrected over three seasons). I do not know why; candidates are tracking differences between parks, a different pitch-label mix, or breaking-ball samples that are thin per half. I have not tested any of them.
 
+## The lineup command on minor-league feeds (`milb_lineup.py`)
+
+Runs end to end on both feeds, no network. It picks the starter with the most cached starts, treats his last start as the game being planned, pools his previous four, takes the lineup from who faced him in that start, and uses only earlier games of the same league as hitter history. Outputs: `docs/milb_lineup_AAA-IL.md` (Aaron Wilkerson, 2025-09-21, nine hitters) and `docs/milb_lineup_FSL.md` (Clevari Tejada, 2025-09-06, nine hitters).
+
+What it showed:
+- **Usage lists exist for every hitter**, because they need no hitter history. This is the validated fall-back.
+- **Ride lists: 1 of 9 hitters in Triple-A, 0 of 9 in the Florida State League.** The one Triple-A list (slope -0.07 [-0.14, -0.01]) rests on 8 pitches. Most hitters stop at "fewer than 150 swings" or "slope interval includes zero".
+- **Run lists: 0 of 18.**
+- Even by the end of September, with a full season of same-league history, hitter-specific lists are rare at these levels. The tool should say so on the card instead of showing an empty slot.
+
+Not built here: hitter_cost (it needs Statcast run values that minor-league feeds do not carry) and clips (none exist for minor-league games). One starter per league is an example, not a test of the plan's quality.
+
 ## Is that the level or the amount of data? MLB, 2025 only (79 hitters)
 
 The earlier MLB test used three seasons. On 2025 alone:
@@ -74,4 +86,3 @@ Caveat: the MLB hitters here are mostly regulars with full seasons; the Florida 
 ## Not done yet
 - Triple-A year over year (needs the 2024 Triple-A season fetched; only the Florida State League has both seasons).
 - Pacific Coast League (Triple-A West) is supported by the fetcher but not fetched.
-- The lineup command from these feeds for a real Single-A starter.
