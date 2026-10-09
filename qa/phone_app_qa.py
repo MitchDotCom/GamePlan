@@ -364,7 +364,7 @@ def main():
             p.wait_for_function("document.getElementById('hlab').textContent.startsWith('Question 2')")
             p.keyboard.press("2")
             p.wait_for_timeout(400)
-            t = trials(p)
+            t = sorted(trials(p), key=lambda x: x["q_order"])
             ctx.close()
             assert len(t) == 2 and t[0]["call"] == "Ball" and t[1]["call"] == t[1]["options"].split("|")[1], t
 
