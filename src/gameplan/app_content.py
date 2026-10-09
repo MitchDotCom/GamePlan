@@ -86,7 +86,8 @@ def build_pack(pid: str, title: str, subtitle: str, rows: list[dict], content: p
         k = V.answer_keys(p)
         keys = dict(strike=k["zone_go"], pitch_type=p.get("pitch_type"))
         private[iid] = keys
-        items.append(dict(id=iid, file=f"{iid}.mp4", release=r["release"], keys=keys if mode == "train" else None, arsenal=opts, camera=camera, meta=V.pitch_meta(p),
+        items.append(dict(id=iid, file=None if r.get("sim") else f"{iid}.mp4", release=r["release"], sim=r.get("sim"), keys=keys if mode == "train" else None, arsenal=opts,
+                          camera="sim" if r.get("sim") else camera, meta=V.pitch_meta(p),
                           label=f"Pitch {len(items) + 1}", result=None))
     return dict(id=pid, dir=pid, title=title, subtitle=subtitle, mode=mode, items=items), private
 
@@ -121,8 +122,12 @@ def edge_rows(pool: list[dict], side: str, rnd: random.Random) -> list[dict]:
 
 
 def build_queues(pitcher_id: int, season: int, before: str, n_starts: int, work: pathlib.Path, content: pathlib.Path, n_random: int = 2, assess_pitches: int = 0,
-                 seed: str | None = None, per_pack: int = 8, cutter=cut_clip) -> dict:
+                 seed: str | None = None, per_pack: int = 8, cutter=cut_clip, sim: bool = False) -> dict:
     work.mkdir(parents=True, exist_ok=True)
+    content.mkdir(parents=True, exist_ok=True)
+    if sim:                                         # drawn from tracking: no clip is fetched, cut or stored
+        from . import simview
+        cutter = simview.sim_cutter
     starts = PL.recent_starts(pitcher_id, season, before, n_starts)
     pool = PL.pooled(pitcher_id, starts, work / "feeds")
     if not pool:

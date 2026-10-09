@@ -76,3 +76,14 @@ def test_edges_gate_needs_both_strikes_and_balls():
     mkq = lambda ks: dict(packs=[dict(id="starter_1_R", mode="train", items=[item("a")]), dict(id="edges_1_R", mode="train", items=[item(str(i), strike=k) for i, k in enumerate(ks)])])
     g = lambda ks: [x for x in PR.check_coverage_and_fit(mkq(ks), [], "R") if x["gate"] == "edges"][0]["status"]
     assert g([True] * 6) == "FAIL" and g([True, False] * 3) == "PASS" and g([True, False] * 2) == "WARN"
+
+
+def test_sim_geometry_gate_catches_a_key_that_disagrees_with_the_drawn_ball():
+    from gameplan import simview as SV
+    par = {k: v for k, v in SV.sim_params(__import__("tests.test_simview", fromlist=["good"]).good())[0].items()}
+    x, _, z = SV.position(par, par["t_zone"])
+    it = lambda strike: dict(id="a", sim=par, keys=dict(strike=strike, pitch_type="FF"), meta=dict(px=x, pz=z))
+    inz = abs(x) <= 0.83 and par["sz_bot"] <= z <= par["sz_top"]
+    ok = PR.check_sim_geometry(dict(packs=[dict(id="p", items=[it(inz)])]), "R")[0]
+    bad = PR.check_sim_geometry(dict(packs=[dict(id="p", items=[it(not inz)])]), "R")[0]
+    assert ok["status"] == "PASS" and bad["status"] == "FAIL"

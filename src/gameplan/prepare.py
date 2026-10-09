@@ -10,6 +10,7 @@ Gates, per batting side unless noted:
   starter_confirmed   schedule lists a probable pitcher (or manual override, which is a WARN)
   history             at least 3 previous starts pooled (WARN under 3, FAIL under 1) and 100 pitches
   playable_clips      the next-starter pack has at least PACK_MIN clips that cut cleanly (FAIL below)
+  sim_geometry        (with --sim) each drawn path ends where its strike key and result card say
   clip_files          every clip exists, is 10 KB to 3 MB, runs at least 0.4 s past release, and release is 0.3 to 3.0 s in
   answer_keys         every training item has a strike key and a pitch type; no key text in assessment items; assessment keys are in the private file
   choices             every item's pitch choices are 2 to 7 distinct types, include the thrown one, and match the pitcher's own list
@@ -58,6 +59,27 @@ def check_pack_files(content: pathlib.Path, queue: dict, side: str, dur=_dur) ->
     return [gate("clip_files", "FAIL" if bad else "PASS", bad[:5] if bad else "all clips present, sized and long enough", side)]
 
 
+def check_sim_geometry(queue: dict, side: str) -> list[dict]:
+    """For drawn pitches: re-run the simview checks on each item's own parameters and confirm the strike key agrees with where the drawn ball crosses."""
+    from . import simview as SV
+    bad = []
+    for pk in queue["packs"]:
+        for it in pk["items"]:
+            sim = it.get("sim")
+            if not sim:
+                bad.append(f"{pk['id']}/{it['id']}: no sim parameters")
+                continue
+            x, y, z = SV.position(sim, sim["t_zone"])
+            inz = abs(x) <= 0.83 and sim["sz_bot"] <= z <= sim["sz_top"]
+            truth = it.get("keys") and it["keys"].get("strike")
+            m = it.get("meta") or {}
+            if abs(x - float(m.get("px", 1e9))) > 0.02 or abs(z - float(m.get("pz", 1e9))) > 0.02:
+                bad.append(f"{pk['id']}/{it['id']}: drawn crossing differs from the result card's location")
+            if it.get("keys") and truth is not None and bool(truth) != inz:
+                bad.append(f"{pk['id']}/{it['id']}: strike key {truth} but the drawn ball is {'in' if inz else 'out of'} the zone")
+    return [gate("sim_geometry", "FAIL" if bad else "PASS", bad[:5] if bad else "every drawn path ends where its answer key and result card say", side)]
+
+
 def check_keys_and_choices(queue: dict, private: dict, side: str, arsenals: dict | None = None) -> list[dict]:
     keys_bad, ch_bad = [], []
     for pk in queue["packs"]:
@@ -100,7 +122,7 @@ def check_coverage_and_fit(queue: dict, pool: list[dict], side: str) -> list[dic
 
 
 def prepare(team_id: int | None, on: str, work: pathlib.Path, content: pathlib.Path, pitcher_id: int | None = None, n_starts: int = 4, assess_pitches: int = 6,
-            resolver=NS.resolve, builder=AC.build_queues, files_check=check_pack_files) -> dict:
+            resolver=NS.resolve, builder=AC.build_queues, files_check=check_pack_files, sim: bool = False) -> dict:
     gates, info = [], {}
     if pitcher_id is None:
         info = resolver(team_id, on)
@@ -114,7 +136,7 @@ def prepare(team_id: int | None, on: str, work: pathlib.Path, content: pathlib.P
         info = dict(status="manual", pitcher_id=pitcher_id, date=on)
         gates.append(gate("starter_confirmed", "WARN", "pitcher passed by hand; the schedule was not consulted"))
     try:
-        built = builder(pitcher_id, season, before, n_starts, work, content, 2, assess_pitches)
+        built = builder(pitcher_id, season, before, n_starts, work, content, 2, assess_pitches, **({"sim": True} if sim else {}))
     except Exception as e:                                             # a failed fetch is a failed build, said plainly
         return dict(ok=False, built=False, starter=info, gates=gates + [gate("build", "FAIL", f"{type(e).__name__}: {str(e)[:200]}")])
     starts, pool_n = built["starts"], built["pool"]
@@ -128,7 +150,7 @@ def prepare(team_id: int | None, on: str, work: pathlib.Path, content: pathlib.P
         gates.append(gate("playable_clips", "PASS" if n >= PACK_MIN else "FAIL", f"{n} clips in the next-starter pack (need {PACK_MIN})", side))
         if not q["packs"]:
             continue
-        gates += files_check(content, q, side)
+        gates += check_sim_geometry(q, side) if sim else files_check(content, q, side)
         gates += check_keys_and_choices(q, private, side)
         gates += check_coverage_and_fit(q, pool, side)
     ok = not any(g["status"] == "FAIL" for g in gates)
@@ -144,12 +166,13 @@ def main(argv=None) -> int:
     ap.add_argument("--assess-pitches", type=int, default=6)
     ap.add_argument("--work", required=True)
     ap.add_argument("--content", required=True)
+    ap.add_argument("--sim", action="store_true", help="draw pitches from tracking instead of cutting clips (no video is fetched)")
     a = ap.parse_args(argv)
     if a.team is None and a.pitcher_id is None:
         ap.error("give --team (to look up the starter) or --pitcher-id")
     work, content = pathlib.Path(a.work), pathlib.Path(a.content)
     work.mkdir(parents=True, exist_ok=True)
-    r = prepare(a.team, a.on, work, content, a.pitcher_id, a.starts, a.assess_pitches)
+    r = prepare(a.team, a.on, work, content, a.pitcher_id, a.starts, a.assess_pitches, sim=a.sim)
     (work / "prep_report.json").write_text(json.dumps(r, indent=1))
     for g in r["gates"]:
         print(f"{g['status']:5} {g['gate']:18} {g['side'] or '-':2} {g['detail']}")
