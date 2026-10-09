@@ -69,6 +69,7 @@ dl.det dd{text-align:right;font-weight:600}dl.det dd .mut{font-weight:400}
 /* video stage */
 .stage{position:relative;background:#000;border-radius:20px;overflow:hidden;aspect-ratio:16/9;width:100%;margin-top:var(--s3);box-shadow:var(--shadow)}
 video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%}
 .hint{position:absolute;top:10px;left:12px;color:#fff;background:rgba(0,0,0,.55);padding:3px 10px;border-radius:999px;font-size:var(--t-label);display:none}.hint.on{display:block}
 /* answer buttons: Strike is teal, Ball is copper */
 .ans{display:flex;gap:var(--s3);margin-top:var(--s3)}
@@ -102,7 +103,7 @@ section{display:none}section.on{display:block}
 <section id="t-play" class="on">
   <div class="hero"><div class="hlab" id="hlab">Next up</div><div class="hnum" id="hnum">-<small id="hsub"></small></div>
    <div class="hrow"><span class="hlab" id="hmeta"></span></div><div class="tiles" id="tiles"></div></div>
-  <div class="stage"><video id="v" playsinline muted preload="auto"></video><div class="hint" id="hint">Watch the pitch</div></div>
+  <div class="stage"><video id="v" playsinline muted preload="auto"></video><canvas id="sim" role="img" aria-label="Pitch drawn from tracking" style="display:none"></canvas><div class="hint" id="hint">Watch the pitch</div></div>
   <div id="q" style="display:none"><div class="ans" id="ansSB"><button class="go" id="bstrike">Strike</button><button class="nogo" id="bball">Ball</button></div><div class="opts" id="opts"></div><div class="note" style="margin-top:6px" id="qn"></div></div>
   <div id="res"></div>
   <div class="row"><button class="pri" id="start">Start pitch</button><button id="next" style="display:none">Next</button></div>
@@ -133,7 +134,8 @@ section{display:none}section.on{display:block}
    <dt>Batting side today</dt><dd><select id="bats"><option value="R">Right</option><option value="L">Left</option></select></dd>
    <dt>Mode</dt><dd><select id="mode"><option value="train">Training, feedback each pitch</option><option value="assess">Assessment, no feedback</option></select></dd>
    <dt>Questions per clip</dt><dd><select id="ask"><option value="both">Strike or ball, then which pitch</option><option value="zone">Strike or ball only</option><option value="pitch">Which pitch only</option></select></dd>
-   <dt>Pause after release</dt><dd><select id="off"><option value="0.050">50 ms</option><option value="0.080">80 ms</option><option value="0.100" selected>100 ms</option><option value="0.150">150 ms</option><option value="0.200">200 ms</option></select></dd>
+   <dt>Pause after release</dt><dd><select id="off"><option value="0.050">50 ms</option><option value="0.080">80 ms</option><option value="0.100" selected>100 ms</option><option value="0.150">150 ms</option><option value="0.200">200 ms</option><option value="0.250">250 ms</option><option value="0.300">300 ms</option></select></dd>
+   <dt>View for drawn pitches</dt><dd><select id="view"><option value="hitter_eye">Hitter's eye (pause up to 250 ms)</option><option value="low_home">Low behind home</option></select></dd>
    <dt>Play the rest after answering</dt><dd><select id="reveal"><option value="1">Yes</option><option value="0">No</option></select></dd></dl></div>
   <div class="card"><h2>Data on this phone</h2><div class="note" id="dataInfo"></div><div class="row"><button id="refresh">Check for new queue</button><button id="wipe">Erase trials on this phone</button></div></div>
   <div class="note" style="margin-top:12px">Keyboard: S = Strike, B = Ball, 1 to 9 = the pitch choices in order, Space or Enter = start or next. Mode and questions per clip are logged with every answer.</div>
@@ -193,7 +195,7 @@ function zoneSVG(m){const U=100,X0=-1.5,Z1=4.25,W=300,H=350,pad=14;const ux=x=>(
  const rx=ux(m.px),ry=uy(m.pz),cx=Math.max(12,Math.min(W-12,rx)),cy=Math.max(12,Math.min(H-12,ry));
  return s+`<g class="pt"><circle cx="${cx}" cy="${cy}" r="11" class="k-ball"/></g></svg>`}
 // ---------- settings ----------
-const SETK=["player","bats","mode","ask","off","reveal"];
+const SETK=["player","bats","mode","ask","off","reveal","view"];
 async function loadSettings(){const s=await kvGet("settings",{});SETK.forEach(k=>{if(s[k]!=null)$(k).value=s[k]})}
 async function saveSettings(){const s={};SETK.forEach(k=>s[k]=$(k).value);await kvSet("settings",s)}
 SETK.forEach(k=>$(k).addEventListener("change",async()=>{await saveSettings();if(k==="bats")await loadQueue();if(k==="player")renderQueue()}));
@@ -201,7 +203,7 @@ SETK.forEach(k=>$(k).addEventListener("change",async()=>{await saveSettings();if
 async function loadQueue(){
   try{const r=await fetch(CFG.content+"queue_"+$("bats").value+".json",{cache:"no-cache"});if(!r.ok)throw 0;Q=await r.json();await kvSet("queue_"+$("bats").value,Q);setNet(!r.headers.get("X-From-Cache"))}catch(e){Q=await kvGet("queue_"+$("bats").value,null);setNet(false)}
   keys=await kvGet("keys",{});renderQueue();renderKeys();fillPitchSelect();refreshInfo();renderHeroIdle()}
-async function fetchClip(it){if(await hasClip(it.id))return true;try{const r=await fetch(CFG.content+it._pack.dir+"/"+it.file);if(!r.ok)return false;await putClip(it.id,await r.blob());return true}catch(e){return false}}
+async function fetchClip(it){if(it.sim||await hasClip(it.id))return true;try{const r=await fetch(CFG.content+it._pack.dir+"/"+it.file);if(!r.ok)return false;await putClip(it.id,await r.blob());return true}catch(e){return false}}
 async function prefetch(list){let n=0;for(const it of list){if(await fetchClip(it))n++;say("dlmsg",`${n} of ${list.length} clips on this phone`)}renderQueue()}
 async function seenSet(){const t=await allTrials();return new Set(t.filter(x=>x.player===player()).map(x=>x.clip))}
 let renderTok=0;
@@ -210,7 +212,7 @@ async function renderQueue(){
   const frag=document.createDocumentFragment();           // build off-screen; only the newest call is allowed to put its result on the page
   const seen=await seenSet();let nextSet=false;
   for(const p of Q.packs){
-    let on=0;for(const i of p.items)if(await hasClip(i.id))on++;
+    let on=0;for(const i of p.items)if(i.sim||await hasClip(i.id))on++;
     const done=p.items.filter(i=>seen.has(i.id)).length;
     const d=document.createElement("div");d.className="card";
     d.innerHTML=`<h2>${esc(p.title)}</h2><div class="note">${esc(p.subtitle||"")}</div><dl class="det"><dt>Pitches</dt><dd>${p.items.length}</dd><dt>Done</dt><dd>${done} of ${p.items.length}</dd><dt>On this phone</dt><dd>${on} of ${p.items.length}</dd><dt>Mode</dt><dd>${p.mode==="assess"?"Assessment":"Training"}</dd></dl><div class="row"><button class="pri">Start</button><button>Download</button></div>`;
@@ -238,18 +240,81 @@ function renderHeroIdle(){const p=curPack||(Q&&Q.packs[0]);$("hlab").textContent
 function renderTiles(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;return[n?pct(k/n):"-","n="+n]};
   const [z,zn]=f("zone"),[p,pn]=f("pitch");const rts=sessionLog.map(t=>t.rt_ms).sort((a,b)=>a-b);
   $("tiles").innerHTML=sessionLog.length?`<div class="tile"><div class="tl">Strike or ball ${zn}</div><div class="tv">${z}</div></div><div class="tile"><div class="tl">Pitch type ${pn}</div><div class="tv">${p}</div></div><div class="tile"><div class="tl">Median ms, n=${rts.length}</div><div class="tv">${rts[Math.floor(rts.length/2)]}</div></div>`:""}
+// ---------- a pitch drawn from its tracking ----------
+// Statcast feet: x lateral (+ = catcher's right), y distance from the plate (50 at release, 17/12 at the front of the plate), z height. p(t) = p0 + v0 t + a t^2 / 2.
+const SIM_EYE_MAX=0.25,SIM_LEAD=0.8,SIM_YP=17/12,SIM_BALL_R=0.121,SIM_MAX_GAP=0.25;
+const SIM_VIEWS={hitter_eye:(st)=>({pos:[st==="L"?2.4:-2.4,0,5.4],tgt:[0,50,3.0],fov:26}),low_home:()=>({pos:[0,-12,3.2],tgt:[0,40,5.0],fov:22})};
+const simPos=(q,t)=>["x","y","z"].map(c=>q[c+"0"]+q["v"+c+"0"]*t+0.5*q["a"+c]*t*t);
+const v3={sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],norm:a=>{const n=Math.hypot(...a);return a.map(x=>x/n)}};
+// pinhole camera: returns project(point) -> {x,y,depth,r} in canvas pixels (r = radius of a baseball there), or null when the point is behind the camera
+function simCamera(cfg,W,H){const f=v3.norm(v3.sub(cfg.tgt,cfg.pos)),r=v3.norm(v3.cross(f,[0,0,1])),u=v3.cross(r,f),F=(H/2)/Math.tan(cfg.fov*Math.PI/360);
+  const proj=pt=>{const d=v3.sub(pt,cfg.pos),z=v3.dot(d,f);if(z<=0.1)return null;return{x:W/2+F*v3.dot(d,r)/z,y:H/2-F*v3.dot(d,u)/z,depth:z,r:F*SIM_BALL_R/z}};
+  proj.depth=pt=>v3.dot(v3.sub(pt,cfg.pos),f);return proj}
+const SIM={viewUsed:"",raf:0,q:null,cam:null,W:0,H:0,tmax:null,trail:false,t:0,camName:"",tStart:0,tQ:0};
+// the final recap is always from behind the plate: from the hitter's eye the pitch crosses about 1.5 ft in front of the lens, which cannot be drawn on a screen
+// is the ball inside the picture (3% margin) at every moment from release to the pause? Checked before a drawn pitch starts, so the ball can never fly out of view mid-question
+const simFits=(cam,q,off)=>{for(let i=0;i<=12;i++){const c=cam(simPos(q,off*i/12));if(!c||c.x<SIM.W*.03||c.x>SIM.W*.97||c.y<SIM.H*.03||c.y>SIM.H*.97)return false}return true};
+// recap camera: behind the plate, field of view widened per pitch until the zone, the crossing and the whole path fit (a ball in the dirt needs more than a strike)
+function simRecapCfg(q,W,H){for(let fov=30;fov<=50;fov+=2){const cfg={pos:[0,-12,3.2],tgt:[0,40,1.5],fov},cam=simCamera(cfg,W,H);
+  const pts=[[q.px,SIM_YP,q.pz],[-.83,SIM_YP,q.sz_bot],[.83,SIM_YP,q.sz_bot],[-.83,SIM_YP,q.sz_top],[.83,SIM_YP,q.sz_top],...Array.from({length:21},(_,i)=>simPos(q,q.t_zone*i/20))];
+  if(pts.every(P=>{const c=cam(P);return c&&c.x>W*.05&&c.x<W*.95&&c.y>H*.05&&c.y<H*.95}))return cfg}return{pos:[0,-12,3.2],tgt:[0,40,1.5],fov:50}}
+function simRecap(){SIM.camName="recap";SIM.recapCfg=simRecapCfg(SIM.q,SIM.W,SIM.H);SIM.cam=simCamera(SIM.recapCfg,SIM.W,SIM.H)}
+const simUseCam=name=>{SIM.camName=name;SIM.cam=simCamera(SIM_VIEWS[name](SIM.q.stand),SIM.W,SIM.H)};
+function simStop(){cancelAnimationFrame(SIM.raf);SIM.raf=0}
+function simSetup(){const c=$("sim"),dpr=Math.min(window.devicePixelRatio||1,2),r=c.parentElement.getBoundingClientRect();c.width=Math.max(2,Math.round(r.width*dpr));c.height=Math.max(2,Math.round(r.height*dpr));SIM.W=c.width;SIM.H=c.height;
+  SIM.dpr=dpr;simUseCam($("view").value);return c.getContext("2d")}
+// a polygon is clipped at the near plane (0.5 ft in front of the camera) before it is drawn, so ground and plate that start behind a close camera still show
+function simClip(cam,pts){const N=0.5,out=[];for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length],da=cam.depth(a),db=cam.depth(b);
+  if(da>=N)out.push(a);if((da>=N)!==(db>=N)){const k=(N-da)/(db-da);out.push([a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k])}}return out}
+function simPoly(g,pts,fill,stroke,lw){const P=simClip(SIM.cam,pts).map(SIM.cam);if(P.length<3||P.some(x=>!x))return;g.beginPath();P.forEach((q,i)=>i?g.lineTo(q.x,q.y):g.moveTo(q.x,q.y));g.closePath();if(fill){g.fillStyle=fill;g.fill()}if(stroke){g.lineWidth=lw||1;g.strokeStyle=stroke;g.stroke()}}
+// tmax = the last moment shown, in seconds after release (null = before the ball is in the air). Nothing after tmax is computed into pixels unless trail is true (after the answers are in).
+function simDraw(tmax,trail,zoneOn){const g=$("sim").getContext("2d"),q=SIM.q,W=SIM.W,H=SIM.H;SIM.tmax=tmax;SIM.trail=!!trail;g.clearRect(0,0,W,H);
+  g.fillStyle="#12171c";g.fillRect(0,0,W,H);
+  const ring=(c,n)=>Array.from({length:n},(_,i)=>[c[0]+9*Math.cos(2*Math.PI*i/n),c[1]+9*Math.sin(2*Math.PI*i/n),c[2]]);
+  simPoly(g,[[-60,-20,0],[60,-20,0],[60,120,0],[-60,120,0]],"#26372b");
+  simPoly(g,ring([0,59,0.8],24),"#6b5238");simPoly(g,[[-1,60.5,0.85],[1,60.5,0.85],[1,60.5,0.7],[-1,60.5,0.7]],"#e8e8e8");
+  const hw=8.5/12;simPoly(g,[[-hw,0,0],[hw,0,0],[hw,0.7,0],[0,SIM_YP,0],[-hw,0.7,0]],"#f2f2f2");
+  if(zoneOn)simPoly(g,[[-0.83,SIM_YP,q.sz_bot],[0.83,SIM_YP,q.sz_bot],[0.83,SIM_YP,q.sz_top],[-0.83,SIM_YP,q.sz_top]],null,"#d9c2f2",Math.max(1.5,SIM.dpr*1.5));
+  if(trail){g.beginPath();let first=true;for(let i=0;i<=40;i++){const c=SIM.cam(simPos(q,q.t_zone*i/40));if(!c)continue;first?g.moveTo(c.x,c.y):g.lineTo(c.x,c.y);first=false}g.lineWidth=Math.max(1,SIM.dpr);g.strokeStyle="rgba(255,255,255,.55)";g.stroke()}
+  if(tmax==null){const c=SIM.cam(simPos(q,0));if(c){g.beginPath();g.arc(c.x,c.y,Math.max(5,c.r*3),0,6.2832);g.lineWidth=Math.max(1.5,SIM.dpr*1.5);g.strokeStyle="rgba(255,255,255,.8)";g.stroke()}}
+  else{const c=SIM.cam(simPos(q,tmax));if(c){g.beginPath();g.arc(c.x,c.y,Math.max(1.6*SIM.dpr,c.r),0,6.2832);g.fillStyle="#fff";g.fill()}}
+  if(trail){const c=SIM.cam([q.px,SIM_YP,q.pz]);if(c){g.beginPath();g.arc(c.x,c.y,Math.max(5,c.r*1.6),0,6.2832);g.lineWidth=Math.max(2,SIM.dpr*2);g.strokeStyle="#ffb37a";g.stroke()}}}
+async function startSim(){
+  if(!(cur.sim&&Number.isFinite(cur.sim.t_zone))){say("now","This pitch has no tracking path. Pick another.");return}
+  SIM.q=cur.sim;$("v").style.display="none";$("sim").style.display="block";const g=simSetup();if(!g){say("now","This browser cannot draw the pitch.");return}
+  $("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";$("tiles").innerHTML="";
+  let off=parseFloat($("off").value);SIM.viewUsed=$("view").value;
+  if(SIM.viewUsed==="hitter_eye"&&off>SIM_EYE_MAX){off=SIM_EYE_MAX;say("now","The hitter's-eye view stops at 250 ms: later, the ball leaves the picture. Paused at 250 ms.")}
+  SIM.offUsed=off;
+  if(!simFits(SIM.cam,SIM.q,off)){simUseCam("low_home");SIM.viewUsed="low_home";say("now","The ball would leave the hitter's-eye picture on this pitch, so it is shown from low behind home.")}
+  pauseAt=off;state="playing";document.body.classList.add("focus");pendingAns={};clipTrial++;
+  const ask=$("ask").value;qOrder=ask==="both"?["zone","pitch"]:[ask];qi=0;
+  $("hlab").textContent=curPack.title;$("hnum").innerHTML=`Watch<small>the pitch</small>`;$("hmeta").textContent=cur.label||"";$("hint").textContent="Watch the release point";$("hint").classList.add("on");
+  simDraw(null,false,false);const t0s=performance.now();let last=t0s;SIM.tStart=t0s;SIM.tQ=0;
+  const step=now=>{if(state!=="playing")return;if(now-last>SIM_MAX_GAP*1000){abortPlay("The picture stalled. Tap Start pitch to try again.");return}last=now;
+    const t=(now-t0s)/1000-SIM_LEAD;if(t<0){SIM.raf=requestAnimationFrame(step);return}
+    if(t>=off){simDraw(off,false,false);window.__pauseMT=off;SIM.tQ=performance.now();state="q";$("hint").classList.remove("on");showQ();return}
+    simDraw(t,false,false);SIM.raf=requestAnimationFrame(step)};
+  SIM.raf=requestAnimationFrame(step)}
+function simReveal(m){state="reveal";const q=SIM.q,t0s=performance.now(),from=pauseAt;
+  const step=now=>{if(state!=="reveal")return;const t=Math.min(q.t_zone,from+(now-t0s)/1000);
+    const c=SIM.cam(simPos(q,t));
+    if(t>=q.t_zone||!c||c.depth<6){simRecap();simDraw(q.t_zone,true,true);state="idle";after(false);return}
+    simDraw(t,false,false);SIM.raf=requestAnimationFrame(step)};
+  SIM.raf=requestAnimationFrame(step)}
 // ---------- the pitch ----------
 let busy=false,answering=false,playTok=0;
-function abortPlay(msg){if(state!=="playing")return;state="idle";document.body.classList.remove("focus");$("hint").classList.remove("on");say("now",msg);$("start").style.display="";v.pause()}
+function abortPlay(msg){if(state!=="playing")return;simStop();state="idle";document.body.classList.remove("focus");$("hint").classList.remove("on");say("now",msg);$("start").style.display="";v.pause()}
 v.addEventListener("error",()=>abortPlay("This clip could not be played. Tap Start pitch to try again, or pick another pitch."));
 async function startPitch(auto){
   if(busy||state==="playing"||state==="q")return;busy=true;try{await startPitch1()}finally{busy=false}}
 async function startPitch1(){
   if(!player()){showTab("set");say("now","Enter a player name or ID first");return}
   if(!cur){const its=items();if(!its.length){say("now","No pitches yet. Connect once to load the queue.");return}cur=its[+$("pitch").value||0];curPack=cur._pack}
+  if(cur.sim)return startSim();
   if(!(await hasClip(cur.id))&&!(await fetchClip(cur))){say("now","This clip is not on the phone and there is no signal.");return}
   const c=await getClip(cur.id);if(urlNow)URL.revokeObjectURL(urlNow);urlNow=URL.createObjectURL(clipBlob(c));v.src=urlNow;v.muted=true;v.currentTime=0;
-  $("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";
+  $("sim").style.display="none";$("v").style.display="";$("hint").textContent="Watch the pitch";$("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";
   $("tiles").innerHTML="";pauseAt=cur.release+parseFloat($("off").value);state="playing";document.body.classList.add("focus");const tok=++playTok;setTimeout(()=>{if(playTok===tok)abortPlay("The clip did not start. Tap Start pitch to try again.")},10000);$("hint").classList.add("on");pendingAns={};clipTrial++;
   const ask=$("ask").value;qOrder=ask==="both"?["zone","pitch"]:[ask];qi=0;
   $("hlab").textContent=curPack.title;$("hnum").innerHTML=`Watch<small>the pitch</small>`;$("hmeta").textContent=cur.label||"";
@@ -267,8 +332,8 @@ function showQ(){const task=qOrder[qi];$("hlab").textContent=qOrder.length>1?`Qu
   $("qn").textContent=zone?"Did it cross the zone? Tracking decides, not the umpire.":"Pick one of this pitcher's pitches.";$("q").style.display="";t0=performance.now()}
 async function answer(call){if(state!=="q"||answering)return;answering=true;try{await answer1(call)}finally{answering=false}}
 async function answer1(call){const rt=Math.round(performance.now()-t0),task=qOrder[qi];const key=keyFor(cur,task);const m=cur.meta||{};
-  const t={id:uuid(),player:player(),session,mode:$("mode").value,ts:new Date().toISOString(),pack:curPack.id,clip:cur.id,clip_trial:clipTrial,task,q_order:qi+1,ask:$("ask").value,pause_ms:Math.round(parseFloat($("off").value)*1000),
-    options:task==="zone"?"Strike|Ball":curOpts.join("|"),camera:cur.camera||"broadcast",call,rt_ms:rt,key:key==null?"":key,correct:key==null?"":(key===call?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
+  const t={id:uuid(),player:player(),session,mode:$("mode").value,ts:new Date().toISOString(),pack:curPack.id,clip:cur.id,clip_trial:clipTrial,task,q_order:qi+1,ask:$("ask").value,pause_ms:cur.sim?Math.round(SIM.offUsed*1000):Math.round(parseFloat($("off").value)*1000),
+    options:task==="zone"?"Strike|Ball":curOpts.join("|"),camera:cur.sim?"sim:"+SIM.viewUsed:(cur.camera||"broadcast"),call,rt_ms:rt,key:key==null?"":key,correct:key==null?"":(key===call?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
     sz_top:m.sz_top??"",sz_bot:m.sz_bot??"",speed:m.speed??"",stand:m.stand??"",p_throws:m.p_throws??"",release_frame:cur.release_frame??"",app:APP,synced:0};
   await putTrial(t);sessionLog.push(t);pendingAns[task]={call,key,rt};addRow(t);navigator.vibrate&&navigator.vibrate(15);
   qi++;if(qi<qOrder.length){showQ();updateChips();return}
@@ -293,6 +358,7 @@ function finishClip(){document.body.classList.remove("focus");const assess=$("mo
   $("hlab").textContent="Result";$("hmeta").textContent="Your times: "+qOrder.map(t=>pendingAns[t]?pendingAns[t].rt+" ms":"").filter(Boolean).join(", ");$("hnum").innerHTML=scored?`${right} of ${scored}<small>correct</small>`:`Recorded<small>no answers on file</small>`;
   r.innerHTML=resultCard(m,row("zone","Strike or ball?")+row("pitch","Which pitch?"));
   state="reveal";
+  if(cur.sim){if($("reveal").value==="1")simReveal(m);else{state="idle";after(false)}return}
   if($("reveal").value==="1"){v.muted=false;v.play().catch(()=>{});v.onended=()=>{if(state==="reveal"){state="idle";after(false)}}}else{state="idle";after(false)}}
 function after(auto){if(packQ){if(auto)setTimeout(nextInQueue,900);else{$("next").style.display="";$("next").onclick=nextInQueue}}else{$("start").style.display="";$("next").style.display="none"}}
 $("bstrike").onclick=()=>answer("Strike");$("bball").onclick=()=>answer("Ball");$("start").onclick=()=>startPitch(false);
@@ -336,6 +402,7 @@ async function boot(){
   setNet();
   if(Q&&navigator.onLine&&reach){const seen=await seenSet();const first=Q.packs.find(p=>p.items.some(i=>!seen.has(i.id)))||Q.packs[0];if(first)prefetch(first.items.map(i=>Object.assign({},i,{_pack:first})))}
   if(navigator.onLine&&reach)sync();
+  window.__sim={recapCfg:simRecapCfg,q:()=>SIM.q,project:simCamera,views:SIM_VIEWS,pos:simPos,drawn:()=>({tmax:SIM.tmax,trail:SIM.trail,cam:SIM.camName}),timing:()=>({start:SIM.tStart,q:SIM.tQ}),cam:()=>SIM.cam,size:()=>[SIM.W,SIM.H]};
   window.__gonogo={state:()=>state,pauseAt:()=>pauseAt,trials:allTrials,session:()=>session,queue:()=>Q,sessionLog:()=>sessionLog};
   if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{})}
 boot();
