@@ -1,0 +1,55 @@
+{
+ "label": "AAA-IL",
+ "tracked_pitches": 447341,
+ "hitters": 398,
+ "coverage_full": {
+  "ride": {
+   "hitters": 398,
+   "with_min": 302,
+   "share": 0.759,
+   "median_swings": 238
+  },
+  "run": {
+   "hitters": 398,
+   "with_min": 179,
+   "share": 0.45,
+   "median_swings": 128
+  }
+ },
+ "coverage_midseason": {
+  "ride": {
+   "hitters": 398,
+   "with_min": 156,
+   "share": 0.392,
+   "median_swings": 118
+  },
+  "run": {
+   "hitters": 398,
+   "with_min": 28,
+   "share": 0.07,
+   "median_swings": 65
+  }
+ },
+ "reliability": {
+  "ride": {
+   "n": 225,
+   "r": 0.397,
+   "ci": [
+    0.278,
+    0.501
+   ],
+   "corrected": 0.568,
+   "passes_bar": true
+  },
+  "run": {
+   "n": 92,
+   "r": 0.053,
+   "ci": [
+    -0.126,
+    0.231
+   ],
+   "corrected": 0.101,
+   "passes_bar": false
+  }
+ }
+}
