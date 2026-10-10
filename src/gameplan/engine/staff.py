@@ -25,7 +25,7 @@ PAGE_CSS = """
 @media (prefers-color-scheme:dark){:root{--bg:#150b24;--ink:#f4eefb;--ink2:#cfc2e4;--line:#3b2a57;--mid:#2a1a45;--purple:#a678e8;--copper:#c79a80;--teal:#3fc2c0;--bad:#ff8a8a}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace}
 header{border-top:4px solid var(--copper);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-header b{color:var(--purple);font-style:italic;font-size:18px}nav a{margin-right:12px;color:var(--ink2);text-decoration:none}nav a:hover{color:var(--purple)}
+header b{color:var(--purple);font-style:italic;font-size:18px}a{color:var(--purple)}nav a{margin-right:12px;color:var(--ink2);text-decoration:none}nav a:hover{color:var(--purple)}
 main{max-width:1100px;margin:0 auto;padding:16px}h1{color:var(--purple);font-size:22px;margin:0 0 10px}h2{color:var(--purple);font-size:16px;margin:22px 0 6px}
 table{border-collapse:collapse;width:100%;margin:6px 0 14px}td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{color:var(--ink2);font-weight:600}
 .n{text-align:right}.mut{color:var(--ink2)}.bad{color:var(--bad)}.good{color:var(--teal)}.card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}
@@ -106,6 +106,9 @@ class _NeedLogin(Exception):
 def _form(body: bytes) -> tuple:
     q = urllib.parse.parse_qs(body.decode("utf-8", "replace"), keep_blank_values=True)
     return {k: v[0] for k, v in q.items()}, q
+
+
+PN = {"FF": "Four-seam", "SI": "Sinker", "FC": "Cutter", "SL": "Slider", "ST": "Sweeper", "SV": "Slurve", "CU": "Curveball", "KC": "Knuckle curve", "CH": "Changeup", "FS": "Splitter", "FO": "Forkball", "KN": "Knuckleball"}
 
 
 def _pct(x):
@@ -343,11 +346,11 @@ def register(app, ctx) -> None:
                             acc = cell["accuracy"]
                             shade = f"background:rgba({int(200 - 160 * max(0, min(1, (acc - .4) / .6)))},{int(120 + 80 * acc)},{int(200 - 120 * max(0, min(1, (acc - .4) / .6)))},.35)"
                         cells.append(dict(name=k, shown=shown, pct=_pct(cell.get("accuracy")), n=cell.get("n", 0), ci=_ci(cell.get("ci")), style=shade))
-                recall = [dict(name=k, n=v["n"], pct=_pct(v.get("accuracy")), ci=_ci(v.get("ci"))) for k, v in led["recall_by_type"].items() if v.get("accuracy") is not None]
+                recall = [dict(name=PN.get(k, k), n=v["n"], pct=_pct(v.get("accuracy")), ci=_ci(v.get("ci"))) for k, v in led["recall_by_type"].items() if v.get("accuracy") is not None]
                 trend = [dict(month=t["month"], zone=(f"{_pct(t['zone']['accuracy'])} (n={t['zone']['n']})" if "zone" in t else ""), pitch=(f"{_pct(t['pitch']['accuracy'])} (n={t['pitch']['n']})" if "pitch" in t else "")) for t in led["trend"]]
                 rt = f"median decision {int(sb['median_rt_ms'])} ms" if sb.get("median_rt_ms") else ""
                 views.append(dict(mode_label="Assessment" if mode == "assess" else "Training", camera=cc, sb=fmt(sb) + (f", d' {sb['d_prime']}" if sb.get("d_prime") is not None else ""), edge=fmt(ed), pt=fmt(pt) + (f", chance {_pct(pt.get('chance_baseline'))}" if pt.get("chance_baseline") else ""),
-                                  rt=rt, cells=cells, recall=recall, conf=led["confusions"], trend=trend))
+                                  rt=rt, cells=cells, recall=recall, conf=[(PN.get(a, a), PN.get(b, b), n) for a, b, n in led["confusions"]], trend=trend))
             return render(request, c, "player", p["name"], p=dict(name=p["name"], bats=p["bats"], org_id=p["org_id"], team=a["team_name"] if a else None, level=a["level"] if a else None), creds=[dict(r) for r in creds], views=views, min_cell=8)
         finally:
             c.close()

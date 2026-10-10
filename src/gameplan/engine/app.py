@@ -115,6 +115,9 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
+        raw = request.scope.get("raw_path") or b""
+        if "\x00" in request.url.path or b"%00" in raw or b"\x00" in raw:
+            return JSONResponse({"error": "Bad request.", "code": "bad_path"}, 400)
         if request.method in ("POST", "PUT", "PATCH"):
             cl = request.headers.get("content-length")
             if cl is None:
