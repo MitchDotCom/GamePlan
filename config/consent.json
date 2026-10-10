@@ -1,0 +1,13 @@
+{
+  "version": "draft-1",
+  "required": true,
+  "status": "DRAFT wording, not reviewed by the organization. Replace the text and change the version before real hitters use the app; every change of version asks every hitter again.",
+  "title": "About your data",
+  "paragraphs": [
+    "This app asks you to call pitches strike or ball and to name the pitch type, so the player development staff can see how you recognize pitches.",
+    "It records your name, your answers, how long each answer took and when you used the app. Coaches on your team and player development staff can see your results. Other hitters cannot.",
+    "Taking part is for development. Your answers are not used to evaluate you for roster decisions unless the organization tells you otherwise in writing.",
+    "You can ask a coach to stop your account or delete your answers at any time."
+  ],
+  "button": "I understand and agree"
+}

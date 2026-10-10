@@ -446,10 +446,14 @@ async function claimFlow(token){
       gate("You are set up",r.player.name,`<div class="card"><div class="note">To use the installed app: tap Share, then Add to Home Screen. Open it and enter this code within ${r.pairing_minutes} minutes.</div><div class="codebox">${esc(fmtCode(r.pairing_code))}</div><div class="row"><button class="pri" id="gGo">Continue here</button></div></div>`);
       $("gGo").onclick=()=>enterApp()}catch(e){$("gMsg").textContent=e.offline?"No signal. Try again when you are online.":e.message}}}
 async function onSignedOut(){CRED=null;ME=null;await kvSet("cred",null);await kvSet("me",null);gateWelcome("You were signed out. Use a pairing or recovery code, or open a new link from your coach.")}
+function gateConsent(c){
+  gate("Before you start",c.title||"About your data",`<div class="card">${c.paragraphs.map(p=>`<p>${esc(p)}</p>`).join("")}<div class="row"><button class="pri" id="gAgree">${esc(c.button||"I agree")}</button></div><div class="note" id="gMsg"></div></div>`);
+  $("gAgree").onclick=async()=>{$("gMsg").textContent="Saving...";try{await api("/api/consent",{body:{version:c.version}});await enterApp()}catch(e){if(e.signedOut)return;$("gMsg").textContent=e.message||"Could not save. Check your signal and try again."}}}
 async function enterApp(){
   CRED=CRED||await kvGet("cred",null);if(!CRED)return gateWelcome();
   try{const me=await api("/api/me");ME=me.player;ESET=me.settings;await kvSet("me",ME);await kvSet("eset",ESET);
-    if(me.min_app_version&&me.min_app_version!==APP_ENGINE)showUpdate()}
+    if(me.min_app_version&&me.min_app_version!==APP_ENGINE)showUpdate();
+    if(me.consent&&!me.consent.accepted)return gateConsent(me.consent)}
   catch(e){if(e.signedOut)return;ME=await kvGet("me",null);ESET=await kvGet("eset",null);
     if(!ME){gate("Offline","No signal",`<div class="card"><div class="note">Connect once to load your account.</div><div class="row"><button class="pri" id="gRetry">Try again</button></div></div>`);$("gRetry").onclick=enterApp;return}}
   gateOff();applyIdentity();await applySettings();await loadQueue();renderStats();updateChips();setNet();
@@ -490,7 +494,7 @@ async function engineFlush(force){
       for(const t of chunk){if(ok.has(t.id)){t.synced=1;await putTrial(t)}else if(bad.has(t.id)){t.synced=2;t.reject=bad.get(t.id);await putTrial(t)}}}
     backoff=0;nextTry=0;setNet(true);
     if(Date.now()-lastHb>300000||un.length){lastHb=Date.now();await sendHeartbeat().catch(()=>{})}
-  }catch(e){if(!e.signedOut){backoff=Math.min(backoff?backoff*2:5000,300000);nextTry=Date.now()+backoff;if(e.offline)setNet(false)}}
+  }catch(e){if(e.code==="consent_required"){setTimeout(enterApp,0)}else if(!e.signedOut){backoff=Math.min(backoff?backoff*2:5000,300000);nextTry=Date.now()+backoff;if(e.offline)setNet(false)}}
   finally{flushing=false;updateChips();if(flushAgain){flushAgain=false;if(!backoff)engineFlush(true)}}}
 async function sendHeartbeat(){
   const all=(await allTrials()).filter(t=>t.pid===ME.id),un=all.filter(t=>!t.synced);let persisted=false;try{persisted=navigator.storage&&navigator.storage.persisted?await navigator.storage.persisted():false}catch(e){}

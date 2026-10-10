@@ -18,6 +18,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from .. import app_server as _csvsafe
+from . import consent as CONSENT
 from . import analytics, answers as A, db, identity, jobs, packs, playlist, reconcile, runner, security
 
 PAGE_CSS = """
@@ -48,8 +49,8 @@ TEMPLATES = {
 <h2>Next opponent starters</h2>{% if starters %}<table><tr><th>Team</th><th>Game date</th><th>Starter</th><th>Status</th></tr>{% for s in starters %}<tr><td>{{ s.team_name }}</td><td>{{ s.game_date }}</td><td>{{ s.pitcher_name or 'not listed' }}</td><td class="{{ 'good' if s.status=='confirmed' else 'bad' }}">{{ s.status }}</td></tr>{% endfor %}</table><p><a href="/staff/starters">Confirm starters</a></p>{% else %}<p class="mut">No starters yet. <a href="/staff/starters">Add one</a>.</p>{% endif %}
 <h2>Background jobs</h2><table><tr><th>Job</th><th>Last ok</th><th>Last run</th></tr>{% for j in jobs %}<tr><td>{{ j.name }}</td><td>{{ j.ok_at or 'never' }}</td><td class="{{ 'good' if j.last_ok else 'bad' }}">{{ j.last_at or 'never' }}{% if j.last_ok==0 %} (failed){% endif %}</td></tr>{% endfor %}</table>{% endblock %}""",
     "roster": """{% extends "base" %}{% block body %}<h1>Roster</h1>
-<table><tr><th>Hitter</th><th>Bats</th><th>Team</th><th>Phones</th><th>Last answer</th><th class="n">7 days</th><th></th></tr>
-{% for p in players %}<tr><td><a href="/staff/player/{{ p.id }}">{{ p.name }}</a><br><small>{{ p.org_id or '' }}</small></td><td>{{ p.bats }}</td><td>{{ p.team or 'none' }}{% if p.level %} ({{ p.level }}){% endif %}</td><td>{{ p.creds }}</td><td>{{ (p.last or '')[:16] }}</td><td class="n">{{ p.n7 }}</td>
+<table><tr><th>Hitter</th><th>Bats</th><th>Team</th><th>Phones</th><th>Agreed</th><th>Last answer</th><th class="n">7 days</th><th></th></tr>
+{% for p in players %}<tr><td><a href="/staff/player/{{ p.id }}">{{ p.name }}</a><br><small>{{ p.org_id or '' }}</small></td><td>{{ p.bats }}</td><td>{{ p.team or 'none' }}{% if p.level %} ({{ p.level }}){% endif %}</td><td>{{ p.creds }}</td><td>{{ p.consent }}</td><td>{{ (p.last or '')[:16] }}</td><td class="n">{{ p.n7 }}</td>
 <td><form class="inline" method="post" action="/staff/player/{{ p.id }}/claim"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Claim link</button></form>
 <form class="inline" method="post" action="/staff/player/{{ p.id }}/recovery"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Recovery code</button></form></td></tr>{% endfor %}</table>
 <h2>Add a hitter</h2><form method="post" action="/staff/roster/add" class="card row"><input type="hidden" name="csrf" value="{{ csrf }}"><input name="name" placeholder="Name" required><select name="bats"><option>R</option><option>L</option><option>S</option></select>
@@ -233,6 +234,13 @@ def register(app, ctx) -> None:
         finally:
             c.close()
 
+    cons_cfg = CONSENT.load()
+
+    def consent_label(c, player_id):
+        if not cons_cfg:
+            return "not required"
+        return "yes" if CONSENT.accepted(c, player_id, cons_cfg["version"]) else "waiting"
+
     @app.get("/staff/roster")
     def roster(request: Request):
         c = db.connect(ctx.db_path)
@@ -248,7 +256,7 @@ def register(app, ctx) -> None:
                     continue
                 stats = c.execute("SELECT MAX(server_ts) last, SUM(server_ts>=?) n7 FROM answers WHERE player_id=?", (week, p["id"])).fetchone()
                 out.append(dict(id=p["id"], name=p["name"], bats=p["bats"], org_id=p["org_id"], team=a["team_name"] if a else None, level=a["level"] if a else None,
-                                creds=c.execute("SELECT COUNT(*) n FROM credentials WHERE player_id=? AND revoked_at IS NULL", (p["id"],)).fetchone()["n"], last=stats["last"], n7=stats["n7"] or 0))
+                                creds=c.execute("SELECT COUNT(*) n FROM credentials WHERE player_id=? AND revoked_at IS NULL", (p["id"],)).fetchone()["n"], consent=consent_label(c, p["id"]), last=stats["last"], n7=stats["n7"] or 0))
             return render(request, c, "roster", "Roster", players=out, teams=teams)
         finally:
             c.close()

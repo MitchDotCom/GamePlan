@@ -29,3 +29,8 @@ def org(conn):
     admin_id, admin_tok = identity.create_staff(conn, SECRET, "Admin", "admin")
     coach_id, coach_tok = identity.create_staff(conn, SECRET, "Coach V", "coach", [t1])
     return dict(t1=t1, t2=t2, p1=p1, p2=p2, p3=p3, admin=(admin_id, admin_tok), coach=(coach_id, coach_tok))
+
+
+@pytest.fixture(autouse=True)
+def _consent_off_unless_a_test_turns_it_on(monkeypatch):
+    monkeypatch.setenv("ENGINE_CONSENT_FILE", "/nonexistent/consent.json")

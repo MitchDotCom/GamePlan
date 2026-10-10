@@ -16,6 +16,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import consent as CONSENT
 from . import answers as A
 from . import db, identity, playlist, runner, security
 
@@ -110,6 +111,14 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
             raise identity.EngineError("You are signed out. Ask a coach for a new link.", 401, "signed_out")
         return got
 
+    consent_cfg = CONSENT.load()
+
+    def consented(auth=Depends(player_auth), c=Depends(get_conn)):
+        """The signed-in hitter, but only once he has agreed to the current wording."""
+        if consent_cfg and not CONSENT.accepted(c, auth[1]["id"], consent_cfg["version"]):
+            raise identity.EngineError("Please read and agree to how your data is used first.", 403, "consent_required")
+        return auth
+
     app.state.get_conn = get_conn
     app.state.throttle = throttle
 
@@ -188,7 +197,18 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
         cred, player = auth
         card = identity.player_card(c, player["id"])
         st = playlist.settings(c, card["team_id"]) if card["team_id"] else None
-        return dict(player=card, settings=st, server_time=db.now(), app_version=APP_VERSION, min_app_version=MIN_APP_VERSION)
+        cons = None
+        if consent_cfg:
+            cons = dict(CONSENT.public(consent_cfg), accepted=CONSENT.accepted(c, player["id"], consent_cfg["version"]))
+        return dict(player=card, settings=st, consent=cons, server_time=db.now(), app_version=APP_VERSION, min_app_version=MIN_APP_VERSION)
+
+    @app.post("/api/consent")
+    async def post_consent(request: Request, auth=Depends(player_auth), c=Depends(get_conn)):
+        body = await read_json(request)
+        if not consent_cfg:
+            return dict(ok=True)
+        CONSENT.accept(c, auth[1], auth[0], str(body.get("version", "")), consent_cfg)
+        return dict(ok=True)
 
     @app.post("/api/signout")
     def signout(auth=Depends(player_auth), c=Depends(get_conn)):
@@ -200,13 +220,13 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
         return identity.new_pairing_code(c, ctx.secret, auth[1]["id"], auth[0]["id"])
 
     @app.get("/api/playlist")
-    def get_playlist(auth=Depends(player_auth), c=Depends(get_conn)):
+    def get_playlist(auth=Depends(consented), c=Depends(get_conn)):
         out = playlist.compose(c, auth[1])
         out["server_time"] = db.now()
         return out
 
     @app.post("/api/answers")
-    async def post_answers(request: Request, auth=Depends(player_auth), c=Depends(get_conn)):
+    async def post_answers(request: Request, auth=Depends(consented), c=Depends(get_conn)):
         body = await read_json(request)
         res = A.ingest(c, auth[1], auth[0], body.get("answers"))
         res["server_time"] = db.now()
@@ -226,7 +246,7 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
         return dict(ok=True, server_time=db.now())
 
     @app.get("/content/{hash_}/{name}")
-    def content(hash_: str, name: str, auth=Depends(player_auth)):
+    def content(hash_: str, name: str, auth=Depends(consented), c=Depends(get_conn)):
         if not HASH_RE.match(hash_) or not FILE_RE.match(name):
             raise identity.EngineError("Not found.", 404)
         f = ctx.content_root / hash_ / name

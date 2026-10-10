@@ -10,7 +10,7 @@ import json
 import pathlib
 import sqlite3
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS heartbeats (
   id INTEGER PRIMARY KEY, player_id INTEGER NOT NULL REFERENCES players(id), credential_id INTEGER, ts TEXT NOT NULL, stored INTEGER, sent INTEGER, unsent INTEGER, oldest_unsent_ts TEXT, app_version TEXT, persisted INTEGER, detail TEXT);
 CREATE INDEX IF NOT EXISTS ix_hb_player ON heartbeats(player_id, ts);
 CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, ts TEXT NOT NULL, actor_type TEXT NOT NULL, actor_id INTEGER, action TEXT NOT NULL, detail_json TEXT);
+CREATE TABLE IF NOT EXISTS consents (id INTEGER PRIMARY KEY, player_id INTEGER NOT NULL REFERENCES players(id), credential_id INTEGER, version TEXT NOT NULL, accepted_at TEXT NOT NULL, UNIQUE (player_id, version));
 CREATE TABLE IF NOT EXISTS job_runs (id INTEGER PRIMARY KEY, name TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, ok INTEGER, detail_json TEXT);
 """
 
@@ -87,7 +88,7 @@ def connect(path: str | pathlib.Path) -> sqlite3.Connection:
 def migrate(c: sqlite3.Connection) -> None:
     c.executescript(SCHEMA)
     row = c.execute("SELECT MAX(version) v FROM schema_version").fetchone()
-    if row["v"] is None:
+    if row["v"] is None or row["v"] < SCHEMA_VERSION:          # v2 added the consents table, which executescript above has just created
         c.execute("INSERT INTO schema_version(version) VALUES (?)", (SCHEMA_VERSION,))
     elif row["v"] > SCHEMA_VERSION:
         raise RuntimeError(f"database is schema {row['v']}, this code knows {SCHEMA_VERSION}: refusing to run")
