@@ -156,3 +156,20 @@ def test_assessment_keys_are_not_in_any_player_response(env, tmp_path):
 def test_server_secret_is_required():
     with pytest.raises(RuntimeError):
         engine_app.create_app("/tmp/x-unused", "short")
+
+
+def test_heartbeat_asks_the_phone_to_resend_when_the_server_holds_fewer_answers_than_the_phone_sent(env):
+    from gameplan.engine import answers as A
+    from .test_answers_playlist import ans
+    cl = env["client"]
+    cred, _ = claim_and_sign_in(env)
+    batch = [ans(f"resend{i:03d}", env["pack"], f"starterL{i % 4}") for i in range(6)]
+    assert len(cl.post("/api/answers", headers=hdr(cred), json={"answers": batch}).json()["stored"]) == 6
+    ok = cl.post("/api/heartbeat", headers=hdr(cred), json={"stored": 6, "sent": 6, "unsent": 0}).json()
+    assert ok["resend"] is False
+    env["c"].execute("DELETE FROM answers WHERE id IN ('resend004','resend005')")          # what a restore from an older backup looks like
+    lost = cl.post("/api/heartbeat", headers=hdr(cred), json={"stored": 6, "sent": 6, "unsent": 0}).json()
+    assert lost["resend"] is True and env["c"].execute("SELECT COUNT(*) n FROM audit_log WHERE action='resend_requested'").fetchone()["n"] == 1
+    again = cl.post("/api/answers", headers=hdr(cred), json={"answers": batch}).json()      # the phone resends everything
+    assert sorted(again["stored"]) == ["resend004", "resend005"] and len(again["duplicates"]) == 4
+    assert cl.post("/api/heartbeat", headers=hdr(cred), json={"stored": 6, "sent": 6, "unsent": 0}).json()["resend"] is False

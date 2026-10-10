@@ -509,7 +509,8 @@ async function engineFlush(force){
   finally{flushing=false;updateChips();if(flushAgain){flushAgain=false;if(!backoff)engineFlush(true)}}}
 async function sendHeartbeat(){
   const all=(await allTrials()).filter(t=>t.pid===ME.id),un=all.filter(t=>!t.synced);let persisted=false;try{persisted=navigator.storage&&navigator.storage.persisted?await navigator.storage.persisted():false}catch(e){}
-  await api("/api/heartbeat",{body:{stored:all.length,sent:all.filter(t=>t.synced===1).length,unsent:un.length,oldest_unsent_ts:un.length?un.map(t=>t.ts).sort()[0]:"",app:APP_ENGINE,persisted,detail:JSON.stringify({rejected:all.filter(t=>t.synced===2).length})}})}
+  await api("/api/heartbeat",{body:{stored:all.length,sent:all.filter(t=>t.synced===1).length,unsent:un.length,oldest_unsent_ts:un.length?un.map(t=>t.ts).sort()[0]:"",app:APP_ENGINE,persisted,detail:JSON.stringify({rejected:all.filter(t=>t.synced===2).length})}}).then(async r=>{
+    if(r&&r.resend){for(const t of all){if(t.synced===1){t.synced=0;await putTrial(t)}}setTimeout(()=>engineFlush(true),0)}})}   // the server holds fewer answers than this phone sent (a restore): send them all again, duplicates are ignored
 function renderUnsent(mine,all){
   const un=mine.filter(t=>!t.synced),b=$("unsentBanner");
   const old=un.length&&Date.now()-new Date(un.map(t=>t.ts).sort()[0]).getTime()>15*60000;
@@ -551,7 +552,7 @@ async function boot(){
   finishBoot()}
 function finishBoot(){
   window.__sim={recapCfg:simRecapCfg,q:()=>SIM.q,project:simCamera,views:SIM_VIEWS,pos:simPos,drawn:()=>({tmax:SIM.tmax,trail:SIM.trail,cam:SIM.camName}),timing:()=>({start:SIM.tStart,q:SIM.tQ}),cam:()=>SIM.cam,size:()=>[SIM.W,SIM.H]};
-  window.__engine={me:()=>ME,cred:()=>CRED,flush:engineFlush,playlist:()=>PLAYLIST,api:api,settings:()=>ESET};
+  window.__engine={me:()=>ME,cred:()=>CRED,flush:engineFlush,heartbeat:sendHeartbeat,playlist:()=>PLAYLIST,api:api,settings:()=>ESET};
   window.__gonogo={state:()=>state,pauseAt:()=>pauseAt,trials:allTrials,session:()=>session,queue:()=>Q,sessionLog:()=>sessionLog};
   if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{})}
 boot();

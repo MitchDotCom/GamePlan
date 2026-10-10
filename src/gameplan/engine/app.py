@@ -168,10 +168,10 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
             r = c.execute("SELECT started_at FROM job_runs WHERE name=? AND ok=1 ORDER BY id DESC LIMIT 1", (name,)).fetchone()
             return r is not None and r["started_at"] > db.plus(db.now(), hours=-hours)
         if os.environ.get("ENGINE_SCHEDULER", "1") != "0":          # the first backup runs on the first scheduler tick after start, so a healthy service passes within a minute
-            if not fresh("backup", 36):
-                problems.append("no good backup in 36 hours")
-            if offsite.configured() and not fresh("offsite", 36):
-                problems.append("no good offsite copy in 36 hours")
+            if not fresh("backup", 14):
+                problems.append("no good backup in 14 hours")
+            if offsite.configured() and not fresh("offsite", 14):
+                problems.append("no good offsite copy in 14 hours")
         body = dict(ok=not problems, problems=problems, offsite_configured=offsite.configured(), time=db.now())
         return JSONResponse(body, 200 if not problems else 503)
 
@@ -265,7 +265,15 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
         with db.tx(c):
             c.execute("INSERT INTO heartbeats(player_id, credential_id, ts, stored, sent, unsent, oldest_unsent_ts, app_version, persisted, detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
                       (auth[1]["id"], auth[0]["id"], db.now(), n("stored"), n("sent"), n("unsent"), str(b.get("oldest_unsent_ts") or "")[:40] or None, str(b.get("app") or "")[:20], 1 if b.get("persisted") else 0, str(b.get("detail") or "")[:200]))
-        return dict(ok=True, server_time=db.now())
+        # If the phone says it has sent more answers than the server holds (a restore from an older backup, or lost rows), tell it to send everything again.
+        # Ingest is idempotent, so re-sending what the server already has stores nothing twice.
+        held = c.execute("SELECT COUNT(*) n FROM answers WHERE player_id=?", (auth[1]["id"],)).fetchone()["n"]
+        sent = n("sent")
+        resend = bool(sent is not None and sent > held)
+        if resend:
+            with db.tx(c):
+                db.audit(c, "player", auth[1]["id"], "resend_requested", dict(phone_sent=sent, server_holds=held))
+        return dict(ok=True, server_time=db.now(), resend=resend)
 
     @app.get("/content/{hash_}/{name}")
     def content(hash_: str, name: str, auth=Depends(consented), c=Depends(get_conn)):

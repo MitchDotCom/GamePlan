@@ -8,7 +8,7 @@ import sqlite3
 from . import db
 
 
-def backup(live_path: pathlib.Path, dest_dir: pathlib.Path, keep: int = 14) -> pathlib.Path:
+def backup(live_path: pathlib.Path, dest_dir: pathlib.Path, keep: int = 60) -> pathlib.Path:
     dest_dir = pathlib.Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
     stamp = db.now().replace(":", "").replace("-", "").replace(".", "")[:21]        # to the microsecond: two backups never share a name, so a restore point is never overwritten

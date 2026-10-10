@@ -565,6 +565,33 @@ def main():
             assert live == 0, live
             return "signed out on its own; server credential retired"
 
+        @check("E19", "Recovery", "After the server is restored from an older backup (answers missing), the phone notices at its next heartbeat and sends everything again; nothing is doubled", "S1")
+        def _():
+            S = Server(tpl)
+            ctx, p = B.page()
+            claim(p, S.claim_link("Demo Hitter Four"))
+            start_pack(p, "Next starter")
+            answer_both(p)
+            finish_pitch(p)
+            p.evaluate("window.__engine.flush(true)")
+            p.wait_for_function("document.getElementById('pend').textContent.startsWith('0 ')", timeout=15000)
+            assert S.rows("SELECT COUNT(*) n FROM answers")[0]["n"] == 2
+            c = S.conn()
+            c.execute("DELETE FROM answers")                      # the restore: the server no longer holds what the phone was told was safe
+            c.close()
+            p.evaluate("window.__engine.heartbeat()")
+            deadline = time.time() + 15
+            while time.time() < deadline and S.rows("SELECT COUNT(*) n FROM answers")[0]["n"] < 2:
+                time.sleep(0.3)
+            rows = S.rows("SELECT id FROM answers")
+            p.evaluate("window.__engine.heartbeat()")
+            p.wait_for_timeout(1500)
+            after = S.rows("SELECT COUNT(*) n FROM answers")[0]["n"]
+            ctx.close()
+            S.stop()
+            assert len(rows) == 2 and after == 2 and len({r["id"] for r in rows}) == 2, (len(rows), after)
+            return "2 answers came back after the server forgot them; a second heartbeat added nothing"
+
         @check("E15", "Console", "No uncaught script errors or console errors across the whole run", "S1")
         def _():
             assert not B.errors, B.errors[:3]

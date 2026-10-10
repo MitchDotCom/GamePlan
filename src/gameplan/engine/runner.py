@@ -19,7 +19,7 @@ from . import offsite as OFF
 from . import db, identity, jobs, reconcile
 
 log = logging.getLogger("engine.runner")
-INTERVALS = dict(starters=3 * 3600, reconcile=3600, backup=24 * 3600, offsite=24 * 3600)
+INTERVALS = dict(starters=3 * 3600, reconcile=3600, backup=6 * 3600, offsite=6 * 3600)          # a disk lost at the worst moment costs at most six hours of answers (and the phones resend those)
 
 
 def _last_run(c, name: str):
