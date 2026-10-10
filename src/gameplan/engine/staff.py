@@ -19,7 +19,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from .. import app_server as _csvsafe
 from . import consent as CONSENT
-from . import analytics, answers as A, db, identity, jobs, packs, playlist, reconcile, runner, security
+from . import staff_schedule
+from . import analytics, answers as A, db, identity, jobs, packs, playlist, reconcile, runner, schedule, security
 
 PAGE_CSS = """
 :root{--bg:#fff;--ink:#1c1030;--ink2:#4a3d63;--line:#e4d8d0;--mid:#f3effa;--purple:#5f249f;--copper:#8f654d;--teal:#005f61;--bad:#a32424}
@@ -39,13 +40,14 @@ form.inline{display:inline}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:
 
 TEMPLATES = {
     "base": """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ title }} - Recognition engine</title><style>{{ css|safe }}</style></head><body>
-<header><b>Recognition engine</b>{% if staff %}<nav><a href="/staff">Today</a><a href="/staff/roster">Roster</a><a href="/staff/starters">Starters</a><a href="/staff/packs">Packs</a><a href="/staff/leaderboard">Leaderboard</a><a href="/staff/settings">Settings</a>{% if staff['role']=='admin' %}<a href="/staff/admin">Admin</a><a href="/staff/audit">Audit</a>{% endif %}</nav>
+<header><b>Recognition engine</b>{% if staff %}<nav><a href="/staff">Today</a><a href="/staff/roster">Roster</a><a href="/staff/schedule">Schedule</a><a href="/staff/starters">Starters</a><a href="/staff/packs">Packs</a><a href="/staff/leaderboard">Leaderboard</a><a href="/staff/settings">Settings</a>{% if staff['role']=='admin' %}<a href="/staff/admin">Admin</a><a href="/staff/audit">Audit</a>{% endif %}</nav>
 <span class="mut">{{ staff['name'] }} ({{ staff['role'] }})</span><form class="inline" method="post" action="/staff/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Sign out</button></form>{% endif %}</header>
 <main>{% if flash %}<div class="flash">{{ flash }}</div>{% endif %}{% block body %}{% endblock %}</main></body></html>""",
     "login": """{% extends "base" %}{% block body %}<h1>Staff sign in</h1><form method="post" action="/staff/login" class="card"><p>Paste your staff token.</p><input type="password" name="token" autocomplete="current-password" size="50" required><p><button class="pri">Sign in</button></p></form>{% endblock %}""",
     "dashboard": """{% extends "base" %}{% block body %}<h1>Today</h1>
 <div class="row"><div class="card">Hitters<br><b>{{ n_players }}</b></div><div class="card">Active (7 days)<br><b>{{ n_active }}</b></div><div class="card">Answers (7 days)<br><b>{{ n_answers }}</b></div></div>
 <h2>Needs attention</h2>{% if findings %}<table><tr><th>Hitter</th><th>What</th><th>What to do</th></tr>{% for f in findings %}<tr><td><a href="/staff/player/{{ f.player_id }}">{{ f.player }}</a></td><td>{{ f.kind.replace('_',' ') }}</td><td>{{ f.detail }}</td></tr>{% endfor %}</table>{% else %}<p class="good">Nothing needs attention.</p>{% endif %}
+<h2>Schedule</h2>{% if sched %}<ul>{% for m in sched %}<li class="bad">{{ m }}</li>{% endfor %}</ul><p><a href="/staff/schedule">Open the schedule</a></p>{% else %}<p class="good">Every affiliate has its next starter confirmed and built.</p>{% endif %}
 <h2>Next opponent starters</h2>{% if starters %}<table><tr><th>Team</th><th>Game date</th><th>Starter</th><th>Status</th></tr>{% for s in starters %}<tr><td>{{ s.team_name }}</td><td>{{ s.game_date }}</td><td>{{ s.pitcher_name or 'not listed' }}</td><td class="{{ 'good' if s.status=='confirmed' else 'bad' }}">{{ s.status }}</td></tr>{% endfor %}</table><p><a href="/staff/starters">Confirm starters</a></p>{% else %}<p class="mut">No starters yet. <a href="/staff/starters">Add one</a>.</p>{% endif %}
 <h2>Background jobs</h2><table><tr><th>Job</th><th>Last ok</th><th>Last run</th></tr>{% for j in jobs %}<tr><td>{{ j.name }}</td><td>{{ j.ok_at or 'never' }}</td><td class="{{ 'good' if j.last_ok else 'bad' }}">{{ j.last_at or 'never' }}{% if j.last_ok==0 %} (failed){% endif %}</td></tr>{% endfor %}</table>{% endblock %}""",
     "roster": """{% extends "base" %}{% block body %}<h1>Roster</h1>
@@ -123,7 +125,7 @@ def _ci(ci):
 
 
 def register(app, ctx) -> None:
-    env = jinja2.Environment(loader=jinja2.DictLoader(TEMPLATES), autoescape=True)
+    env = jinja2.Environment(loader=jinja2.DictLoader({**TEMPLATES, **staff_schedule.TEMPLATES}), autoescape=True)
     get_conn = app.state.get_conn
     builds: dict = {}
 
@@ -226,13 +228,13 @@ def register(app, ctx) -> None:
             q_in = ",".join("?" * len(tids)) or "NULL"
             n_players = c.execute(f"SELECT COUNT(DISTINCT player_id) n FROM assignments WHERE end_date IS NULL AND team_id IN ({q_in})", tids).fetchone()["n"]
             n_ans = c.execute(f"SELECT COUNT(*) n, COUNT(DISTINCT player_id) p FROM answers WHERE server_ts>=? AND team_id IN ({q_in})", [week, *tids]).fetchone()
-            starters = c.execute(f"SELECT s.*, t.name team_name FROM starters s JOIN teams t ON t.id=s.team_id WHERE s.status IN ('confirmed','suggested','tbd') AND s.game_date>=? AND s.team_id IN ({q_in}) ORDER BY s.game_date LIMIT 20", [db.today(), *tids]).fetchall()
+            starters = c.execute(f"SELECT s.*, t.name team_name FROM starters s JOIN teams t ON t.id=s.team_id WHERE s.status IN ('confirmed','suggested','tbd') AND s.game_date>=? AND s.team_id IN ({q_in}) ORDER BY s.game_date LIMIT 20", [db.local_today(), *tids]).fetchall()
             js = []
             for name in runner.INTERVALS:
                 ok = c.execute("SELECT started_at FROM job_runs WHERE name=? AND ok=1 ORDER BY id DESC LIMIT 1", (name,)).fetchone()
                 last = c.execute("SELECT started_at, ok FROM job_runs WHERE name=? ORDER BY id DESC LIMIT 1", (name,)).fetchone()
                 js.append(dict(name=name, ok_at=(ok["started_at"][:16] if ok else None), last_at=(last["started_at"][:16] if last else None), last_ok=(last["ok"] if last else None)))
-            return render(request, c, "dashboard", "Today", n_players=n_players, n_active=n_ans["p"], n_answers=n_ans["n"], findings=reconcile.findings(c, ids if ids is None else tids), starters=starters, jobs=js)
+            return render(request, c, "dashboard", "Today", n_players=n_players, n_active=n_ans["p"], n_answers=n_ans["n"], findings=reconcile.findings(c, ids if ids is None else tids), starters=starters, jobs=js, sched=schedule.attention(c, ids if ids is None else tids))
         finally:
             c.close()
 
@@ -644,3 +646,5 @@ def register(app, ctx) -> None:
             return render(request, c, "audit", "Audit", rows=c.execute("SELECT * FROM audit_log ORDER BY id DESC LIMIT 300").fetchall())
         finally:
             c.close()
+
+    staff_schedule.register(app, ctx, dict(current=current, render=render, post=post, scope=scope, teams_in_scope=teams_in_scope, back=back))

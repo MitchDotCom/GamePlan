@@ -50,14 +50,14 @@ def add_player(c, name: str, bats: str, team_id: int | None = None, org_id: str 
             raise EngineError(f"A player with org id {org_id} already exists.", 409, "duplicate")
         pid = cur.lastrowid
         if team_id is not None:
-            c.execute("INSERT INTO assignments(player_id, team_id, start_date) VALUES (?,?,?)", (pid, team_id, start or db.today()))
+            c.execute("INSERT INTO assignments(player_id, team_id, start_date) VALUES (?,?,?)", (pid, team_id, start or db.local_today()))
         db.audit(c, "staff" if actor else "system", actor, "player_added", dict(player_id=pid, team_id=team_id))
     return pid
 
 
 def assign(c, player_id: int, team_id: int, start: str | None = None, actor: int | None = None) -> None:
     """Move a player to a team (promotion, demotion, trade). The open assignment is closed the day before; history stays with the player."""
-    start = start or db.today()
+    start = start or db.local_today()
     with db.tx(c):
         cur = c.execute("SELECT id, start_date FROM assignments WHERE player_id=? AND end_date IS NULL", (player_id,)).fetchone()
         if cur is not None:
@@ -74,7 +74,7 @@ def _prev_day(d: str) -> str:
 
 
 def current_assignment(c, player_id: int, on: str | None = None):
-    on = on or db.today()
+    on = on or db.local_today()
     return c.execute(
         "SELECT a.*, t.name team_name, t.level, t.adapter, t.mlb_team_id, t.sport_id FROM assignments a JOIN teams t ON t.id=a.team_id "
         "WHERE a.player_id=? AND a.start_date<=? AND (a.end_date IS NULL OR a.end_date>=?) ORDER BY a.start_date DESC LIMIT 1", (player_id, on, on)).fetchone()

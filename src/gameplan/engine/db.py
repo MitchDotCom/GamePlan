@@ -10,7 +10,7 @@ import json
 import pathlib
 import sqlite3
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -58,6 +58,9 @@ CREATE TABLE IF NOT EXISTS heartbeats (
 CREATE INDEX IF NOT EXISTS ix_hb_player ON heartbeats(player_id, ts);
 CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, ts TEXT NOT NULL, actor_type TEXT NOT NULL, actor_id INTEGER, action TEXT NOT NULL, detail_json TEXT);
 CREATE TABLE IF NOT EXISTS consents (id INTEGER PRIMARY KEY, player_id INTEGER NOT NULL REFERENCES players(id), credential_id INTEGER, version TEXT NOT NULL, accepted_at TEXT NOT NULL, UNIQUE (player_id, version));
+CREATE TABLE IF NOT EXISTS slate_holds (
+  id INTEGER PRIMARY KEY, team_id INTEGER NOT NULL REFERENCES teams(id), pin_date TEXT NOT NULL, until_utc TEXT NOT NULL, reason TEXT, set_by INTEGER, set_at TEXT NOT NULL, cleared_at TEXT);
+CREATE INDEX IF NOT EXISTS ix_holds_team ON slate_holds(team_id, set_at);
 CREATE TABLE IF NOT EXISTS job_runs (id INTEGER PRIMARY KEY, name TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, ok INTEGER, detail_json TEXT);
 """
 
@@ -73,6 +76,12 @@ def plus(iso: str, **kw) -> str:
 
 def today() -> str:
     return now()[:10]
+
+
+def local_today() -> str:
+    """The date at the org's home clock (Pacific). Roster dates and the schedule window use this: the UTC date is already tomorrow every evening on the west coast."""
+    import zoneinfo
+    return datetime.datetime.now(zoneinfo.ZoneInfo("America/Los_Angeles")).date().isoformat()
 
 
 def connect(path: str | pathlib.Path) -> sqlite3.Connection:
@@ -94,6 +103,12 @@ def migrate(c: sqlite3.Connection) -> None:
     c.executescript(SCHEMA)
     _add_column(c, "credentials", "shared", "INTEGER NOT NULL DEFAULT 0")          # v3: shared-iPad sign-ins
     _add_column(c, "codes", "keep_issuer", "INTEGER NOT NULL DEFAULT 0")
+    for col, ddl in (("game_no", "INTEGER NOT NULL DEFAULT 1"), ("opponent", "TEXT"), ("content_pitcher_id", "INTEGER"), ("content_kind", "TEXT NOT NULL DEFAULT 'own'"),
+                     ("comp_note", "TEXT"), ("build_state", "TEXT NOT NULL DEFAULT ''"), ("build_detail", "TEXT"), ("build_at", "TEXT")):
+        _add_column(c, "starters", col, ddl)                                           # v4: the weekly schedule
+    _add_column(c, "level_settings", "rollover_tz", "TEXT NOT NULL DEFAULT 'America/Los_Angeles'")
+    _add_column(c, "level_settings", "rollover_hour", "INTEGER NOT NULL DEFAULT 21")
+    c.execute("CREATE INDEX IF NOT EXISTS ix_starters_slate ON starters(team_id, game_date, game_no, status)")
     row = c.execute("SELECT MAX(version) v FROM schema_version").fetchone()
     if row["v"] is None or row["v"] < SCHEMA_VERSION:          # v2 added the consents table, which executescript above has just created
         c.execute("INSERT INTO schema_version(version) VALUES (?)", (SCHEMA_VERSION,))

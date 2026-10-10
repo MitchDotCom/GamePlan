@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 
 from . import answers as A
-from . import db, identity, packs
+from . import db, identity, packs, schedule
 
 RULE_VERSION = "v1"
 MIN_CELL = 8
@@ -55,10 +55,24 @@ def order_items(items: list, seen: set, weak: list) -> list:
     return sorted(items, key=lambda it: (it["id"] in seen, (it.get("meta") or {}).get("pocket") not in weak, it["id"]))
 
 
-def compose(c, player, on: str | None = None) -> dict:
-    on = on or db.today()
-    asg = identity.current_assignment(c, player["id"], on)
-    out = dict(player=identity.player_card(c, player["id"]), date=on, rule_version=RULE_VERSION, packs=[], notes=[], settings=None, sides=[])
+def _games(entries) -> list:
+    return [dict(date=e["game_date"], game_no=e["game_no"], starter=e["pitcher_name"], opponent=e["opponent"], comp=e["comp_note"] if e["content_kind"] == "comp" else None) for e in entries]
+
+
+def compose(c, player, on: str | None = None, now_iso: str | None = None, record: bool = True) -> dict:
+    """`on` pins the slate day (tests, replays); otherwise the day comes from the team's clock and any admin hold (schedule.slate_day).
+    A pack tied to a starter is served only while that starter is on the hitter's slate; a pack tied to no starter is team-wide and always served."""
+    now_iso = now_iso or db.now()
+    asg = identity.current_assignment(c, player["id"], on or now_iso[:10])
+    sd = None
+    if on is None and asg is not None:
+        sd = schedule.slate_day(c, asg["team_id"], now_iso)
+        later = identity.current_assignment(c, player["id"], sd["date"])        # the team he will be on that day, so he prepares for his next opponent
+        if later is not None and later["team_id"] != asg["team_id"]:
+            asg = later
+            sd = schedule.slate_day(c, asg["team_id"], now_iso)
+    day = on or (sd["date"] if sd else now_iso[:10])
+    out = dict(player=identity.player_card(c, player["id"]), date=day, rule_version=RULE_VERSION, packs=[], notes=[], settings=None, sides=[], slate=None, starter_names=[])
     if asg is None:
         out["notes"].append("You are not assigned to a team yet. Ask a coach.")
         return out
@@ -66,18 +80,26 @@ def compose(c, player, on: str | None = None) -> dict:
     out["settings"] = st
     sides = ["L", "R"] if player["bats"] == "S" else [player["bats"]]
     out["sides"] = sides
-    rows = c.execute("SELECT * FROM packs WHERE status='active' AND team_id=? AND side IN (%s) AND practice=0" % ",".join("?" * len(sides)), (asg["team_id"], *sides)).fetchall()
+    entries = schedule.entries_from(c, asg["team_id"], day)
+    ids = [e["id"] for e in entries]
+    out["starter_names"] = [e["pitcher_name"] for e in entries]
+    out["slate"] = dict(day=day, source=sd["source"] if sd else "pinned", valid_until=sd["valid_until"] if sd else None, games=_games(entries))
+    q = "SELECT p.*, COALESCE(s.game_no, 0) game_no FROM packs p LEFT JOIN starters s ON s.id=p.starter_id WHERE p.status='active' AND p.team_id=? AND p.practice=0 AND p.side IN (%s) AND (p.starter_id IS NULL%s)"
+    rows = c.execute(q % (",".join("?" * len(sides)), (" OR p.starter_id IN (%s)" % ",".join("?" * len(ids))) if ids else ""), (asg["team_id"], *sides, *ids)).fetchall()
     if not [r for r in rows if r["kind"] != "assess"]:
-        rows = rows + c.execute("SELECT * FROM packs WHERE status='active' AND practice=1 AND side IN (%s)" % ",".join("?" * len(sides)), sides).fetchall()
+        rows = rows + c.execute("SELECT *, 0 game_no FROM packs WHERE status='active' AND practice=1 AND side IN (%s)" % ",".join("?" * len(sides)), sides).fetchall()
         if [r for r in rows if r["practice"]]:
-            out["notes"].append("No confirmed starter with pitches for your next opponent yet. Showing practice pitches, not your opponent.")
+            if entries:
+                out["notes"].append("Pitches for " + " and ".join(e["pitcher_name"] for e in entries) + " are not ready yet. Showing practice pitches, not your opponent.")
+            else:
+                out["notes"].append("No confirmed starter with pitches for your next opponent yet. Showing practice pitches, not your opponent.")
         else:
             out["notes"].append("Nothing is ready for your next opponent yet. Check again later.")
     weak = weak_pockets(c, player["id"])
     cap = st["daily_cap"]
     used = 0
     chosen = []
-    for r in sorted(rows, key=lambda r: (KIND_ORDER.get(r["kind"], 9), r["side"], r["hash"])):
+    for r in sorted(rows, key=lambda r: (KIND_ORDER.get(r["kind"], 9), r["game_no"], r["side"], r["hash"])):
         m = packs.player_manifest(r)
         if r["mode"] == "assess":
             offer, done_items = assessment_state(c, player["id"], r["hash"], len(m["items"]), st["assess_every_days"])
@@ -100,7 +122,9 @@ def compose(c, player, on: str | None = None) -> dict:
     out["packs"] = chosen
     out["weak_pockets"] = weak
     side_key = ",".join(sides)
+    if not record:
+        return out
     with db.tx(c):
         c.execute("INSERT INTO playlists(player_id, play_date, side, pack_hashes_json, rule_version, created_at) VALUES (?,?,?,?,?,?) ON CONFLICT(player_id, play_date, side) DO UPDATE SET pack_hashes_json=excluded.pack_hashes_json, rule_version=excluded.rule_version",
-                  (player["id"], on, side_key, json.dumps([m["id"] for m in chosen]), RULE_VERSION, db.now()))
+                  (player["id"], day, side_key, json.dumps([m["id"] for m in chosen]), RULE_VERSION, db.now()))
     return out

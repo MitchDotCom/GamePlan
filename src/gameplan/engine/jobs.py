@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import pathlib
 
-from . import db, identity, packs
+from . import db, identity, packs, schedule
 
 KINDS = {"starter": "starter", "edges": "edges", "random": "random", "assess": "assess"}
 
@@ -23,13 +23,11 @@ def register_queue(c, content_dir: pathlib.Path, content_root: pathlib.Path, tea
     return out
 
 
-def confirm_starter(c, team_id: int, game_date: str, pitcher_id: int, pitcher_name: str, staff_id: int | None, game_pk: int | None = None, source: str = "staff", season: int | None = None) -> int:
-    """A person says who the opposing starter is. Earlier confirmed rows for the same team and date are superseded, never deleted."""
-    if not pitcher_name or not str(pitcher_name).strip():
-        raise identity.EngineError("A starter needs a name.")
-    with db.tx(c):
-        c.execute("UPDATE starters SET status='superseded' WHERE team_id=? AND game_date=? AND status IN ('confirmed','suggested','tbd')", (team_id, game_date))
-        cur = c.execute("INSERT INTO starters(team_id, game_date, game_pk, pitcher_id, pitcher_name, status, source, checked_at, confirmed_by, confirmed_at, season) VALUES (?,?,?,?,?,'confirmed',?,?,?,?,?)",
-                        (team_id, game_date, game_pk, pitcher_id, pitcher_name.strip()[:120], source, db.now(), staff_id, db.now(), season or int(game_date[:4])))
-        db.audit(c, "staff", staff_id, "starter_confirmed", dict(team_id=team_id, game_date=game_date, pitcher_id=pitcher_id, pitcher_name=pitcher_name))
-    return cur.lastrowid
+def confirm_starter(c, team_id: int, game_date: str, pitcher_id: int, pitcher_name: str, staff_id: int | None, game_pk: int | None = None, source: str = "staff", season: int | None = None,
+                    game_no: int = 1, opponent: str | None = None) -> int:
+    """A person says who the opposing starter is for one game. Earlier rows for the same team, date and game number are superseded, never deleted. Saving the same starter again changes nothing."""
+    r = schedule.set_entry(c, team_id, game_date, pitcher_name, pitcher_id, opponent, staff_id, game_no, source)
+    if game_pk is not None or season is not None:
+        with db.tx(c):
+            c.execute("UPDATE starters SET game_pk=COALESCE(?, game_pk), season=COALESCE(?, season) WHERE id=?", (game_pk, season, r["id"]))
+    return r["id"]

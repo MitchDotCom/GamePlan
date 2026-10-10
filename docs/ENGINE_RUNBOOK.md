@@ -66,3 +66,23 @@ Limits: 3 live iPad sign-ins per hitter (the oldest is retired); an iPad sign-in
 Proven (automated in this repo): identity rules and throttles; wrong-person trap; idempotent ingest; server-side scoring; consent gate (nothing served or stored before agreement, versioned, per hitter); shared-iPad sign-in leaves the phone signed in, expires, and attributes answers to the right hitter; playlist rules; staff scoping, CSRF and cookie rules; path hardening; mutation checks on four protections; `kill -9` loses no acknowledged answer; 80 and 800 hitter load with no lost rows; backup, restore and the restore command; offsite push with size verification and a deep health check; the image builds, runs from a root-owned volume, survives a restart, and passes a real-browser claim, consent and answer run (`qa/container_e2e.py`); Chromium and WebKit browser suites.
 
 Not proven: any live host; the S3 leg of Litestream (drills used a folder replica); deletion reaching old backups and offsite copies; the offsite copy against a real bucket (tested with a stand-in); iOS home-screen storage over time; real cellular behavior; TLS and proxy headers on Render; org approval; consent wording; whether drawn pitches train recognition.
+
+## The weekly routine (admin)
+Details and the rules behind each step are in `docs/SCHEDULE_PLAN.md`.
+
+**Monday (off day), about 10 minutes**
+1. Staff > Schedule. Pick the week. For each affiliate and game date type the opposing starter's name, MLBAM player id and the opponent. Doubleheader: open "+ doubleheader". Save the week. Nothing is saved if any box is wrong; the page says which.
+2. Wait a few minutes, reload. Each game shows `queued`, `building...`, then `ready`. Pitches are built automatically.
+3. A game that says **no video or tracking found**: click "find a comp", paste his arsenal export (or type hand, release height and side, extension, arm angle and his pitches), pick the closest MLB pitcher, Use. The game rebuilds from that pitcher's video and tells hitters it is a comp.
+4. Staff > Schedule > Preview. Every affiliate should say all hitters will see the starter's pitches. Fix anything it lists, or note it.
+5. Today page: the Schedule block should read "Every affiliate has its next starter confirmed and built."
+
+**During the week**
+- Starter scratched: type the replacement over the box and Save. His pitches rebuild; the old ones stop being served. Answers already given still count.
+- Game postponed: tick "clear" on that box (or type the makeup date's starter) and Save. Hitters move to the next confirmed game immediately.
+- Rain delay or a game that runs past 9 pm: on the affiliate's row choose change > "Keep this starter until [time]". It ends by itself.
+- Game over early and you want the next opponent now: change > "Show the next game now".
+- Anything unusual: change > "Back to the clock" returns to the normal 9:00 pm Pacific switch.
+- A build that says failed: retry. If it fails twice, read the reason on the Starters page and use a comp.
+
+**What hitters see.** The app shows "Next up: starter vs opponent" and the pitches for that game. If the pitches are not ready it says so and shows practice pitches. If the phone has been offline since before the last switch it warns that its list is out of date.

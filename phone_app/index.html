@@ -222,6 +222,10 @@ let renderTok=0;
 async function renderQueue(){
   const my=++renderTok;const el=$("packs");if(!Q){el.innerHTML="<div class='card note'>No queue yet. Connect once to load it.</div>";return}
   const frag=document.createDocumentFragment();           // build off-screen; only the newest call is allowed to put its result on the page
+  const sl=(typeof PLAYLIST!=="undefined"&&PLAYLIST&&PLAYLIST.slate)||null;
+  if(sl&&sl.games&&sl.games.length){const b=document.createElement("div");b.className="card";b.id="slateCard";
+    b.innerHTML="<h2>Next up</h2>"+sl.games.map(g=>`<div class="note"><b>${esc(g.starter)}</b>${g.opponent?` vs ${esc(g.opponent)}`:""} \u00b7 ${esc(g.date)}${g.comp?` \u00b7 pitches are from a comparison pitcher (${esc(g.comp)}), not the starter`:""}</div>`).join("");frag.appendChild(b)}
+  if(sl&&sl.valid_until&&Date.parse(sl.valid_until)<Date.now()){const w=document.createElement("div");w.className="card note";w.id="staleCard";w.textContent="This list is from before the latest switch. Connect to get the current starter.";frag.appendChild(w)}
   const seen=await seenSet();let nextSet=false;
   for(const p of Q.packs){
     let on=0;for(const i of p.items)if(i.sim||await hasClip(i.id))on++;
