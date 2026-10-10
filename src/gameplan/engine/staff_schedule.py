@@ -12,7 +12,7 @@ from fastapi import Request
 from fastapi.responses import RedirectResponse
 import urllib.parse
 
-from . import comps, db, identity, schedule
+from . import comps, db, identity, pitchimport, schedule
 
 TEMPLATES = {
     "schedule": """{% extends "base" %}{% block body %}<h1>Schedule</h1>
@@ -58,6 +58,23 @@ TEMPLATES = {
 <p>{% if t.entries %}{% for e in t.entries %}{{ e.pitcher_name }}{% if e.opponent %} vs {{ e.opponent }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}<span class="bad">no starter confirmed</span>{% endif %}</p>
 {% if t.problems %}<ul>{% for p in t.problems %}<li class="bad">{{ p }}</li>{% endfor %}</ul>{% else %}<p class="good">All {{ t.hitters|length }} hitters will see the starter's pitches.</p>{% endif %}
 <details><summary>{{ t.hitters|length }} hitters</summary><table><tr><th>Hitter</th><th>Bats</th><th>Sees</th></tr>{% for h in t.hitters %}<tr><td>{{ h.name }}</td><td>{{ h.bats }}</td><td class="{{ 'good' if h.kind=='starter' else 'bad' }}">{{ {'starter':'starter pitches','practice':'practice pitches','nothing':'nothing'}[h.kind] }}</td></tr>{% endfor %}</table></details></div>{% endfor %}{% endblock %}""",
+    "pitchimport": """{% extends "base" %}{% block body %}<h1>Upload his pitches</h1>
+<p><b>{{ s.pitcher_name }}</b> for {{ s.team_name }}, game {{ s.game_date }}{% if s.opponent %} vs {{ s.opponent }}{% endif %}. <a href="/staff/schedule">Back to the schedule</a> · <a href="/staff/comps?starter_id={{ s.id }}">find a comp instead</a></p>
+{% if current %}<div class="card good">On file for player {{ s.pitcher_id }}: <b>{{ current.summary.accepted }}</b> drawable pitches from {{ current.summary.starts }} start(s), uploaded {{ current.uploaded_at[:16].replace('T',' ') }} UTC. Uploading again replaces them.</div>{% endif %}
+<div class="card"><p>Export this pitcher's pitch-level rows (his last three to six starts, one pitcher per file). Each row needs the pitch type, speed, plate location, batter side and the pitcher's hand, and either the nine path numbers or the release height, release side, extension and the horizontal and induced vertical break. Each pitch is drawn from its own tracking; rows whose numbers do not hold together are left out and counted.</p>
+<form method="post" action="/staff/import/preview"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="starter_id" value="{{ s.id }}">
+<p><input type="file" id="pf" accept=".csv,.txt,text/csv"></p>
+<textarea name="csv" id="pt" rows="6" cols="90" placeholder="or paste the CSV here">{{ posted.get('csv','') }}</textarea>
+<p>Plate side is positive toward <select name="plate_sign"><option value="1">the catcher's right, first base (usual)</option><option value="-1" {{ 'selected' if posted.get('plate_sign')=='-1' }}>the catcher's left, third base</option></select> <button class="pri">Check the file</button></p></form></div>
+<script>document.getElementById("pf").onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){document.getElementById("pt").value=r.result};r.readAsText(f)}</script>
+{% if error %}<div class="card bad">{{ error }}</div>{% endif %}
+{% if res %}<h2>What the file contains</h2>
+<p>{{ res.summary.accepted }} of {{ res.summary.total }} rows can be drawn. {{ res.summary.hand }}-handed. Paths: {{ res.summary.path }}.{% if res.summary.hb_direction %} Horizontal break direction: {{ res.summary.hb_direction }} (set from his arm-side and glove-side pitches).{% endif %} {{ in_zone }}% of the pitches are in the strike zone.</p>
+<table><tr><th>Pitch</th><th>Count</th><th>Usage</th><th>Velocity</th></tr>{% for t, v in res.summary.types.items() %}<tr><td>{{ t }}</td><td>{{ v.n }}</td><td>{{ '%.0f' % (v.usage*100) }}%</td><td>{{ v.velo }}</td></tr>{% endfor %}</table>
+{% for w in res.warnings %}<p class="bad">{{ w }}</p>{% endfor %}
+{% if res.rejected %}<p class="mut">Left out: {% for w, n in res.rejected.items() %}{{ n }} {{ w }}{% if not loop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+{% if admin %}<form method="post" action="/staff/import/save"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="starter_id" value="{{ s.id }}"><input type="hidden" name="plate_sign" value="{{ posted.get('plate_sign','1') }}"><textarea name="csv" hidden>{{ posted.get('csv','') }}</textarea>
+<input name="note" placeholder="note (where it came from)" size="40"> <button class="pri">Use these pitches</button> <small class="mut">His games on the schedule rebuild from them.</small></form>{% endif %}{% endif %}{% endblock %}""",
     "comps": """{% extends "base" %}{% block body %}<h1>Find a comparison pitcher</h1>
 <p><b>{{ s.pitcher_name }}</b> for {{ s.team_name }}, game {{ s.game_date }}{% if s.opponent %} vs {{ s.opponent }}{% endif %}. Pitches: <b>{{ s.build_state or 'not built' }}</b>{% if s.build_detail %} <small>({{ s.build_detail }})</small>{% endif %}.
 {% if s.content_kind == 'comp' %}<br>Using a comp now: <b>{{ s.comp_note }}</b>.{% if admin %} <form class="inline" method="post" action="/staff/comps/clear"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="starter_id" value="{{ s.id }}"><button>Go back to his own pitches</button></form>{% endif %}{% endif %}
@@ -106,7 +123,7 @@ def register(app, ctx, h) -> None:
         else:
             lead = ""
         bs, st = e["build_state"], schedule.content_state(c, sid)
-        link = (f"/staff/comps?starter_id={sid}", "find a comp")
+        link = (f"/staff/import?starter_id={sid}", "upload his pitches or find a comp")
         if e["pitcher_id"] is None:
             return "needs a player id", "bad", None, None
         if adapter not in schedule.BUILDABLE and e["content_kind"] != "comp":
@@ -305,6 +322,56 @@ def register(app, ctx, h) -> None:
                 c.execute("UPDATE starters SET content_pitcher_id=NULL, content_kind='own', comp_note=NULL, build_state=?, build_detail='', build_at=? WHERE id=?", ("queued" if s["pitcher_id"] else "", db.now(), s["id"]))
                 db.audit(c, "staff", st["id"], "comp_cleared", dict(starter_id=s["id"]))
             return back("/staff/schedule", "Back to his own pitches. Rebuilding.")
+        finally:
+            c.close()
+
+    # ------------------------------------------------------------------ his own tracking, uploaded
+    def import_page(request, c, st, s, **kw):
+        cur = pitchimport.load(c, s["pitcher_id"]) if s["pitcher_id"] else None
+        return render(request, c, "pitchimport", "Upload pitches", s=s, admin=st["role"] == "admin", current=cur, posted=kw.pop("posted", {}), error=kw.pop("error", None), res=kw.pop("res", None), in_zone=kw.pop("in_zone", 0), **kw)
+
+    @app.get("/staff/import")
+    def import_get(request: Request):
+        c = db.connect(ctx.db_path)
+        try:
+            st, _, _ = current(request, c)
+            return import_page(request, c, st, starter_row(c, st, int(request.query_params.get("starter_id") or 0)))
+        finally:
+            c.close()
+
+    def parse_form(f):
+        return pitchimport.parse(f.get("csv") or "", -1 if f.get("plate_sign") == "-1" else 1)
+
+    @app.post("/staff/import/preview")
+    async def import_preview(request: Request):
+        c = db.connect(ctx.db_path)
+        try:
+            st, f, _ = await post(request, c)
+            s = starter_row(c, st, int(f.get("starter_id") or 0))
+            if not s["pitcher_id"]:
+                raise identity.EngineError("This game has no player id yet.", 409)
+            res = parse_form(f)
+            zone = [r for r in res["rows"] if abs(r["px"]) <= 0.83 and r["sz_bot"] <= r["pz"] <= r["sz_top"]]
+            return import_page(request, c, st, s, posted=f, error=res["error"], res=None if res["error"] else res, in_zone=round(100 * len(zone) / max(1, len(res["rows"]))), status=200)
+        finally:
+            c.close()
+
+    @app.post("/staff/import/save")
+    async def import_save(request: Request):
+        c = db.connect(ctx.db_path)
+        try:
+            st, f, _ = await post(request, c)
+            need_admin(st)
+            s = starter_row(c, st, int(f.get("starter_id") or 0))
+            if not s["pitcher_id"]:
+                raise identity.EngineError("This game has no player id yet.", 409)
+            res = parse_form(f)
+            if res["error"]:
+                raise identity.EngineError(res["error"], 400)
+            n = pitchimport.save(c, s["pitcher_id"], res, st["id"], f.get("note", ""))
+            with db.tx(c):
+                q = c.execute("UPDATE starters SET build_state='queued', build_detail='', build_at=? WHERE pitcher_id=? AND status='confirmed' AND content_kind='own' AND game_date>=?", (db.now(), s["pitcher_id"], db.plus(db.now(), days=-1)[:10])).rowcount
+            return back("/staff/schedule", f"Saved {n} pitches for {s['pitcher_name']}. {q} game(s) queued to build from them.")
         finally:
             c.close()
 

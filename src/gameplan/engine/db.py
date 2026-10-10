@@ -10,7 +10,7 @@ import json
 import pathlib
 import sqlite3
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS consents (id INTEGER PRIMARY KEY, player_id INTEGER N
 CREATE TABLE IF NOT EXISTS slate_holds (
   id INTEGER PRIMARY KEY, team_id INTEGER NOT NULL REFERENCES teams(id), pin_date TEXT NOT NULL, until_utc TEXT NOT NULL, reason TEXT, set_by INTEGER, set_at TEXT NOT NULL, cleared_at TEXT);
 CREATE INDEX IF NOT EXISTS ix_holds_team ON slate_holds(team_id, set_at);
+CREATE TABLE IF NOT EXISTS pitch_imports (
+  pitcher_id INTEGER PRIMARY KEY, rows_json TEXT NOT NULL, accepted INTEGER NOT NULL, rejected INTEGER NOT NULL, warnings_json TEXT, summary_json TEXT, note TEXT, uploaded_by INTEGER, uploaded_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS job_runs (id INTEGER PRIMARY KEY, name TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, ok INTEGER, detail_json TEXT);
 """
 

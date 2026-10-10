@@ -291,7 +291,8 @@ def main():
             signin(p, S, ADMIN)
             p.goto(S.base + f"/staff/schedule?start={tomorrow()}")
             assert "no video or tracking found" in p.inner_text("main")
-            p.click("text=find a comp")
+            p.click("text=upload his pitches or find a comp")
+            p.click("text=find a comp instead")
             p.select_option("select[name=hand]", "R")
             for k, v in dict(rel_z="5.9", rel_x="2.0", ext="6.3", arm_angle="35", t1="FF", u1="55", v1="93", h1="8", i1="16", t2="SL", u2="25", v2="85", h2="3", i2="2", t3="CH", u3="20", v3="86", h3="14", i3="6").items():
                 p.fill(f"input[name={k}]", v)
@@ -323,6 +324,33 @@ def main():
             S.stop()
             assert "no starter confirmed" in now_txt and "after the next switch" in nxt_txt and "Jordan Smith" in html
             return "empty schedule flagged"
+
+        @check("S11", "Upload his pitches: choosing a file fills the box, Check shows what it holds, Use saves it, and his games queue")
+        def _():
+            S = Server()
+            e = schedule.set_entry(S.c, S.t1, tomorrow(), "Milb Arm", 434378)["id"]
+            S.c.execute("UPDATE starters SET build_state='no_video' WHERE id=?", (e,))
+            ctx, p = page()
+            signin(p, S, ADMIN)
+            p.goto(S.base + f"/staff/schedule?start={tomorrow()}")
+            p.click("text=upload his pitches or find a comp")
+            p.set_input_files("#pf", str(pathlib.Path(__file__).resolve().parents[1] / "tests" / "engine" / "fixtures" / "statcast_rhp.csv"))
+            p.wait_for_function("document.getElementById('pt').value.length > 1000")
+            p.click("text=Check the file")
+            p.wait_for_selector("text=rows can be drawn")
+            shown = p.inner_text("main")
+            p.fill("input[name=note]", "browser test")
+            p.click("text=Use these pitches")
+            p.wait_for_load_state("networkidle")
+            flash = p.inner_text(".flash")
+            row = S.rows("SELECT accepted, note FROM pitch_imports")
+            st = S.rows("SELECT build_state FROM starters WHERE id=?", e)[0]["build_state"]
+            p.goto(S.base + f"/staff/import?starter_id={e}")
+            on_file = p.inner_text("main")
+            ctx.close()
+            S.stop()
+            assert "rows can be drawn" in shown and "strike zone" in shown and "Saved" in flash and row and row[0]["accepted"] > 250 and row[0]["note"] == "browser test" and st == "queued" and "On file for player 434378" in on_file, (shown[:200], flash, row, st)
+            return f"{row[0]['accepted']} pitches saved, game queued"
 
         b.close()
         bad = [r for r in RESULTS if r["result"] != "PASS"]

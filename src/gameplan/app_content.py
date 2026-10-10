@@ -128,13 +128,13 @@ def edge_rows(pool: list[dict], side: str, rnd: random.Random, exclude: set | No
 
 
 def build_queues(pitcher_id: int, season: int, before: str, n_starts: int, work: pathlib.Path, content: pathlib.Path, n_random: int = 2, assess_pitches: int = 0,
-                 seed: str | None = None, per_pack: int = 8, cutter=cut_clip, sim: bool = False) -> dict:
+                 seed: str | None = None, per_pack: int = 8, cutter=cut_clip, sim: bool = False, starts: list | None = None) -> dict:
     work.mkdir(parents=True, exist_ok=True)
     content.mkdir(parents=True, exist_ok=True)
     if sim:                                         # drawn from tracking: no clip is fetched, cut or stored
         from . import simview
         cutter = simview.sim_cutter
-    starts = PL.recent_starts(pitcher_id, season, before, n_starts)
+    starts = starts or PL.recent_starts(pitcher_id, season, before, n_starts)          # `starts` given: the games are already on disk (an imported export)
     pool = PL.pooled(pitcher_id, starts, work / "feeds")
     if not pool:
         raise ValueError("no pitches for this starter before that date")

@@ -29,7 +29,7 @@ One row per affiliate, one column per date. Each box: starter name, player id (M
 - Admins edit; a coach sees their own affiliate read-only.
 
 ## Content: verify, then fall back
-On save, a game with a player id on an affiliate with a pitch source is queued. A background builder takes the soonest queued game, runs the same fail-closed gates as before and records `build_state`:
+On save, a game with a player id on an affiliate with a pitch source is queued (the probable-pitcher feed is not relied on: the admin enters every starter). A background builder takes the soonest queued game, runs the same fail-closed gates as before and records `build_state`:
 `queued -> building -> ready | no_video | failed`. A build interrupted by a restart is marked failed after 30 minutes so it shows and can be retried, never silently stuck. The grid shows the state in plain words and the Today page lists anything wrong for the next 7 days.
 
 **No video or tracking found** puts a "find a comp" link on the game. The comp page takes his arsenal (pasted CSV or typed) and ranks 2025 MLB starters:
@@ -39,6 +39,17 @@ On save, a game with a player id on an affiliate with a pitch source is queued. 
 The page shows every gap so the admin can overrule it. Choosing a comp re-builds the game's packs from the MLB pitcher's real video. Those packs are titled "Comp for <starter>: <pitcher>" and say they are not the starter's own video, and the phone shows it. The choice and the profile used are in the audit log.
 
 Checked: every pitcher in the pool ranks himself first against his own profile (40 of 40), 25 of 25 random half-samples of a pitcher's pitches return the same pitcher first, handedness is respected, and Skubal/Webb/Gallen/Skenes return sensible neighbours (Webb's include Dustin May). Not checked: whether hitters read the comp and the real starter the same way. That is a baseball judgment the admin makes.
+
+## His own pitches, from a TruMedia (or TrackMan) export
+For a starter with no public tracking or video (the California League, rookie ball), the admin uploads his pitch-level export on the game's "upload his pitches" page. Choose the CSV (or paste it), Check the file, Use these pitches. Nothing is stored until the last step; his games then queue to build.
+- **Needed per row:** pitch type, speed, plate side and height, batter side, pitcher's hand, and either the nine path numbers or release height, release side, extension, horizontal break and induced vertical break. Column names are matched loosely (TrackMan, TruMedia and Statcast spellings). One pitcher per file; mixed hands or several pitchers are refused.
+- **Each pitch is drawn from its own tracking.** Given path numbers are used as they are. Otherwise the path is rebuilt: constant acceleration from the release point through the plate location, the break setting the sideways and vertical acceleration, drag modelled from speed. A row is drawn only if it passes the same checks as Savant tracking (reproduces the plate location, the speed, the flight time, moves toward the plate); the rest are counted by reason and left out.
+- **Accuracy of the rebuild**, measured against Savant's own paths on 5,970 pitches: 99.8% pass the checks; the path is off by a median 1 inch, 90th percentile 2.6 inches, worst 6.8 inches, mid-flight. The plate location and the answer key are exact by construction.
+- **Break direction is not assumed.** Fastballs, sinkers and changeups run to the arm side and sliders, sweepers and curves the other way; that fixes the sign, and a file where the two cannot be told apart (or where break has no direction) is refused with a request for a sample. Release side takes its sign from the hand.
+- **Plate side** is taken as positive toward the catcher's right; the upload page has a switch for a system that reports the other way. A mirrored plate column still produces pitches that hold together, so check the "% in the strike zone" and the pocket picture on the first upload. Needs a sample file to confirm.
+- **Strike zone height.** If the file has each batter's zone top and bottom it is used. If not, 3.4 and 1.6 ft are used for everyone and the page says so; pocket labels and the strike or ball answer near the top and bottom edges are then approximate.
+- Stored in the database (so replication covers it), per player id; a new upload replaces the old and requeues that pitcher's games. Packs built this way say nothing is video; they are drawn pitches like the Triple-A ones.
+- This path is tried before Savant for affiliates that draw pitches, and makes a game buildable at an affiliate with no pitch source. MLB pitchers and comps still use Savant video.
 
 ## Rain delay and early finish (admin buttons)
 - **Keep this starter until [time]**: pins the current slate day for that affiliate until a local time you type. Expires on its own.
@@ -64,12 +75,12 @@ Only one hold is live per affiliate; the newest wins. Holds, scratches and clear
 
 ## Not built (deliberately, until you say you want it)
 - Groups inside an affiliate, per-hitter overrides, hitters studying another affiliate's opponent.
-- A TruMedia or TrackMan **importer**. The comp finder reads a pasted export; the starter's own pitches cannot be built from one yet. This needs a sample file (see questions in the hand-off).
 - A page for each affiliate's rollover time zone and hour.
 - Automatic hold from game status (rain delays are manual).
 - Auto-retry of failed builds (retry is a button).
 
 ## Not proven
-- Any real build against MLB video from this environment: the tests stub the pitch builder; the gates themselves were proven earlier on real data.
+- Any real build against MLB video from this environment: the tests stub the pitch builder for video; the gates themselves were proven earlier on real data. The upload path, by contrast, runs the real builder and real gates in the tests (offline, from real Statcast pitches re-exported in TrackMan style).
+- A real TruMedia file. The column names, units, zone fields and the plate-side convention are matched from what TrackMan and Statcast exports look like, not from a TruMedia sample.
 - The pool is 2025 only (479 pitchers; 235 with five or more starts). Names come from the MLB Stats API.
 - The pilot's real workflow: whether one Monday sitting is enough time, and what happens when a probable pitcher changes on game day.

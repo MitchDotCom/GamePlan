@@ -453,3 +453,87 @@ def test_a_comp_is_cut_from_the_mlb_pitchers_real_video_even_for_a_drawn_pitch_a
         assert sims == [False], team                                                     # video, not a drawn pitch
         assert {r["adapter"] for r in c.execute("SELECT adapter FROM packs WHERE starter_id=?", (sid,))} == {"mlb_video"}
         assert schedule.content_state(c, sid) == "ready"
+
+
+# ------------------------------------------------------------------ uploading his own pitches
+FIXTURE = (__import__("pathlib").Path(__file__).parent / "fixtures" / "statcast_rhp.csv").read_text()
+
+
+def test_upload_preview_then_save_queues_every_game_of_that_pitcher(env):
+    c, ds = env["c"], days(3)
+    a = schedule.set_entry(c, env["t1"], ds[0], "Milb Arm", 434378)["id"]
+    b = schedule.set_entry(c, env["t1"], ds[2], "Milb Arm", 434378)["id"]
+    other = schedule.set_entry(c, env["t1"], ds[1], "Someone Else", 5)["id"]
+    c.execute("UPDATE starters SET build_state='no_video' WHERE id IN (?,?)", (a, b))
+    c.execute("UPDATE starters SET build_state='ready' WHERE id=?", (other,))
+    admin = login(env, ADMIN)
+    tok = csrf(admin)
+    assert "upload his pitches or find a comp" in admin.get(f"/staff/schedule?start={ds[0]}").text
+    assert "Upload his pitches" in admin.get(f"/staff/import?starter_id={a}").text
+    pv = post(admin, "/staff/import/preview", tok, starter_id=a, csv=FIXTURE, plate_sign="1")
+    assert pv.status_code == 200 and "rows can be drawn" in pv.text and "Use these pitches" in pv.text and "% of the pitches are in the strike zone" in pv.text and "<td>FF</td>" in pv.text
+    assert c.execute("SELECT COUNT(*) n FROM pitch_imports").fetchone()["n"] == 0                      # a preview stores nothing
+    sv = post(admin, "/staff/import/save", tok, starter_id=a, csv=FIXTURE, plate_sign="1", note="TruMedia, last 3 starts")
+    assert sv.status_code == 303 and "2+game" in sv.headers["location"]
+    imp = pitchimport_load(c, 434378)
+    assert imp["note"] == "TruMedia, last 3 starts" and len(imp["rows"]) > 250
+    states = {r["id"]: r["build_state"] for r in c.execute("SELECT id, build_state FROM starters")}
+    assert states[a] == states[b] == "queued" and states[other] == "ready"                                    # only this pitcher's games are requeued by the upload
+    assert c.execute("SELECT COUNT(*) n FROM audit_log WHERE action='pitches_imported'").fetchone()["n"] == 1
+    runner.build_queued(env["app"].state.ctx.db_path, env["app"].state.ctx.data_dir, limit=5)               # the real pipeline, from the upload
+    for sid in (a, b):
+        r = c.execute("SELECT * FROM starters WHERE id=?", (sid,)).fetchone()
+        assert r["build_state"] == "ready" and "uploaded tracking" in r["build_detail"], (r["build_state"], r["build_detail"])
+
+
+def pitchimport_load(c, pid):
+    from gameplan.engine import pitchimport
+    return pitchimport.load(c, pid)
+
+
+def test_a_bad_file_is_explained_and_saves_nothing(env):
+    a = schedule.set_entry(env["c"], env["t1"], days()[0], "Milb Arm", 434378)["id"]
+    admin = login(env, ADMIN)
+    tok = csrf(admin)
+    r = post(admin, "/staff/import/preview", tok, starter_id=a, csv="a,b\n1,2\n")
+    assert r.status_code == 200 and "The file is missing" in r.text and "Use these pitches" not in r.text
+    assert post(admin, "/staff/import/save", tok, starter_id=a, csv="a,b\n1,2\n").status_code == 400
+    assert env["c"].execute("SELECT COUNT(*) n FROM pitch_imports").fetchone()["n"] == 0
+
+
+def test_upload_needs_a_player_id_and_an_admin_to_save(env):
+    c = env["c"]
+    noid = schedule.set_entry(c, env["t1"], days()[0], "No Id", None)["id"]
+    a = schedule.set_entry(c, env["t1"], days()[1], "Milb Arm", 434378)["id"]
+    admin = login(env, ADMIN)
+    tok = csrf(admin)
+    assert post(admin, "/staff/import/preview", tok, starter_id=noid, csv=FIXTURE).status_code == 409
+    coach = login(env, env["coach"])
+    ct = csrf(coach)
+    assert post(coach, "/staff/import/preview", ct, starter_id=a, csv=FIXTURE).status_code == 200      # a coach may look
+    assert post(coach, "/staff/import/save", ct, starter_id=a, csv=FIXTURE).status_code == 403          # but not change
+    assert post(admin, "/staff/import/save", None, starter_id=a, csv=FIXTURE).status_code == 403        # and CSRF is required
+    assert c.execute("SELECT COUNT(*) n FROM pitch_imports").fetchone()["n"] == 0
+
+
+def test_a_scoped_coach_cannot_reach_another_affiliates_game(env):
+    other = schedule.set_entry(env["c"], env["t2"], days()[0], "Reno Arm", 7)["id"]
+    coach = login(env, env["coach"])
+    assert coach.get(f"/staff/import?starter_id={other}").status_code == 404
+    assert post(coach, "/staff/import/preview", csrf(coach), starter_id=other, csv=FIXTURE).status_code == 404
+
+
+def test_uploaded_pitches_reach_the_hitters_phone_as_drawn_pitches(env):
+    c = env["c"]
+    sd = schedule.slate_day(c, env["t1"])["date"]
+    sid = schedule.set_entry(c, env["t1"], sd, "Milb Arm", 434378, "Modesto")["id"]
+    admin = login(env, ADMIN)
+    tok = csrf(admin)
+    post(admin, "/staff/import/save", tok, starter_id=sid, csv=FIXTURE)
+    runner.build_queued(env["app"].state.ctx.db_path, env["app"].state.ctx.data_dir, limit=2)
+    phone = TestClient(env["app"])
+    cred = phone.post("/api/claim/confirm", json={"token": identity.create_claim(c, SECRET, env["p1"]), "label": "x"}).json()["credential"]
+    pl = phone.get("/api/playlist", headers={"Authorization": f"Bearer {cred}"}).json()
+    train = [p for p in pl["packs"] if p["mode"] == "train"]
+    assert train and train[0]["title"].startswith("Next starter") and all(i["sim"] and i["file"] is None for p in train for i in p["items"])
+    assert [g["starter"] for g in pl["slate"]["games"]] == ["Milb Arm"]

@@ -14,7 +14,7 @@ import threading
 import traceback
 
 from .. import next_starter as NS
-from . import backup as BK
+from . import pitchimport, backup as BK
 from . import offsite as OFF
 from . import db, identity, jobs, reconcile
 
@@ -125,6 +125,9 @@ def build_starter(db_path: pathlib.Path, data_dir: pathlib.Path, starter_id: int
         source_id = st["content_pitcher_id"] or st["pitcher_id"]
         comp = st["content_kind"] == "comp"
         adapter = "mlb_video" if comp else st["adapter"]                  # a comp is an MLB pitcher: his real video is cut, whatever the affiliate's own source
+        imp = None if comp or adapter == "mlb_video" or not source_id else pitchimport.load(c, source_id)       # his own uploaded tracking, drawn; MLB pitchers and comps use Savant
+        if imp is not None:
+            adapter = "tracking_drawn"                                    # an upload makes a game buildable at any affiliate
         if adapter not in ("mlb_video", "tracking_drawn") or not source_id:
             _set_build(c, starter_id, "", "")
             raise identity.EngineError("This team has no pitch source for that starter. Practice packs are shown instead.", 409)
@@ -132,8 +135,9 @@ def build_starter(db_path: pathlib.Path, data_dir: pathlib.Path, starter_id: int
         work = pathlib.Path(data_dir) / "work" / str(starter_id)
         content = work / "content"
         work.mkdir(parents=True, exist_ok=True)
+        extra = dict(start_games=pitchimport.materialize(imp, source_id, work / "feeds")) if imp is not None else {}
         try:
-            rep = prepare_fn(None, st["game_date"], work, content, source_id, 4, 6, sim=(adapter == "tracking_drawn"))
+            rep = prepare_fn(None, st["game_date"], work, content, source_id, 4, 6, sim=(adapter == "tracking_drawn"), **extra)
         except Exception as e:
             _set_build(c, starter_id, "failed", f"{type(e).__name__}: {str(e)[:200]}")
             return dict(ok=False, gates=[], hashes=[], error=type(e).__name__)
@@ -147,7 +151,7 @@ def build_starter(db_path: pathlib.Path, data_dir: pathlib.Path, starter_id: int
                 mark = ",".join("?" * len(set(out["hashes"])))
                 c.execute(f"UPDATE packs SET status='retired' WHERE starter_id=? AND practice=0 AND status='active' AND hash NOT IN ({mark})", (starter_id, *set(out["hashes"])))
                 db.audit(c, "system", None, "starter_built", dict(starter_id=starter_id, packs=len(out["hashes"])))
-            _set_build(c, starter_id, "ready", f"{len(set(out['hashes']))} packs" + (" (comp)" if st["content_kind"] == "comp" else ""))
+            _set_build(c, starter_id, "ready", f"{len(set(out['hashes']))} packs" + (" (comp)" if comp else " (from his uploaded tracking)" if imp is not None else ""))
         else:
             fails = [g for g in out["gates"] if g.get("status") == "FAIL"]
             no_pitches = any(g.get("gate") in ("history", "build") for g in fails)

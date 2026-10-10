@@ -73,7 +73,7 @@ Details and the rules behind each step are in `docs/SCHEDULE_PLAN.md`.
 **Monday (off day), about 10 minutes**
 1. Staff > Schedule. Pick the week. For each affiliate and game date type the opposing starter's name, MLBAM player id and the opponent. Doubleheader: open "+ doubleheader". Save the week. Nothing is saved if any box is wrong; the page says which.
 2. Wait a few minutes, reload. Each game shows `queued`, `building...`, then `ready`. Pitches are built automatically.
-3. A game that says **no video or tracking found**: click "find a comp", paste his arsenal export (or type hand, release height and side, extension, arm angle and his pitches), pick the closest MLB pitcher, Use. The game rebuilds from that pitcher's video and tells hitters it is a comp.
+3. A game that says **no video or tracking found**: first click "upload his pitches or find a comp" and upload his TruMedia pitch export (his last three to six starts, CSV; Check the file, then Use these pitches). If there is no export, choose "find a comp" instead, paste his arsenal export (or type hand, release height and side, extension, arm angle and his pitches), pick the closest MLB pitcher, Use. The game rebuilds from that pitcher's video and tells hitters it is a comp.
 4. Staff > Schedule > Preview. Every affiliate should say all hitters will see the starter's pitches. Fix anything it lists, or note it.
 5. Today page: the Schedule block should read "Every affiliate has its next starter confirmed and built."
 

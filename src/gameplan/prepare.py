@@ -134,7 +134,7 @@ def check_coverage_and_fit(queue: dict, pool: list[dict], side: str) -> list[dic
 
 
 def prepare(team_id: int | None, on: str, work: pathlib.Path, content: pathlib.Path, pitcher_id: int | None = None, n_starts: int = 4, assess_pitches: int = 6,
-            resolver=NS.resolve, builder=AC.build_queues, files_check=check_pack_files, sim: bool = False) -> dict:
+            resolver=NS.resolve, builder=AC.build_queues, files_check=check_pack_files, sim: bool = False, start_games: list | None = None) -> dict:
     gates, info = [], {}
     if pitcher_id is None:
         info = resolver(team_id, on)
@@ -148,14 +148,14 @@ def prepare(team_id: int | None, on: str, work: pathlib.Path, content: pathlib.P
         info = dict(status="manual", pitcher_id=pitcher_id, date=on)
         gates.append(gate("starter_confirmed", "WARN", "pitcher passed by hand; the schedule was not consulted"))
     try:
-        built = builder(pitcher_id, season, before, n_starts, work, content, 2, assess_pitches, **({"sim": True} if sim else {}))
+        built = builder(pitcher_id, season, before, n_starts, work, content, 2, assess_pitches, **({"sim": True} if sim else {}), **({"starts": start_games} if start_games else {}))
     except Exception as e:                                             # a failed fetch is a failed build, said plainly
         return dict(ok=False, built=False, starter=info, gates=gates + [gate("build", "FAIL", f"{type(e).__name__}: {str(e)[:200]}")])
     starts, pool_n = built["starts"], built["pool"]
     gates.append(gate("history", "FAIL" if starts < 1 else "WARN" if starts < MIN_STARTS_WARN or pool_n < MIN_POOL else "PASS", f"{starts} starts pooled, {pool_n} pitches"))
     private = json.loads((work / "private_keys.json").read_text())
     from . import playlist as _PL
-    pool = _PL.pooled(pitcher_id, _PL.recent_starts(pitcher_id, season, before, n_starts), work / "feeds")
+    pool = _PL.pooled(pitcher_id, start_games or _PL.recent_starts(pitcher_id, season, before, n_starts), work / "feeds")
     for side in ("L", "R"):
         q = json.loads((content / f"queue_{side}.json").read_text())
         n = len(q["packs"][0]["items"]) if q["packs"] else 0
