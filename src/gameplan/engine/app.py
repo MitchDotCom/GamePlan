@@ -6,6 +6,7 @@ Everything a hitter does goes through a device credential (Authorization: Bearer
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import pathlib
@@ -16,7 +17,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import answers as A
-from . import db, identity, playlist, security
+from . import db, identity, playlist, runner, security
 
 log = logging.getLogger("engine")
 APP_VERSION = "engine-1"
@@ -70,7 +71,16 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
     admin_token = admin_token or os.environ.get("ENGINE_ADMIN_TOKEN")
     trust_proxy = bool(os.environ.get("TRUST_PROXY")) if trust_proxy is None else trust_proxy
     ctx = Ctx(data_dir, secret, trust_proxy)
-    app = FastAPI(title="Recognition engine", docs_url=None, redoc_url=None, openapi_url=None)
+    @contextlib.asynccontextmanager
+    async def lifespan(_app):
+        stop = None
+        if os.environ.get("ENGINE_SCHEDULER", "1") != "0":          # backups, reconciliation and schedule look-ups; one instance runs one scheduler
+            stop = runner.start_background(ctx.db_path, ctx.data_dir, ctx.data_dir / "backups")
+        yield
+        if stop:
+            stop.set()
+
+    app = FastAPI(title="Recognition engine", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.ctx = ctx
     static_dir = pathlib.Path(static_dir or STATIC)
 

@@ -24,9 +24,9 @@ def _fetch(url: str) -> dict:
     return json.loads(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=60).read())
 
 
-def resolve(team_id: int, on: str, days: int = 10, fetch=_fetch, now: datetime.datetime | None = None) -> dict:
+def resolve(team_id: int, on: str, days: int = 10, fetch=_fetch, now: datetime.datetime | None = None, sport_id: int = 1) -> dict:
     end = (datetime.date.fromisoformat(on) + datetime.timedelta(days=days)).isoformat()
-    d = fetch(f"{STATSAPI}/schedule?sportId=1&teamId={team_id}&startDate={on}&endDate={end}&hydrate=probablePitcher,team")
+    d = fetch(f"{STATSAPI}/schedule?sportId={sport_id}&teamId={team_id}&startDate={on}&endDate={end}&hydrate=probablePitcher,team")
     checked = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat(timespec="minutes")
     games = sorted((g["gameDate"], dt["date"], g) for dt in d.get("dates", []) for g in dt["games"] if g["status"]["abstractGameState"] != "Final")
     if not games:

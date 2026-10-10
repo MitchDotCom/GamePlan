@@ -493,7 +493,7 @@ async function engineFlush(force){
   finally{flushing=false;updateChips()}}
 async function sendHeartbeat(){
   const all=(await allTrials()).filter(t=>t.pid===ME.id),un=all.filter(t=>!t.synced);let persisted=false;try{persisted=navigator.storage&&navigator.storage.persisted?await navigator.storage.persisted():false}catch(e){}
-  await api("/api/heartbeat",{body:{stored:all.length,sent:all.length-un.length,unsent:un.length,oldest_unsent_ts:un.length?un.map(t=>t.ts).sort()[0]:"",app:APP_ENGINE,persisted}})}
+  await api("/api/heartbeat",{body:{stored:all.length,sent:all.filter(t=>t.synced===1).length,unsent:un.length,oldest_unsent_ts:un.length?un.map(t=>t.ts).sort()[0]:"",app:APP_ENGINE,persisted,detail:JSON.stringify({rejected:all.filter(t=>t.synced===2).length})}})}
 function renderUnsent(mine,all){
   const un=mine.filter(t=>!t.synced),b=$("unsentBanner");
   const old=un.length&&Date.now()-new Date(un.map(t=>t.ts).sort()[0]).getTime()>15*60000;

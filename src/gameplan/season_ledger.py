@@ -48,15 +48,20 @@ def load_any(paths: list[str]) -> list[dict]:
         if r.get("id") in seen:
             continue
         seen.add(r.get("id"))
-        r = dict(r)
-        r["correct"] = None if r.get("correct") in ("", None) else int(float(r["correct"]))
-        r["rt_ms"] = float(r["rt_ms"]) if r.get("rt_ms") not in ("", None) else None
-        for k in ("px", "pz", "sz_top", "sz_bot"):
-            r[k] = float(r[k]) if r.get(k) not in ("", None) else None
-        r["camera_class"] = camera_class(r.get("camera"))
-        r["month"] = (r.get("ts") or "")[:7]
-        out.append(r)
+        out.append(normalize(r))
     return out
+
+
+def normalize(r: dict) -> dict:
+    """One answer row (from a CSV, a JSONL line or the engine database) in the shape the board code reads."""
+    r = dict(r)
+    r["correct"] = None if r.get("correct") in ("", None) else int(float(r["correct"]))
+    r["rt_ms"] = float(r["rt_ms"]) if r.get("rt_ms") not in ("", None) else None
+    for k in ("px", "pz", "sz_top", "sz_bot"):
+        r[k] = float(r[k]) if r.get(k) not in ("", None) else None
+    r["camera_class"] = camera_class(r.get("camera"))
+    r["month"] = (r.get("ts") or "")[:7]
+    return r
 
 
 def is_edge(r: dict) -> bool:

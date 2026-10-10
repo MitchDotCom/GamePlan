@@ -125,6 +125,12 @@ def test_registering_the_same_pack_twice_gives_the_same_hash_and_no_duplicate(co
     assert c != a
 
 
+def test_identical_content_for_two_teams_is_two_packs(conn, org, tmp_path):
+    a = make_pack(conn, tmp_path, team=org["t1"])
+    b = make_pack(conn, tmp_path, team=org["t2"])
+    assert a != b and {r["team_id"] for r in conn.execute("SELECT team_id FROM packs")} == {org["t1"], org["t2"]}
+
+
 def test_a_pack_item_without_a_key_is_refused(conn, org, tmp_path):
     pack = dict(id="k", dir="k", title="t", subtitle="", mode="assess", items=[dict(item("z1"), keys=None)])
     with pytest.raises(ValueError):

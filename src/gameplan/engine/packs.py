@@ -20,13 +20,14 @@ def _sha_file(p: pathlib.Path) -> str:
     return h.hexdigest()
 
 
-def content_hash(pack: dict, kind: str, side: str, src_dir: pathlib.Path | None) -> tuple:
-    """-> (hash, {file name: sha256}). Everything that shapes what a hitter sees or how it is scored goes into the hash."""
+def content_hash(pack: dict, kind: str, side: str, src_dir: pathlib.Path | None, team_id: int | None = None, practice: bool = False) -> tuple:
+    """-> (hash, {file name: sha256}). Everything that shapes what a hitter sees or how it is scored goes into the hash, including WHICH TEAM it was built for:
+    identical content for two teams is two packs, so one team's pack can never stand in for, or be changed by, another's."""
     files = {}
     for it in pack["items"]:
         if it.get("file"):
             files[it["file"]] = _sha_file(pathlib.Path(src_dir) / pack["dir"] / it["file"])
-    body = dict(kind=kind, side=side, mode=pack["mode"], title=pack["title"], subtitle=pack.get("subtitle"),
+    body = dict(kind=kind, side=side, team_id=team_id, practice=bool(practice), mode=pack["mode"], title=pack["title"], subtitle=pack.get("subtitle"),
                 items=[dict(id=i["id"], file=i.get("file"), release=i.get("release"), sim=i.get("sim"), keys=i.get("keys"), arsenal=i.get("arsenal"), camera=i.get("camera"), meta=i.get("meta")) for i in pack["items"]],
                 files=files)
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest(), files
@@ -35,7 +36,7 @@ def content_hash(pack: dict, kind: str, side: str, src_dir: pathlib.Path | None)
 def register(c, pack: dict, kind: str, side: str, adapter: str, content_root: pathlib.Path, src_dir: pathlib.Path | None = None, team_id: int | None = None, starter_id: int | None = None,
              private_keys: dict | None = None, gate_report: dict | None = None, practice: bool = False) -> str:
     """Store a built pack. `private_keys` maps '<pack id>/<item id>' to {strike, pitch_type} (assessment items carry no key in the pack itself). Returns the hash."""
-    h, files = content_hash(pack, kind, side, src_dir)
+    h, files = content_hash(pack, kind, side, src_dir, team_id, practice)
     if c.execute("SELECT 1 FROM packs WHERE hash=?", (h,)).fetchone():
         return h
     dest = pathlib.Path(content_root) / h
