@@ -14,7 +14,7 @@
   "test": "Service worker registers, activates and controls the page after one reload",
   "result": "PASS",
   "evidence": "controller active after reload",
-  "seconds": 1.2,
+  "seconds": 0.7,
   "severity": "S1"
  },
  {
@@ -32,7 +32,7 @@
   "test": "With the SERVER STOPPED, the installed shell still opens, shows the cached queue and plays a cached clip",
   "result": "PASS",
   "evidence": "opened and played with the server down; chip said offline",
-  "seconds": 3.1,
+  "seconds": 2.7,
   "severity": "S1"
  },
  {
@@ -41,7 +41,7 @@
   "test": "Start with no player name: blocked with a message, no answer is recorded",
   "result": "PASS",
   "evidence": "Enter a player name or ID first",
-  "seconds": 0.9,
+  "seconds": 1.0,
   "severity": "S1"
  },
  {
@@ -50,7 +50,7 @@
   "test": "Empty content folder (no queue yet): app opens, says so, no script errors",
   "result": "PASS",
   "evidence": "queue says 'No queue yet. Connect once to load it.', play says 'No pitches yet. Connect once to load the queue.'",
-  "seconds": 1.7,
+  "seconds": 1.9,
   "severity": "S2"
  },
  {
@@ -68,7 +68,7 @@
   "test": "Both questions per clip: 2 rows, same clip_trial, q_order 1 and 2, different tasks",
   "result": "PASS",
   "evidence": "questions asked: ['Strike or Ball?', 'Which pitch?']",
-  "seconds": 3.2,
+  "seconds": 3.3,
   "severity": "S1"
  },
  {
@@ -77,7 +77,7 @@
   "test": "Strike or ball is always asked first; the pitch question then offers that pitcher's own pitch types, with the thrown one among them and no duplicates",
   "result": "PASS",
   "evidence": "first question always 'Strike or Ball?'; pitch choices per clip: [('CU', 'SL', 'ST', 'FF'), ('FF', 'SL', 'FC'), ('SI', 'SL', 'FC', 'FF', 'ST')]",
-  "seconds": 37.4,
+  "seconds": 36.3,
   "severity": "S1"
  },
  {
@@ -86,7 +86,7 @@
   "test": "Ask 'zone' only: one row per clip, task zone",
   "result": "PASS",
   "evidence": "",
-  "seconds": 3.5,
+  "seconds": 3.4,
   "severity": "S2"
  },
  {
@@ -103,7 +103,7 @@
   "area": "Core",
   "test": "Training: each answer is scored against the shipped key; verdicts on screen match the stored correct flag",
   "result": "PASS",
-  "evidence": "0 of 2 correct, screen agrees",
+  "evidence": "2 of 2 correct, screen agrees",
   "seconds": 3.3,
   "severity": "S1"
  },
@@ -113,7 +113,7 @@
   "test": "Assessment: no feedback, no reveal playback, no answers in the page or the queue file, stored key is blank",
   "result": "PASS",
   "evidence": "mode=assess, video paused=False",
-  "seconds": 3.9,
+  "seconds": 4.7,
   "severity": "S1"
  },
  {
@@ -149,7 +149,7 @@
   "test": "Every stored answer has all fields; times are plausible; ids unique",
   "result": "PASS",
   "evidence": "6 rows",
-  "seconds": 14.2,
+  "seconds": 14.3,
   "severity": "S1"
  },
  {
@@ -158,7 +158,7 @@
   "test": "Sync twice and concurrently: server holds exactly the local count, nothing duplicated",
   "result": "PASS",
   "evidence": "local 2, server 2, chip '0 to sync'",
-  "seconds": 6.1,
+  "seconds": 6.0,
   "severity": "S1"
  },
  {
@@ -167,7 +167,7 @@
   "test": "Server CSV is read by the recognition profile code and produces a profile (end to end, no exceptions)",
   "result": "PASS",
   "evidence": "8 rows, zone n=4, pitch n=4",
-  "seconds": 19.8,
+  "seconds": 19.5,
   "severity": "S1"
  },
  {
@@ -176,7 +176,7 @@
   "test": "Reload keeps answers, settings and the 'done' state",
   "result": "PASS",
   "evidence": "{'player': 'Persist Test', 'bats': 'L', 'ask': 'zone', 'off': '0.150'}",
-  "seconds": 3.9,
+  "seconds": 3.8,
   "severity": "S1"
  },
  {
@@ -185,7 +185,7 @@
   "test": "Erase on this phone really clears answers and resets the sync chip",
   "result": "PASS",
   "evidence": "",
-  "seconds": 4.1,
+  "seconds": 4.0,
   "severity": "S2"
  },
  {
@@ -194,7 +194,7 @@
   "test": "Server unreachable during sync: clear message, answers stay unsynced, later sync succeeds with nothing lost",
   "result": "PASS",
   "evidence": "failed sync -> chip '1 to sync', net 'offline'; retry stored 1",
-  "seconds": 4.3,
+  "seconds": 4.2,
   "severity": "S1"
  },
  {
@@ -212,7 +212,7 @@
   "test": "Clip not on the phone and no signal: a clear message, no crash, state recovers",
   "result": "PASS",
   "evidence": "This clip is not on the phone and there is no signal.",
-  "seconds": 2.3,
+  "seconds": 2.2,
   "severity": "S1"
  },
  {
@@ -248,7 +248,7 @@
   "test": "During a pitch the tab bar is hidden (focus mode); the question appears and is answered; the tabs return afterwards",
   "result": "PASS",
   "evidence": "",
-  "seconds": 3.1,
+  "seconds": 3.0,
   "severity": "S2"
  },
  {
@@ -257,7 +257,7 @@
   "test": "Reload in the middle of a question: no half-written answers, app recovers to idle",
   "result": "PASS",
   "evidence": "kept the one completed answer; the unfinished clip is simply asked again",
-  "seconds": 3.3,
+  "seconds": 3.4,
   "severity": "S2"
  },
  {
@@ -266,7 +266,7 @@
   "test": "Corrupt clip file in storage: the app reports it and recovers, it does not hang in 'playing'",
   "result": "PASS",
   "evidence": "state after corrupt clip: idle; message 'Tap Start pitch to allow video'",
-  "seconds": 4.9,
+  "seconds": 4.8,
   "severity": "S1"
  },
  {
@@ -284,7 +284,7 @@
   "test": "iPhone SE 1st gen 320x568: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
   "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 425/568, height 77; 5 pitch choices bottom 531/568, smallest 64 px",
-  "seconds": 4.4,
+  "seconds": 4.3,
   "severity": "S1"
  },
  {
@@ -302,7 +302,7 @@
   "test": "iPhone SE 2/3 375x667: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
   "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 423/667, height 77; 5 pitch choices bottom 562/667, smallest 64 px",
-  "seconds": 4.3,
+  "seconds": 4.4,
   "severity": "S1"
  },
  {
@@ -311,7 +311,7 @@
   "test": "iPhone 14 390x844: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
   "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 432/844, height 77; 5 pitch choices bottom 571/844, smallest 64 px",
-  "seconds": 4.5,
+  "seconds": 4.4,
   "severity": "S1"
  },
  {
@@ -329,7 +329,7 @@
   "test": "iPad 820x1180: no sideways scroll on any tab; Strike/Ball buttons and the pitch choices visible without scrolling when a question shows",
   "result": "PASS",
   "evidence": "overflow {'play': 0, 'queue': 0, 'log': 0, 'keys': 0, 'set': 0}; strike/ball bottom 527/1180, height 77; 5 pitch choices bottom 666/1180, smallest 64 px",
-  "seconds": 4.6,
+  "seconds": 4.4,
   "severity": "S1"
  },
  {
@@ -338,7 +338,7 @@
   "test": "Tap targets: Strike, Ball, Start, tabs and sync are at least 44 px tall",
   "result": "PASS",
   "evidence": "{'bstrike': 77, 'bball': 77, 'sync': 44}",
-  "seconds": 3.1,
+  "seconds": 3.0,
   "severity": "S2"
  },
  {
@@ -347,7 +347,7 @@
   "test": "Controls have accessible names; images/svg labelled; page has a title and lang",
   "result": "PASS",
   "evidence": "{'lang': 'en', 'title': 'Go / No-Go', 'unnamed': [], 'svg': True}",
-  "seconds": 2.9,
+  "seconds": 3.0,
   "severity": "S3"
  },
  {
@@ -373,8 +373,8 @@
   "area": "Timing",
   "test": "Pause lands within 1.5 frames of release+offset for EVERY clip in both queues at 50, 100 and 200 ms",
   "result": "PASS",
-  "evidence": "144 runs, median +0.11 frames, worst 1.35",
-  "seconds": 292.8,
+  "evidence": "144 runs, median +0.10 frames, worst 1.35",
+  "seconds": 293.6,
   "severity": "S1"
  },
  {
@@ -382,7 +382,7 @@
   "area": "Timing",
   "test": "Speed: tap Start to question under 3 s (cached clip); app ready under 2 s on localhost",
   "result": "PASS",
-  "evidence": "ready 0.15 s, start-to-question 1.75 s (includes the clip's own lead-in)",
+  "evidence": "ready 0.18 s, start-to-question 1.79 s (includes the clip's own lead-in)",
   "seconds": 2.4,
   "severity": "S3"
  },
@@ -392,7 +392,7 @@
   "test": "Every queue item: file exists, plays, release inside the clip with at least 0.4 s after it; keys agree with the pitch's own location and type",
   "result": "PASS",
   "evidence": "48 items checked",
-  "seconds": 3.7,
+  "seconds": 0.5,
   "severity": "S1"
  },
  {
