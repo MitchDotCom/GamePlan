@@ -87,3 +87,23 @@ def test_sim_geometry_gate_catches_a_key_that_disagrees_with_the_drawn_ball():
     ok = PR.check_sim_geometry(dict(packs=[dict(id="p", items=[it(inz)])]), "R")[0]
     bad = PR.check_sim_geometry(dict(packs=[dict(id="p", items=[it(not inz)])]), "R")[0]
     assert ok["status"] == "PASS" and bad["status"] == "FAIL"
+
+
+def test_edge_pack_excludes_pitches_already_in_the_starter_pack():
+    import random
+
+    from gameplan import app_content as AC
+    mk = lambda i, px: dict(play_id=f"p{i:011d}xxxx", plateTime=0.4, px=px, pz=2.5, sz_top=3.5, sz_bot=1.5, stand="R")
+    pool = [mk(1, 0.80), mk(2, 0.70), mk(3, 0.90), mk(4, 0.95)]
+    r = AC.edge_rows(pool, "R", random.Random(1), {pool[0]["play_id"][:12], pool[3]["play_id"][:12]})
+    assert {p["play_id"] for p in r} == {pool[1]["play_id"], pool[2]["play_id"]}
+
+
+def test_no_pitch_may_repeat_across_packs_and_the_builder_helper_skips_used_ones():
+    from gameplan import app_content as AC
+    q = dict(packs=[dict(id="train", items=[item("a"), item("b")]), dict(id="assess", items=[item("b"), item("c")])])
+    g = PR.check_no_repeats(q, "R")[0]
+    assert g["status"] == "FAIL" and "b in train and assess" in g["detail"][0]
+    assert PR.check_no_repeats(dict(packs=[dict(id="x", items=[item("a")]), dict(id="y", items=[item("b")])]), "R")[0]["status"] == "PASS"
+    rows = [dict(play_id="aaaaaaaaaaaa1"), dict(play_id="bbbbbbbbbbbb2")]
+    assert AC.fresh(rows, {"aaaaaaaaaaaa"}) == [rows[1]]

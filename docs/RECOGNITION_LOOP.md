@@ -27,8 +27,9 @@ schedule ──> next_starter ──> prepare ──> hitters answer ──> sea
 | playable_clips | the next-starter pack has fewer than 6 items per side |
 | clip_files | a clip is missing, under 10 KB or over 3 MB, runs less than 0.4 s past release, or release is outside 0.3 to 3.0 s |
 | sim_geometry | (`--sim`) a drawn path's end point disagrees with its strike key or its result-card location |
+| no_repeats | the same pitch appears in two packs of one queue (a training repeat of an assessment pitch hands the hitter the answer; found in the first real-clip build, where one pitch was in both a random and the assessment pack) |
 | answer_keys | a training item has no strike key or pitch type; an assessment item carries a key; an assessment key is missing from the private file |
-| choices | an item offers fewer than 2 or more than 7 pitch types, duplicates, or leaves out the thrown type |
+| choices | a pitcher with one pitch type in the sample is never asked (the builder skips him); an item offers fewer than 2 or more than 7 pitch types, duplicates, or leaves out the thrown type |
 | edges | the Edges pack has no strikes or no balls (WARN if fewer than 6 clips or lopsided) |
 | coverage | the starter pack is all strikes or all balls (WARN); location spread is narrow by design (usage picks where he throws most), which is why the Edges pack exists |
 | usage_fit | a starter-pack pitch is outside his top usage shapes to that side |

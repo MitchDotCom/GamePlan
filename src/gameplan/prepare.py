@@ -10,6 +10,7 @@ Gates, per batting side unless noted:
   starter_confirmed   schedule lists a probable pitcher (or manual override, which is a WARN)
   history             at least 3 previous starts pooled (WARN under 3, FAIL under 1) and 100 pitches
   playable_clips      the next-starter pack has at least PACK_MIN clips that cut cleanly (FAIL below)
+  no_repeats          no pitch appears in two packs of the same queue
   sim_geometry        (with --sim) each drawn path ends where its strike key and result card say
   clip_files          every clip exists, is 10 KB to 3 MB, runs at least 0.4 s past release, and release is 0.3 to 3.0 s in
   answer_keys         every training item has a strike key and a pitch type; no key text in assessment items; assessment keys are in the private file
@@ -78,6 +79,17 @@ def check_sim_geometry(queue: dict, side: str) -> list[dict]:
             if it.get("keys") and truth is not None and bool(truth) != inz:
                 bad.append(f"{pk['id']}/{it['id']}: strike key {truth} but the drawn ball is {'in' if inz else 'out of'} the zone")
     return [gate("sim_geometry", "FAIL" if bad else "PASS", bad[:5] if bad else "every drawn path ends where its answer key and result card say", side)]
+
+
+def check_no_repeats(queue: dict, side: str) -> list[dict]:
+    """No pitch may appear in two packs of one queue (a training repeat of an assessment pitch gives the answer away, and any repeat double-counts one pitch)."""
+    seen, dup = {}, []
+    for pk in queue["packs"]:
+        for it in pk["items"]:
+            if it["id"] in seen:
+                dup.append(f"{it['id']} in {seen[it['id']]} and {pk['id']}")
+            seen[it["id"]] = pk["id"]
+    return [gate("no_repeats", "FAIL" if dup else "PASS", dup[:5] if dup else f"{len(seen)} pitches, none repeated across packs", side)]
 
 
 def check_keys_and_choices(queue: dict, private: dict, side: str, arsenals: dict | None = None) -> list[dict]:
@@ -150,6 +162,7 @@ def prepare(team_id: int | None, on: str, work: pathlib.Path, content: pathlib.P
         gates.append(gate("playable_clips", "PASS" if n >= PACK_MIN else "FAIL", f"{n} clips in the next-starter pack (need {PACK_MIN})", side))
         if not q["packs"]:
             continue
+        gates += check_no_repeats(q, side)
         gates += check_sim_geometry(q, side) if sim else files_check(content, q, side)
         gates += check_keys_and_choices(q, private, side)
         gates += check_coverage_and_fit(q, pool, side)

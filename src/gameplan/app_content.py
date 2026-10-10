@@ -76,8 +76,8 @@ def build_pack(pid: str, title: str, subtitle: str, rows: list[dict], content: p
             break
         iid = p["play_id"][:12]
         opts = list((arsenal or {}).get(p.get("pitcher"), []))
-        if arsenal is not None and p.get("pitch_type") not in opts:
-            continue          # a rare pitch outside his arsenal list would stand out as the only odd choice, so it is not asked
+        if arsenal is not None and (p.get("pitch_type") not in opts or len(opts) < 2):
+            continue          # a rare pitch outside his arsenal list would stand out as the only odd choice, and a pitcher with one pitch type makes "which pitch" a question with one answer: neither is asked
         if arsenal is None:
             opts = [p["pitch_type"]] if p.get("pitch_type") else []
         r = cutter(p, work, content / pid / f"{iid}.mp4")
@@ -105,13 +105,19 @@ def team_pool(feeds: pathlib.Path, team_id, exclude_pitcher) -> list[dict]:
 EDGE_FT = 0.25          # 3 inches
 
 
-def edge_rows(pool: list[dict], side: str, rnd: random.Random) -> list[dict]:
+def fresh(rows: list[dict], used: set) -> list[dict]:
+    """Rows whose pitch is not already in some pack of this queue. No pitch may appear twice for a hitter: a training repeat of an assessment pitch hands him the answer."""
+    return [r for r in rows if r.get("play_id", "")[:12] not in used]
+
+
+def edge_rows(pool: list[dict], side: str, rnd: random.Random, exclude: set | None = None) -> list[dict]:
     """His pitches to this side that finished within 3 inches of the zone edge, alternating inside and outside so strike or ball is a real question, in a fixed-seed order.
+    Pitches whose clip id is in `exclude` (the next-starter pack's) are left out so no hitter sees the same pitch twice in one queue.
     Extra rows are returned beyond the pack size because some clips will not cut cleanly (build_pack stops at its limit)."""
     ins, outs = [], []
     for p in pool:
         d = V.edge_ft(p)
-        if p.get("stand") == side and d is not None and abs(d) < EDGE_FT and p.get("play_id") and p.get("plateTime"):
+        if p.get("stand") == side and d is not None and abs(d) < EDGE_FT and p.get("play_id") and p.get("plateTime") and p["play_id"][:12] not in (exclude or set()):
             (ins if d < 0 else outs).append(p)
     rnd.shuffle(ins)
     rnd.shuffle(outs)
@@ -144,10 +150,12 @@ def build_queues(pitcher_id: int, season: int, before: str, n_starts: int, work:
         sp, pk = build_pack(f"starter_{pitcher_id}_{side}", f"Next starter: {name}", f"Vs {'left' if side == 'L' else 'right'}-handed batters. His most-used pitches from his last {len(starts)} starts.",
                             pl["pitches"][: per_pack * 3], content, work, "train", per_pack, cutter, ars)
         packs.append(sp); private.update({f"{sp['id']}/{k}": v for k, v in pk.items()})
+        used = {i["id"] for i in sp["items"]}
         ep, pk = build_pack(f"edges_{pitcher_id}_{side}", f"Edges: {name}", f"Vs {'left' if side == 'L' else 'right'}-handed batters. His pitches within 3 inches of the zone edge, half in and half out, from any spot.",
-                            edge_rows(pool, side, random.Random(f"{seed or before}-edges-{side}")), content, work, "train", per_pack, cutter, ars)
+                            edge_rows(pool, side, random.Random(f"{seed or before}-edges-{side}"), {i["id"] for i in sp["items"]}), content, work, "train", per_pack, cutter, ars)
         if ep["items"]:
             packs.append(ep); private.update({f"{ep['id']}/{k}": v for k, v in pk.items()})
+            used |= {i["id"] for i in ep["items"]}
         by_p = {}
         for p in mates:
             if p.get("stand") == side:
@@ -155,12 +163,13 @@ def build_queues(pitcher_id: int, season: int, before: str, n_starts: int, work:
         names = [k for k, v in by_p.items() if len(v) >= 12]
         rnd.shuffle(names)
         for i, pid_ in enumerate(names[:n_random]):
-            rs = by_p[pid_][:]
+            rs = fresh(by_p[pid_], used)
             rnd.shuffle(rs)
             rp, pk = build_pack(f"random_{pid_}_{side}", f"Random: {rs[0].get('pitcher_name')}", f"{rs[0].get('team_fielding') or 'Same team'}, mixed pitches.", rs[: per_pack * 3], content, work, "train", per_pack, cutter, ars)
             packs.append(rp); private.update({f"{rp['id']}/{k}": v for k, v in pk.items()})
+            used |= {i["id"] for i in rp["items"]}
         if assess_pitches:
-            allr = [p for p in mates + pool if p.get("stand") == side]
+            allr = fresh([p for p in mates + pool if p.get("stand") == side], used)
             rnd.shuffle(allr)
             ap, pk = build_pack(f"assess_{side}", "Assessment", "No feedback. Scored later.", allr[: assess_pitches * 3], content, work, "assess", assess_pitches, cutter, ars)
             packs.append(ap); private.update({f"{ap['id']}/{k}": v for k, v in pk.items()})

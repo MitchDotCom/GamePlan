@@ -75,3 +75,10 @@ def test_arsenal_is_the_pitchers_own_types_and_includes_the_thrown_one(tmp_path)
     rows[0]["pitch_type"] = "SL"
     pack, _ = AC.build_pack("t", "T", "", rows, tmp_path, tmp_path, "train", 3, fake, a)
     assert pack["items"][0]["arsenal"] == ["FF", "SL", "CH"]
+
+
+def test_a_pitcher_with_one_pitch_type_gets_no_which_pitch_question(tmp_path):
+    rows = [dict(play_id="b" * 16, plateTime=0.4, pitch_type="FF", pitcher=7, px=0.1, pz=2.5, sz_top=3.5, sz_bot=1.5, stand="R", start_speed=93, pfxX=1, pfxZ=1)]
+    fake = lambda p, work, out: (out.parent.mkdir(parents=True, exist_ok=True), out.write_bytes(b"x"), dict(release=1.6))[2]
+    pack, _ = AC.build_pack("t", "T", "", rows, tmp_path, tmp_path, "train", 3, fake, {7: ["FF"]})
+    assert pack["items"] == []
