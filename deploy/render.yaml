@@ -1,0 +1,31 @@
+# Render Blueprint. New > Blueprint > pick this repo, then fill the secrets marked "sync: false" in the dashboard.
+services:
+  - type: web
+    name: recognition-engine
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: standard            # 2 GB RAM: starter builds run ffmpeg and numpy inside the service; 512 MB would risk an out-of-memory restart mid-build
+    region: oregon            # closest to Visalia
+    healthCheckPath: /healthz
+    autoDeploy: false         # deploys happen when you press the button, never mid-game-day
+    disk:
+      name: engine-data
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: ENGINE_SECRET
+        sync: false
+      - key: ENGINE_ADMIN_TOKEN
+        sync: false
+      - key: PUBLIC_URL
+        sync: false           # https://<service>.onrender.com, or your own domain
+      - key: TRUST_PROXY
+        value: "1"
+      - key: OFFSITE_BUCKET
+        sync: false
+      - key: OFFSITE_ENDPOINT
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
