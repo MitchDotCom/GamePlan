@@ -1,6 +1,6 @@
 // App shell is cached so the app opens with no signal. Queue and config are network-first with a cached fallback.
 // Video clips are NOT handled here: the app stores them itself in IndexedDB and plays them from blobs (iOS Safari does not play range-requested video from the Cache API reliably).
-const V = "gonogo-shell-v2";
+const V = "gonogo-shell-v3";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "fonts.css",
   "fonts/jbmono-normal-400.woff2", "fonts/jbmono-normal-500.woff2", "fonts/jbmono-normal-700.woff2", "fonts/jbmono-italic-700.woff2", "fonts/jbmono-italic-800.woff2"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL))); self.skipWaiting(); });
@@ -15,6 +15,12 @@ self.addEventListener("fetch", e => {
       const h = new Headers(c.headers); h.set("X-From-Cache", "1");
       return new Response(await c.blob(), { status: c.status, headers: h });
     }));
+    return;
+  }
+  // the page itself is network-first, so a released fix reaches a phone the next time it has signal; it falls back to the cached copy offline
+  if (e.request.mode === "navigate" || u.pathname === "/" || u.pathname.endsWith("/index.html")) {
+    e.respondWith(fetch(e.request).then(r => { if (r.ok && !u.pathname.startsWith("/c/")) { const c = r.clone(); caches.open(V).then(x => x.put(e.request, c)); } return r; })
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match("index.html"))));
     return;
   }
   e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request)));

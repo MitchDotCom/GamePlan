@@ -163,9 +163,17 @@ def test_cap_unseen_first_weak_pockets_first_and_assessment_whole_and_once(conn,
     order = [i["id"] for i in first_pack["items"]]
     assert order[0] == "starterL0"                                                                   # unseen and in his weak pocket: first
     assert set(order[-2:]) == {"starterL1", "starterL3"}                                             # the two he has already answered go last
-    # take the assessment: it is not offered again
+    # an assessment is taken only when every item is answered; a started form resumes with what is left
     answers.ingest(conn, player, cred, [ans("hhhhhhhh-a01", a, "assessL1", "zone", "Strike", mode="assess")])
+    resumed = [p for p in playlist.compose(conn, player)["packs"] if p["mode"] == "assess"][0]
+    assert resumed["resume"] and [i["id"] for i in resumed["items"]] == ["assessL0", "assessL2", "assessL3", "assessL4"]
+    answers.ingest(conn, player, cred, [ans(f"hhhhhhhh-a{i:02d}", a, f"assessL{i}", "zone", "Strike", mode="assess") for i in (0, 2, 3, 4)])
     assert not [p for p in playlist.compose(conn, player)["packs"] if p["mode"] == "assess"]
+    # a different form is not offered again inside the window, and is after it
+    b2 = make_pack(conn, tmp_path, kind="assess", mode="assess", team=org["t1"], n=3, pk_id="as2", title="Assessment B")
+    assert not [p for p in playlist.compose(conn, player)["packs"] if p["id"] == b2]
+    conn.execute("UPDATE answers SET server_ts='2020-01-01T00:00:00.000000Z' WHERE mode='assess'")
+    assert [p for p in playlist.compose(conn, player)["packs"] if p["id"] == b2]
 
 
 def test_switch_hitter_gets_both_sides_and_unassigned_player_gets_a_note(conn, org, tmp_path):

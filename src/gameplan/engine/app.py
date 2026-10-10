@@ -12,7 +12,7 @@ import pathlib
 import re
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import answers as A
@@ -141,7 +141,9 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
 
     @app.get("/c/{token}")
     def claim_page(token: str):
-        return FileResponse(static_dir / "index.html", media_type="text/html")
+        # the page is served from /c/<token>, so its relative links (fonts, icons, config) must resolve from the site root, not from /c/
+        html = (static_dir / "index.html").read_text(encoding="utf-8").replace("<head>", '<head><base href="/">', 1)
+        return HTMLResponse(html)
 
     @app.post("/api/claim/preview")
     async def claim_preview(request: Request, c=Depends(get_conn)):

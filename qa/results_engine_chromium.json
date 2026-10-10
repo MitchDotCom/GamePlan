@@ -1,0 +1,11 @@
+[
+ {
+  "id": "E10",
+  "area": "Surfacing",
+  "test": "Assessment: no answers on the phone, scored by the server, offered once",
+  "result": "PASS",
+  "evidence": "scored on the server; a started form resumes with the 5 items left",
+  "seconds": 3.4,
+  "severity": "S1"
+ }
+]

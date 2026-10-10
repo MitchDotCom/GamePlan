@@ -70,6 +70,12 @@ dl.det dd{text-align:right;font-weight:600}dl.det dd .mut{font-weight:400}
 .stage{position:relative;background:#000;border-radius:20px;overflow:hidden;aspect-ratio:16/9;width:100%;margin-top:var(--s3);box-shadow:var(--shadow)}
 video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%}
+body:not(.engine) .eng{display:none!important}body.engine .legacy{display:none!important}
+.who{display:flex;gap:var(--s2);align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:var(--s2);font-size:var(--t-label);color:var(--ink2)}.who b{color:var(--ink)}
+.banner{margin-top:var(--s2);padding:8px 12px;border-radius:14px;background:color-mix(in srgb,var(--bad) 12%,var(--bg));border:1px solid var(--bad);color:var(--ink);font-size:var(--t-label)}
+#gate{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto}body.gate>.wrap{display:none}body:not(.gate) #gate{display:none}
+#gate .codebox{font-size:30px;font-weight:800;letter-spacing:.12em;text-align:center;padding:var(--s4);background:var(--mid);border-radius:16px;margin:var(--s3) 0}
+#gate input[type=text]{width:100%;font-size:22px;letter-spacing:.1em;text-align:center;padding:12px}#gate .row button{flex:1}
 .hint{position:absolute;top:10px;left:12px;color:#fff;background:rgba(0,0,0,.55);padding:3px 10px;border-radius:999px;font-size:var(--t-label);display:none}.hint.on{display:block}
 /* answer buttons: Strike is teal, Ball is copper */
 .ans{display:flex;gap:var(--s3);margin-top:var(--s3)}
@@ -93,10 +99,12 @@ section{display:none}section.on{display:block}
 /* tap targets: 44 px on touch screens */
 @media (pointer:coarse){button,select,input[type=text]{min-height:44px}.tabs button{padding:10px 14px}}
 @media(prefers-reduced-motion:no-preference){button{transition:border-color .12s ease-out,background-color .12s ease-out}}
-</style></head><body><div class="wrap">
+</style></head><body><div id="gate"><div class="wrap"><div class="hero"><div class="hlab" id="gLab">Welcome</div><div class="hnum" id="gTitle">Go / No-Go</div></div><div id="gBody"></div></div></div><div class="wrap">
 <div class="bar">
  <div class="top"><h1>Go / No-Go</h1><span class="chip" id="net">online</span><span class="chip" id="pend">0 to sync</span></div>
- <div class="tools"><div class="tabs" id="tabs"><button data-t="play" class="on">Play</button><button data-t="queue">Queue</button><button data-t="log">Log</button><button data-t="keys">Keys</button><button data-t="set">Setup</button></div></div>
+ <div class="who eng" id="who"><span id="whoTxt"></span><span><label class="f" id="sideWrap" style="display:none">Batting <select id="sideSel"><option value="L">Left</option><option value="R">Right</option></select></label> <button id="notme">Not you?</button></span></div>
+ <div class="banner eng" id="unsentBanner" style="display:none"></div>
+ <div class="tools"><div class="tabs" id="tabs"><button data-t="play" class="on">Play</button><button data-t="queue">Queue</button><button data-t="log">Log</button><button data-t="keys" class="legacy">Keys</button><button data-t="set">Setup</button></div></div>
  <details class="proto"><summary>Prototype</summary><p>Pitch clips with answers taken from tracking data. Not validated for use as training. Your answers stay on this phone until you sync.</p></details>
 </div>
 <main>
@@ -129,7 +137,8 @@ section{display:none}section.on{display:block}
 </section>
 
 <section id="t-set">
-  <div class="card"><h2>Player</h2>
+  <div class="card eng" id="engineSet"><h2>You</h2><div class="note" id="meCard"></div><div class="row"><button id="pairShow">Set up the installed app</button><button id="refreshPl">Check for a new playlist</button></div><div class="note" id="pairOut"></div><div class="note" id="engInfo"></div></div>
+  <div class="card legacy"><h2>Player</h2>
    <dl class="det"><dt>Name or ID</dt><dd><input type="text" id="player" autocomplete="off" size="14"></dd>
    <dt>Batting side today</dt><dd><select id="bats"><option value="R">Right</option><option value="L">Left</option></select></dd>
    <dt>Mode</dt><dd><select id="mode"><option value="train">Training, feedback each pitch</option><option value="assess">Assessment, no feedback</option></select></dd>
@@ -137,7 +146,7 @@ section{display:none}section.on{display:block}
    <dt>Pause after release</dt><dd><select id="off"><option value="0.050">50 ms</option><option value="0.080">80 ms</option><option value="0.100" selected>100 ms</option><option value="0.150">150 ms</option><option value="0.200">200 ms</option><option value="0.250">250 ms</option><option value="0.300">300 ms</option></select></dd>
    <dt>View for drawn pitches</dt><dd><select id="view"><option value="hitter_eye">Hitter's eye (pause up to 250 ms)</option><option value="low_home">Low behind home</option></select></dd>
    <dt>Play the rest after answering</dt><dd><select id="reveal"><option value="1">Yes</option><option value="0">No</option></select></dd></dl></div>
-  <div class="card"><h2>Data on this phone</h2><div class="note" id="dataInfo"></div><div class="row"><button id="refresh">Check for new queue</button><button id="wipe">Erase trials on this phone</button></div></div>
+  <div class="card legacy"><h2>Data on this phone</h2><div class="note" id="dataInfo"></div><div class="row"><button id="refresh">Check for new queue</button><button id="wipe">Erase trials on this phone</button></div></div>
   <div class="note" style="margin-top:12px">Keyboard: S = Strike, B = Ball, 1 to 9 = the pitch choices in order, Space or Enter = start or next. Mode and questions per clip are logged with every answer.</div>
 </section>
 </main></div>
@@ -147,6 +156,8 @@ section{display:none}section.on{display:block}
 const $=id=>document.getElementById(id);
 const APP="phone-1";
 let CFG={content:"content/",sync_url:"",token:""};
+const APP_ENGINE="engine-1";
+let CRED=null,ME=null,ESET=null,PLAYLIST=null;
 // ---------- storage: IndexedDB holds clips as blobs, answers, settings ----------
 let DB;
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open("gonogo",1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore("clips",{keyPath:"id"});d.createObjectStore("trials",{keyPath:"id"});d.createObjectStore("kv",{keyPath:"k"})};r.onsuccess=()=>{DB=r.result;res()};r.onerror=()=>rej(r.error)})}
@@ -201,11 +212,12 @@ async function saveSettings(){const s={};SETK.forEach(k=>s[k]=$(k).value);await 
 SETK.forEach(k=>$(k).addEventListener("change",async()=>{await saveSettings();if(k==="bats")await loadQueue();if(k==="player")renderQueue()}));
 // ---------- queue ----------
 async function loadQueue(){
+  if(CFG.engine)return engineLoadQueue();
   try{const r=await fetch(CFG.content+"queue_"+$("bats").value+".json",{cache:"no-cache"});if(!r.ok)throw 0;Q=await r.json();await kvSet("queue_"+$("bats").value,Q);setNet(!r.headers.get("X-From-Cache"))}catch(e){Q=await kvGet("queue_"+$("bats").value,null);setNet(false)}
   keys=await kvGet("keys",{});renderQueue();renderKeys();fillPitchSelect();refreshInfo();renderHeroIdle()}
-async function fetchClip(it){if(it.sim||await hasClip(it.id))return true;try{const r=await fetch(CFG.content+it._pack.dir+"/"+it.file);if(!r.ok)return false;await putClip(it.id,await r.blob());return true}catch(e){return false}}
+async function fetchClip(it){if(it.sim||await hasClip(it.id))return true;try{const r=await fetch(CFG.content+it._pack.dir+"/"+it.file,CFG.engine&&CRED?{headers:{Authorization:"Bearer "+CRED}}:undefined);if(r.status===401&&CFG.engine){await onSignedOut();return false}if(!r.ok)return false;await putClip(it.id,await r.blob());return true}catch(e){return false}}
 async function prefetch(list){let n=0;for(const it of list){if(await fetchClip(it))n++;say("dlmsg",`${n} of ${list.length} clips on this phone`)}renderQueue()}
-async function seenSet(){const t=await allTrials();return new Set(t.filter(x=>x.player===player()).map(x=>x.clip))}
+async function seenSet(){const t=await allTrials();return new Set(t.filter(x=>CFG.engine&&ME?x.pid===ME.id:x.player===player()).map(x=>x.clip))}
 let renderTok=0;
 async function renderQueue(){
   const my=++renderTok;const el=$("packs");if(!Q){el.innerHTML="<div class='card note'>No queue yet. Connect once to load it.</div>";return}
@@ -311,8 +323,10 @@ async function startPitch(auto){
 async function startPitch1(){
   if(!player()){showTab("set");say("now","Enter a player name or ID first");return}
   if(!cur){const its=items();if(!its.length){say("now","No pitches yet. Connect once to load the queue.");return}cur=its[+$("pitch").value||0];curPack=cur._pack}
+  if(CFG.engine&&curPack&&curPack.mode)$("mode").value=curPack.mode;
   if(cur.sim)return startSim();
   if(!(await hasClip(cur.id))&&!(await fetchClip(cur))){say("now","This clip is not on the phone and there is no signal.");return}
+  if(CFG.engine&&curPack&&curPack.mode)$("mode").value=curPack.mode;
   const c=await getClip(cur.id);if(urlNow)URL.revokeObjectURL(urlNow);urlNow=URL.createObjectURL(clipBlob(c));v.src=urlNow;v.muted=true;v.currentTime=0;
   $("sim").style.display="none";$("v").style.display="";$("hint").textContent="Watch the pitch";$("q").style.display="none";$("res").innerHTML="";$("next").style.display="none";$("start").style.display="none";
   $("tiles").innerHTML="";pauseAt=cur.release+parseFloat($("off").value);state="playing";document.body.classList.add("focus");const tok=++playTok;setTimeout(()=>{if(playTok===tok)abortPlay("The clip did not start. Tap Start pitch to try again.")},10000);$("hint").classList.add("on");pendingAns={};clipTrial++;
@@ -332,10 +346,10 @@ function showQ(){const task=qOrder[qi];$("hlab").textContent=qOrder.length>1?`Qu
   $("qn").textContent=zone?"Did it cross the zone? Tracking decides, not the umpire.":"Pick one of this pitcher's pitches.";$("q").style.display="";t0=performance.now()}
 async function answer(call){if(state!=="q"||answering)return;answering=true;try{await answer1(call)}finally{answering=false}}
 async function answer1(call){const rt=Math.round(performance.now()-t0),task=qOrder[qi];const key=keyFor(cur,task);const m=cur.meta||{};
-  const t={id:uuid(),player:player(),session,mode:$("mode").value,ts:new Date().toISOString(),pack:curPack.id,clip:cur.id,clip_trial:clipTrial,task,q_order:qi+1,ask:$("ask").value,pause_ms:cur.sim?Math.round(SIM.offUsed*1000):Math.round(parseFloat($("off").value)*1000),
+  const t={id:uuid(),player:player(),pid:CFG.engine&&ME?ME.id:undefined,view:$("view").value,session,mode:CFG.engine&&curPack&&curPack.mode?curPack.mode:$("mode").value,ts:new Date().toISOString(),pack:curPack.id,clip:cur.id,clip_trial:clipTrial,task,q_order:qi+1,ask:$("ask").value,pause_ms:cur.sim?Math.round(SIM.offUsed*1000):Math.round(parseFloat($("off").value)*1000),
     options:task==="zone"?"Strike|Ball":curOpts.join("|"),camera:cur.sim?"sim:"+SIM.viewUsed:(cur.camera||"broadcast"),call,rt_ms:rt,key:key==null?"":key,correct:key==null?"":(key===call?1:0),pitch_type:m.pitch_type??"",family:m.family??"",pocket:m.pocket??"",px:m.px??"",pz:m.pz??"",
-    sz_top:m.sz_top??"",sz_bot:m.sz_bot??"",speed:m.speed??"",stand:m.stand??"",p_throws:m.p_throws??"",release_frame:cur.release_frame??"",app:APP,synced:0};
-  await putTrial(t);sessionLog.push(t);pendingAns[task]={call,key,rt};addRow(t);navigator.vibrate&&navigator.vibrate(15);
+    sz_top:m.sz_top??"",sz_bot:m.sz_bot??"",speed:m.speed??"",stand:m.stand??"",p_throws:m.p_throws??"",release_frame:cur.release_frame??"",app:CFG.engine?APP_ENGINE:APP,synced:0};
+  await putTrial(t);sessionLog.push(t);pendingAns[task]={call,key,rt};addRow(t);navigator.vibrate&&navigator.vibrate(15);if(CFG.engine)engineFlush(true);
   qi++;if(qi<qOrder.length){showQ();updateChips();return}
   $("q").style.display="none";finishClip()}
 function edgeIn(m){if(m.px==null||m.px===""||m.pz==null)return null;const zt=m.sz_top||3.5,zb=m.sz_bot||1.5;const d=Math.max(Math.abs(m.px)-0.83,m.pz-zt,zb-m.pz)*12;return d}
@@ -371,7 +385,7 @@ function addRow(t){const assess=t.mode==="assess";const tb=document.querySelecto
   tr.innerHTML=`<td>${sessionLog.length}</td><td>${esc((t.clip||"").slice(0,6))}</td><td>${t.task==="zone"?"strike/ball":"pitch"}</td><td class="num">${t.pause_ms}</td><td>${esc(disp(t.task,t.call))}</td><td class="num">${t.rt_ms}</td><td>${assess?"hidden":esc(t.key?disp(t.task,t.key):"unknown")}</td><td>${assess?"hidden":(t.correct===""?"no key":t.correct?"correct":"wrong")}</td>`;tb.appendChild(tr)}
 function renderStats(){const f=task=>{const s=sessionLog.filter(t=>t.task===task&&t.correct!=="");const n=s.length,k=s.filter(t=>t.correct===1).length;const rts=s.map(t=>t.rt_ms).sort((a,b)=>a-b);return n?`<b>${pct(k/n)}</b> (${k} of ${n}), median ${rts[Math.floor(n/2)]} ms`:"no scored answers"};
   $("stats").innerHTML=`<span>This session: <b>${sessionLog.length}</b> answers</span><span>Strike or ball ${f("zone")}</span><span>Pitch type ${f("pitch")}</span>`}
-async function updateChips(){if(!DB)return;const t=await allTrials();const n=t.filter(x=>!x.synced).length;$("pend").textContent=n+" to sync";$("pend").className="chip"+(n>0&&!(navigator.onLine&&reach)?" warn":"")}
+async function updateChips(){if(!DB)return;const t=await allTrials();const mine=CFG.engine&&ME?t.filter(x=>x.pid===ME.id):t;const n=mine.filter(x=>!x.synced).length;$("pend").textContent=n+(CFG.engine?" not sent":" to sync");if(CFG.engine)renderUnsent(mine,t);$("pend").className="chip"+(n>0&&!(navigator.onLine&&reach)?" warn":"")}
 $("copy").onclick=async()=>{try{await navigator.clipboard.writeText(toCSV(sessionLog));say("syncmsg","Copied.")}catch(e){say("syncmsg","Copy failed.")}};
 $("dl").onclick=async()=>{const f=new File([toCSV(await allTrials())],"gonogo_trials.csv",{type:"text/csv"});
   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:"Go/No-Go trials"});return}catch(e){}}
@@ -380,8 +394,8 @@ async function sync(){if(!CFG.sync_url){say("syncmsg","No sync server is set. Us
   const un=(await allTrials()).filter(t=>!t.synced);if(!un.length){say("syncmsg","Nothing to sync.");return true}
   try{const r=await fetch(CFG.sync_url,{method:"POST",headers:Object.assign({"Content-Type":"application/json"},CFG.token?{"X-Token":CFG.token}:{}),body:JSON.stringify({trials:un})});
     if(!r.ok)throw new Error(r.status);for(const t of un){t.synced=1;await putTrial(t)}say("syncmsg",`Synced ${un.length}.`);setNet(true);return true}catch(e){say("syncmsg","Sync failed. It will retry when you are back online.");setNet(false);return false}}
-$("sync").onclick=sync;
-window.addEventListener("online",()=>{setNet(true);sync()});window.addEventListener("offline",()=>setNet(false));
+$("sync").onclick=()=>CFG.engine?engineFlush(true).then(()=>say("syncmsg","Checked. See the count at the top.")):sync();
+window.addEventListener("online",()=>{setNet(true);CFG.engine?engineFlush(true):sync()});window.addEventListener("offline",()=>setNet(false));
 // ---------- keys ----------
 function renderKeys(){const el=$("keys");el.innerHTML="";items().forEach(it=>{const o=keys[it.id]||{};const d=document.createElement("div");d.className="card";const k=it.keys||{};
   const sel=(f,shipped,choices)=>{const s=document.createElement("select");[["","unknown"],...choices].forEach(([val,txt])=>{const op=document.createElement("option");op.value=val;op.textContent=txt;const c=o[f]!==undefined?o[f]:shipped;if(String(c)===val||((c==null||c==="")&&val===""))op.selected=true;s.appendChild(op)});
@@ -391,18 +405,136 @@ function renderKeys(){const el=$("keys");el.innerHTML="";items().forEach(it=>{co
 // ---------- tabs, info, boot ----------
 function showTab(t){document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id==="t-"+t));document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(t==="queue")renderQueue();window.scrollTo(0,0)}
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.t));
-async function refreshInfo(){const t=await allTrials();let n=0;try{n=(await navigator.storage.estimate()).usage||0}catch(e){}
+async function refreshInfo(){if(CFG.engine)return engineInfo();const t=await allTrials();let n=0;try{n=(await navigator.storage.estimate()).usage||0}catch(e){}
   $("dataInfo").textContent=`${t.length} answers stored, ${t.filter(x=>!x.synced).length} not synced. Storage used about ${(n/1e6).toFixed(1)} MB. Queue: ${Q?(Q.generated||"loaded"):"not loaded"}.`}
 $("refresh").onclick=async()=>{await loadQueue();say("dlmsg","Queue refreshed.")};
 $("wipe").onclick=async()=>{if(!confirm("Erase all answers on this phone? Unsynced answers are lost."))return;const t=await allTrials();for(const x of t)await pr(tx("trials","readwrite").delete(x.id));sessionLog=[];document.querySelector("#log tbody").innerHTML="";renderStats();renderTiles();updateChips();refreshInfo()};
+
+// ---------- engine mode: who is this, what to show, and getting every answer to the server ----------
+// The phone keeps a cache and an outbox; the server is the record. An answer is marked sent only when the server says it stored it.
+async function api(path,opt={}){
+  const h={};if(CRED&&!opt.anon)h.Authorization="Bearer "+CRED;
+  let body;if(opt.body!==undefined){h["Content-Type"]="application/json";body=JSON.stringify(opt.body)}
+  let r;try{r=await fetch(path,{method:opt.method||(body!==undefined?"POST":"GET"),headers:h,body,cache:"no-store"})}catch(e){const er=new Error("offline");er.offline=true;throw er}
+  let j=null;try{j=await r.json()}catch(e){}
+  if(r.status===401&&j&&j.code==="signed_out"&&CRED&&!opt.anon){await onSignedOut();const er=new Error("signed out");er.signedOut=true;throw er}
+  if(!r.ok){const er=new Error((j&&j.error)||("Error "+r.status));er.status=r.status;er.code=j&&j.code;throw er}
+  return j}
+const deviceLabel=()=>((/iPad/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1))?"iPad":/iPhone/.test(navigator.userAgent)?"iPhone":"device")+(navigator.standalone||matchMedia("(display-mode: standalone)").matches?" app":" browser");
+function gate(lab,title,html){document.body.classList.add("gate");$("gLab").textContent=lab;$("gTitle").textContent=title;$("gBody").innerHTML=html}
+function gateOff(){document.body.classList.remove("gate")}
+const fmtCode=c=>String(c).replace(/(\d{4})(\d{4})/,"$1 $2");
+function gateWelcome(msg){
+  gate("Welcome","Who are you?",`${msg?`<div class="card note">${esc(msg)}</div>`:""}
+   <div class="card"><h2>I have a code</h2><div class="note">A pairing code from your phone's browser, or a recovery code from a coach.</div>
+   <input type="text" id="gCode" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="0000 0000"><div class="row"><button class="pri" id="gPair">Use pairing code</button><button id="gRecover">Use recovery code</button></div><div class="note" id="gMsg"></div></div>
+   <div class="card note">First time? Open the link your coach sent you, on this phone.</div>`);
+  const go=async(kind)=>{const code=$("gCode").value;if(!code.trim())return;$("gMsg").textContent="Checking...";
+    try{const r=await api(kind==="pair"?"/api/pair":"/api/recover",{anon:true,body:{code,label:deviceLabel()}});await adoptCredential(r.credential,r.player);await enterApp()}catch(e){$("gMsg").textContent=e.offline?"No signal. Try again when you are online.":e.message}};
+  $("gPair").onclick=()=>go("pair");$("gRecover").onclick=()=>go("recover");setTimeout(()=>{try{$("gCode").focus()}catch(e){}},50)}
+async function adoptCredential(cred,player){CRED=cred;ME=player;await kvSet("cred",CRED);await kvSet("me",ME)}
+async function claimFlow(token){
+  gate("Welcome","One moment","<div class='card note'>Checking your link...</div>");
+  let card;try{card=await api("/api/claim/preview",{anon:true,body:{token}})}catch(e){return gate("Welcome","Link problem",`<div class="card"><div class="note">${esc(e.offline?"No signal. Open the link again when you are online.":e.message)}</div></div>`)}
+  const other=ME&&ME.id!==card.id?`<div class="note" style="margin-top:8px">This phone is signed in as ${esc(ME.name)}. Continuing signs ${esc(ME.name)} out of this phone.</div>`:"";
+  gate("Is this you?",card.name,`<div class="card"><dl class="det"><dt>Team</dt><dd>${esc(card.team||"not assigned yet")}</dd><dt>Level</dt><dd>${esc(card.level||"")}</dd><dt>Bats</dt><dd>${card.bats==="S"?"Switch":card.bats==="L"?"Left":"Right"}</dd></dl>${other}
+   <div class="row"><button class="pri" id="gYes">Yes, that is me</button><button id="gNo">No, not me</button></div><div class="note" id="gMsg"></div></div>`);
+  $("gNo").onclick=()=>{history.replaceState(null,"","/");gate("Welcome","Not you?",`<div class="card note">Tell your coach this link was not yours, and ask for a new one.</div>`)};
+  $("gYes").onclick=async()=>{$("gMsg").textContent="Setting up...";
+    try{if(CRED){try{await api("/api/signout",{method:"POST",body:{}})}catch(e){}}
+      const r=await api("/api/claim/confirm",{anon:true,body:{token,label:deviceLabel()}});await adoptCredential(r.credential,r.player);history.replaceState(null,"","/");
+      gate("You are set up",r.player.name,`<div class="card"><div class="note">To use the installed app: tap Share, then Add to Home Screen. Open it and enter this code within ${r.pairing_minutes} minutes.</div><div class="codebox">${esc(fmtCode(r.pairing_code))}</div><div class="row"><button class="pri" id="gGo">Continue here</button></div></div>`);
+      $("gGo").onclick=()=>enterApp()}catch(e){$("gMsg").textContent=e.offline?"No signal. Try again when you are online.":e.message}}}
+async function onSignedOut(){CRED=null;ME=null;await kvSet("cred",null);await kvSet("me",null);gateWelcome("You were signed out. Use a pairing or recovery code, or open a new link from your coach.")}
+async function enterApp(){
+  CRED=CRED||await kvGet("cred",null);if(!CRED)return gateWelcome();
+  try{const me=await api("/api/me");ME=me.player;ESET=me.settings;await kvSet("me",ME);await kvSet("eset",ESET);
+    if(me.min_app_version&&me.min_app_version!==APP_ENGINE)showUpdate()}
+  catch(e){if(e.signedOut)return;ME=await kvGet("me",null);ESET=await kvGet("eset",null);
+    if(!ME){gate("Offline","No signal",`<div class="card"><div class="note">Connect once to load your account.</div><div class="row"><button class="pri" id="gRetry">Try again</button></div></div>`);$("gRetry").onclick=enterApp;return}}
+  gateOff();applyIdentity();await applySettings();await loadQueue();renderStats();updateChips();setNet();
+  engineStartTimers();engineFlush(true);
+  showTab("play")}
+function showUpdate(){const b=$("unsentBanner");b.style.display="";b.textContent="A new version is available. Close the app completely and open it again."}
+function applyIdentity(){
+  $("player").value=ME.name;const sw=ME.bats==="S";$("sideWrap").style.display=sw?"":"none";
+  $("bats").value=sw?($("bats").value||"R"):ME.bats;if(sw){$("sideSel").value=$("bats").value}
+  $("whoTxt").innerHTML=`<b>${esc(ME.name)}</b> ${esc(ME.team||"")}${ME.level?" ("+esc(ME.level)+")":""}`;
+  $("meCard").innerHTML=`${esc(ME.name)}<br>${esc(ME.team||"no team yet")} ${ME.level?"("+esc(ME.level)+")":""}, bats ${ME.bats==="S"?"both sides":ME.bats==="L"?"left":"right"}.`}
+function setSel(id,val){const el=$(id);if(![...el.options].some(o=>o.value===val)){const o=document.createElement("option");o.value=val;o.textContent=val;el.appendChild(o)}el.value=val}
+async function applySettings(){const st=ESET||{pause_ms:150,view:"hitter_eye",ask:"both",reveal:true};
+  setSel("off",(st.pause_ms/1000).toFixed(3));$("ask").value=st.ask;$("view").value=st.view;$("reveal").value=st.reveal?"1":"0"}
+$("sideSel").onchange=()=>{$("bats").value=$("sideSel").value;applyPlaylist()};
+async function engineLoadQueue(){
+  let pl=null;
+  try{pl=await api("/api/playlist");await kvSet("playlist_"+ME.id,pl);setNet(true)}catch(e){if(e.signedOut)return;pl=await kvGet("playlist_"+ME.id,null);setNet(false)}
+  PLAYLIST=pl;applyPlaylist()}
+function applyPlaylist(){
+  const pl=PLAYLIST;const side=$("bats").value;
+  Q=pl?{packs:pl.packs.filter(p=>!p.side||pl.sides.length===1||p.side===side),generated:pl.date,notes:pl.notes||[]}:{packs:[],generated:"none",notes:["No playlist yet. Connect once to load it."]};
+  keys={};renderQueue();fillPitchSelect();engineInfo();renderHeroIdle();
+  if(Q.notes.length)say("now",Q.notes.join(" "))}
+// ---- the outbox
+let flushing=false,backoff=0,nextTry=0,lastHb=0;
+const toWire=t=>({id:t.id,task:t.task,mode:t.mode,call:t.call,pack:t.pack,clip:t.clip,options:t.options,rt_ms:t.rt_ms,pause_ms:t.pause_ms,camera:t.camera,view:t.view,q_order:t.q_order,clip_trial:t.clip_trial,session:t.session,correct:t.correct,ts:t.ts,app:t.app});
+async function engineFlush(force){
+  if(!CFG.engine||!CRED||!ME||flushing)return;
+  if(!force&&Date.now()<nextTry)return;
+  flushing=true;
+  try{
+    const mineId=ME.id;const un=(await allTrials()).filter(t=>t.pid===mineId&&!t.synced);
+    for(let i=0;i<un.length;i+=100){
+      const chunk=un.slice(i,i+100),r=await api("/api/answers",{body:{answers:chunk.map(toWire)}});
+      const ok=new Set([...(r.stored||[]),...(r.duplicates||[])]),bad=new Map((r.rejected||[]).map(x=>[x.id,x.reason]));
+      for(const t of chunk){if(ok.has(t.id)){t.synced=1;await putTrial(t)}else if(bad.has(t.id)){t.synced=2;t.reject=bad.get(t.id);await putTrial(t)}}}
+    backoff=0;nextTry=0;setNet(true);
+    if(Date.now()-lastHb>300000||un.length){lastHb=Date.now();await sendHeartbeat().catch(()=>{})}
+  }catch(e){if(!e.signedOut){backoff=Math.min(backoff?backoff*2:5000,300000);nextTry=Date.now()+backoff;if(e.offline)setNet(false)}}
+  finally{flushing=false;updateChips()}}
+async function sendHeartbeat(){
+  const all=(await allTrials()).filter(t=>t.pid===ME.id),un=all.filter(t=>!t.synced);let persisted=false;try{persisted=navigator.storage&&navigator.storage.persisted?await navigator.storage.persisted():false}catch(e){}
+  await api("/api/heartbeat",{body:{stored:all.length,sent:all.length-un.length,unsent:un.length,oldest_unsent_ts:un.length?un.map(t=>t.ts).sort()[0]:"",app:APP_ENGINE,persisted}})}
+function renderUnsent(mine,all){
+  const un=mine.filter(t=>!t.synced),b=$("unsentBanner");
+  const old=un.length&&Date.now()-new Date(un.map(t=>t.ts).sort()[0]).getTime()>15*60000;
+  if(un.length&&(old||backoff>0||!navigator.onLine)){b.style.display="";b.textContent=`${un.length} ${un.length===1?"answer is":"answers are"} not sent yet. Open this app with signal and they will go. Do not delete the app.`}
+  else if(b.style.display===""&&!/new version/.test(b.textContent)){b.style.display="none"}}
+function engineStartTimers(){
+  if(engineStartTimers.done)return;engineStartTimers.done=true;
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&ME){engineFlush(true);if(state==="idle")loadQueue()}});
+  setInterval(()=>{if(document.visibilityState==="visible")engineFlush(false)},30000);
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}
+async function engineInfo(){
+  if(!ME)return;const t=await allTrials();const mine=t.filter(x=>x.pid===ME.id),others=t.filter(x=>x.pid!==ME.id&&x.pid!==undefined&&!x.synced).length;let n=0;try{n=(await navigator.storage.estimate()).usage||0}catch(e){}
+  $("engInfo").textContent=`${mine.length} answers on this phone, ${mine.filter(x=>!x.synced).length} not sent. Storage used about ${(n/1e6).toFixed(1)} MB. Playlist date ${Q&&Q.generated?Q.generated:"not loaded"}.${others?` ${others} answers from another player are waiting on this phone and will not be sent under your name.`:""}`}
+$("refreshPl").onclick=async()=>{await loadQueue();say("dlmsg","Playlist refreshed.")};
+$("pairShow").onclick=async()=>{try{const r=await api("/api/pairing-code",{body:{}});$("pairOut").innerHTML=`Open the installed app and enter <b>${esc(fmtCode(r.pairing_code))}</b> within ${r.pairing_minutes} minutes. This phone's browser sign-in ends when you do.`}catch(e){$("pairOut").textContent=e.message}};
+$("notme").onclick=async()=>{
+  await engineFlush(true);const un=(await allTrials()).filter(t=>t.pid===ME.id&&!t.synced).length;
+  if(un&&!confirm(`${un} answers have not been sent yet and could not be sent right now. If you sign out, they stay on this phone but will only send when ${ME.name} signs in again. Sign out anyway?`))return;
+  if(!un&&!confirm(`Sign out ${ME.name} from this phone?`))return;
+  try{await api("/api/signout",{body:{}})}catch(e){}
+  await onSignedOut()};
+async function engineBoot(){
+  document.body.classList.add("engine");CRED=await kvGet("cred",null);ME=await kvGet("me",null);
+  const m=location.pathname.match(/^\/c\/([^\/]+)\/?$/);
+  finishBoot();
+  if(m){await claimFlow(decodeURIComponent(m[1]));return}
+  if(!CRED)return gateWelcome();
+  await enterApp()}
+
 async function boot(){
   await openDB();try{const r=await fetch("config.json",{cache:"no-cache"});CFG=Object.assign(CFG,await r.json())}catch(e){CFG=Object.assign(CFG,await kvGet("config",{}))}await kvSet("config",CFG);
+  if(CFG.engine){await engineBoot();return}
   await loadSettings();await loadQueue();renderStats();updateChips();refreshInfo();
   if(!player())showTab("set");
   setNet();
   if(Q&&navigator.onLine&&reach){const seen=await seenSet();const first=Q.packs.find(p=>p.items.some(i=>!seen.has(i.id)))||Q.packs[0];if(first)prefetch(first.items.map(i=>Object.assign({},i,{_pack:first})))}
   if(navigator.onLine&&reach)sync();
+  finishBoot()}
+function finishBoot(){
   window.__sim={recapCfg:simRecapCfg,q:()=>SIM.q,project:simCamera,views:SIM_VIEWS,pos:simPos,drawn:()=>({tmax:SIM.tmax,trail:SIM.trail,cam:SIM.camName}),timing:()=>({start:SIM.tStart,q:SIM.tQ}),cam:()=>SIM.cam,size:()=>[SIM.W,SIM.H]};
+  window.__engine={me:()=>ME,cred:()=>CRED,flush:engineFlush,playlist:()=>PLAYLIST,api:api,settings:()=>ESET};
   window.__gonogo={state:()=>state,pauseAt:()=>pauseAt,trials:allTrials,session:()=>session,queue:()=>Q,sessionLog:()=>sessionLog};
   if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{})}
 boot();

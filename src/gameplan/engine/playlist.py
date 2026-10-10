@@ -2,7 +2,7 @@
 
 Rules (docs/ENGINE_PLAN.md 6.4):
   * only packs for his current team (or org-wide practice packs when his team has no confirmed starter with content, and the app says so), on the side(s) he bats;
-  * kinds in order: next starter, edges, random, then the assessment pack when one is due and not yet taken (an assessment pack is whole or absent; it never counts against the daily cap);
+  * kinds in order: next starter, edges, random, then the assessment pack when one is due (a form is taken only when every item is answered; a started form resumes with the items left; it never counts against the daily cap);
   * inside a training pack, pitches he has not answered yet come first, and among those pitches in his weakest locations come first (weak = at least MIN_CELL strike/ball answers and clearly below his own average);
   * the daily cap (set by the coach for his team) limits training pitches, dropping whole trailing items, never splitting a pitch's two questions.
 """
@@ -37,11 +37,18 @@ def seen_items(c, player_id: int, pack_hash: str) -> set:
     return {r["item_id"] for r in c.execute(f"SELECT DISTINCT item_id FROM answers WHERE player_id=? AND pack_hash=? AND {A.LIVE}", (player_id, pack_hash))}
 
 
-def assessment_due(c, player_id: int, pack_hash: str, every_days: int) -> bool:
-    if c.execute(f"SELECT 1 FROM answers WHERE player_id=? AND pack_hash=? AND mode='assess' AND {A.LIVE} LIMIT 1", (player_id, pack_hash)).fetchone():
-        return False                                                 # already took this exact form
-    last = c.execute(f"SELECT MAX(server_ts) t FROM answers WHERE player_id=? AND mode='assess' AND {A.LIVE}", (player_id,)).fetchone()["t"]
-    return last is None or last < db.plus(db.now(), days=-every_days)
+def assessment_state(c, player_id: int, pack_hash: str, n_items: int, every_days: int):
+    """-> (offer: bool, remaining item ids or None).
+    A form is TAKEN only when every item has an answer. A form he has started but not finished is offered again with only the items still to do, whatever the calendar says.
+    A form he has not started is offered only if he has not finished some other form inside the last `every_days`."""
+    mine = {r["item_id"] for r in c.execute(f"SELECT DISTINCT item_id FROM answers WHERE player_id=? AND pack_hash=? AND mode='assess' AND {A.LIVE}", (player_id, pack_hash))}
+    if mine and len(mine) >= n_items:
+        return False, None
+    if mine:
+        return True, mine
+    done = c.execute(f"SELECT MAX(t) t FROM (SELECT a.pack_hash, MAX(a.server_ts) t FROM answers a WHERE a.player_id=? AND a.mode='assess' AND a.{A.LIVE} "
+                     "GROUP BY a.pack_hash HAVING COUNT(DISTINCT a.item_id) >= (SELECT COUNT(*) FROM item_keys k WHERE k.pack_hash=a.pack_hash))", (player_id,)).fetchone()["t"]
+    return (done is None or done < db.plus(db.now(), days=-every_days)), None
 
 
 def order_items(items: list, seen: set, weak: list) -> list:
@@ -73,8 +80,12 @@ def compose(c, player, on: str | None = None) -> dict:
     for r in sorted(rows, key=lambda r: (KIND_ORDER.get(r["kind"], 9), r["side"], r["hash"])):
         m = packs.player_manifest(r)
         if r["mode"] == "assess":
-            if not assessment_due(c, player["id"], r["hash"], st["assess_every_days"]):
+            offer, done_items = assessment_state(c, player["id"], r["hash"], len(m["items"]), st["assess_every_days"])
+            if not offer:
                 continue
+            if done_items:
+                m["items"] = [i for i in m["items"] if i["id"] not in done_items]
+                m["resume"] = True
             m["assess_due"] = True
         else:
             items = order_items(m["items"], seen_items(c, player["id"], r["hash"]), weak)
