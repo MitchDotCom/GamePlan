@@ -5,7 +5,7 @@
   "test": "Claim link: shows the right person, one tap confirms, a pairing code appears, the app opens signed in as him with his playlist; his answers reach the server under his id",
   "result": "PASS",
   "evidence": "2 answers stored under Demo Hitter Four with server keys, level and pack hash",
-  "seconds": 7.1,
+  "seconds": 14.0,
   "severity": "S1"
  },
  {
@@ -14,7 +14,7 @@
   "test": "The installed-app gap: a fresh app (empty storage) signs in with the pairing code; the browser's credential is retired and signs out cleanly at its next contact",
   "result": "PASS",
   "evidence": "",
-  "seconds": 3.6,
+  "seconds": 3.2,
   "severity": "S1"
  },
  {
@@ -23,7 +23,7 @@
   "test": "The wrong-person trap: one phone, two hitters. Hitter A's unsent answers are NEVER sent under hitter B's name",
   "result": "PASS",
   "evidence": "A's 2 answers stayed on the phone, unsent, attributed to A; B's flush stored nothing of A's",
-  "seconds": 8.7,
+  "seconds": 8.9,
   "severity": "S1"
  },
  {
@@ -32,7 +32,7 @@
   "test": "Offline first: answer with no signal, reload still offline (still signed in, playlist cached), come back online: every answer arrives once, banner clears",
   "result": "PASS",
   "evidence": "",
-  "seconds": 7.2,
+  "seconds": 7.0,
   "severity": "S1"
  },
  {
@@ -41,7 +41,7 @@
   "test": "A lost response: the server stores the answers but the reply never reaches the phone; the retry stores nothing twice and the phone ends up with everything marked sent",
   "result": "PASS",
   "evidence": "2 replies dropped; rows on server 2, none duplicated",
-  "seconds": 8.5,
+  "seconds": 8.7,
   "severity": "S1"
  },
  {
@@ -50,7 +50,7 @@
   "test": "Wiped storage: the phone forgets everything; a coach's recovery code signs him back in; answers already sent are on the server and none are doubled",
   "result": "PASS",
   "evidence": "",
-  "seconds": 7.4,
+  "seconds": 7.3,
   "severity": "S1"
  },
  {
@@ -59,7 +59,7 @@
   "test": "A revoked credential: the next contact signs the phone out with a clear message and the unsent answers stay on the phone",
   "result": "PASS",
   "evidence": "",
-  "seconds": 6.4,
+  "seconds": 6.3,
   "severity": "S1"
  },
  {
@@ -77,7 +77,7 @@
   "test": "Server-side truth: a phone that lies about the score, the key or the pack it was shown cannot change what is stored",
   "result": "PASS",
   "evidence": "",
-  "seconds": 1.6,
+  "seconds": 1.8,
   "severity": "S1"
  },
  {
@@ -86,7 +86,7 @@
   "test": "Assessment: no answers on the phone, scored by the server, offered once",
   "result": "PASS",
   "evidence": "scored on the server; a started form resumes with the 5 items left",
-  "seconds": 4.8,
+  "seconds": 4.9,
   "severity": "S1"
  },
  {
@@ -95,7 +95,7 @@
   "test": "Switch hitter: side selector shown, both sides' packs exist, choosing a side filters the queue",
   "result": "PASS",
   "evidence": "",
-  "seconds": 1.6,
+  "seconds": 1.8,
   "severity": "S2"
  },
  {
@@ -122,7 +122,7 @@
   "test": "320x568: gate screens and the signed-in app have no sideways scroll, buttons are at least 44 px, and the Strike/Ball buttons are on screen",
   "result": "PASS",
   "evidence": "",
-  "seconds": 4.0,
+  "seconds": 4.3,
   "severity": "S2"
  },
  {
@@ -131,7 +131,7 @@
   "test": "390x844: gate screens and the signed-in app have no sideways scroll, buttons are at least 44 px, and the Strike/Ball buttons are on screen",
   "result": "PASS",
   "evidence": "",
-  "seconds": 4.1,
+  "seconds": 4.2,
   "severity": "S2"
  },
  {
@@ -140,8 +140,17 @@
   "test": "820x1180: gate screens and the signed-in app have no sideways scroll, buttons are at least 44 px, and the Strike/Ball buttons are on screen",
   "result": "PASS",
   "evidence": "",
-  "seconds": 5.4,
+  "seconds": 4.5,
   "severity": "S2"
+ },
+ {
+  "id": "E16",
+  "area": "Consent",
+  "test": "Consent comes first: after the claim the hitter sees the wording and nothing else; no answer reaches the server before he agrees; after he agrees the app opens and his agreement is on record",
+  "result": "PASS",
+  "evidence": "gate shown, agreement recorded for version draft-1",
+  "seconds": 1.5,
+  "severity": "S1"
  },
  {
   "id": "E15",

@@ -137,6 +137,8 @@ def claim(p, link, expect_name=None):
     p.wait_for_selector(".codebox", timeout=15000)
     code = p.inner_text(".codebox").replace(" ", "").strip()
     p.click("#gGo")
+    p.wait_for_selector("#gAgree", timeout=15000)            # the consent wording comes before anything else
+    p.click("#gAgree")
     p.wait_for_function("window.__engine && window.__engine.me() && !document.body.classList.contains('gate') && window.__gonogo.queue()", timeout=15000)
     return code
 
@@ -244,6 +246,8 @@ def main():
             p.click("#gYes")
             p.wait_for_selector(".codebox")
             p.click("#gGo")
+            p.wait_for_selector("#gAgree", timeout=15000)
+            p.click("#gAgree")
             p.wait_for_function("window.__engine && window.__engine.me() && window.__engine.me().name==='Demo Switch Hitter' && !document.body.classList.contains('gate')", timeout=15000)
             p.evaluate("window.__engine.flush(true)")
             p.wait_for_timeout(1500)
@@ -482,6 +486,27 @@ def main():
                 ctx.close()
                 S.stop()
                 assert over1 <= 1 and not small1 and box[2] <= 1 and box[0] <= box[1] + 1, (over1, small1, box)
+
+        @check("E16", "Consent", "Consent comes first: after the claim the hitter sees the wording and nothing else; no answer reaches the server before he agrees; after he agrees the app opens and his agreement is on record", "S1")
+        def _():
+            S = Server(tpl)
+            ctx, p = B.page()
+            p.goto(S.claim_link("Demo Hitter Four"))
+            p.wait_for_selector("#gYes", timeout=15000)
+            p.click("#gYes")
+            p.wait_for_selector(".codebox", timeout=15000)
+            p.click("#gGo")
+            p.wait_for_selector("#gAgree", timeout=15000)
+            body = p.inner_text("#gBody")
+            assert "answers" in body.lower() and p.evaluate("document.body.classList.contains('gate')")
+            assert S.rows("SELECT COUNT(*) n FROM consents")[0]["n"] == 0 and S.rows("SELECT COUNT(*) n FROM answers")[0]["n"] == 0
+            p.click("#gAgree")
+            p.wait_for_function("window.__engine && window.__engine.me() && !document.body.classList.contains('gate')", timeout=15000)
+            rows = S.rows("SELECT version FROM consents")
+            ctx.close()
+            S.stop()
+            assert len(rows) == 1 and rows[0]["version"]
+            return f"gate shown, agreement recorded for version {rows[0]['version']}"
 
         @check("E15", "Console", "No uncaught script errors or console errors across the whole run", "S1")
         def _():
