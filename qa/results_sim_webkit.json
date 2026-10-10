@@ -14,7 +14,7 @@
   "test": "Both views: a hitter's-eye camera sits on the batter's side (left-handed on the other side) and both look at the mound",
   "result": "PASS",
   "evidence": "RHH eye at x<0, LHH eye at x>0, low-home behind the plate on the centre line",
-  "seconds": 0.8,
+  "seconds": 0.7,
   "severity": "S2"
  },
  {
@@ -23,7 +23,7 @@
   "test": "Every drawn pitch: in the browser, the path's own end point decides strike or ball exactly as the shipped key says, and no video is requested",
   "result": "PASS",
   "evidence": "38 drawn pitches consistent; video requests: 0",
-  "seconds": 0.8,
+  "seconds": 0.9,
   "severity": "S1"
  },
  {
@@ -31,8 +31,8 @@
   "area": "Core",
   "test": "Pause: the ball freezes at exactly the chosen time, drawn where the math puts it (within 1 device pixel), the future path is not on screen, and the questions appear",
   "result": "PASS",
-  "evidence": "hitter_eye 0.100: ball r=2.9px; hitter_eye 0.200: ball r=3.9px; hitter_eye 0.250: ball r=5.1px; low_home 0.100: ball r=2.0px; low_home 0.200: ball r=2.6px; low_home 0.300: ball r=3.6px",
-  "seconds": 23.0,
+  "evidence": "hitter_eye 0.100: ball r=2.8px; hitter_eye 0.200: ball r=3.9px; hitter_eye 0.250: ball r=5.0px; low_home 0.100: ball r=2.0px; low_home 0.200: ball r=2.6px; low_home 0.300: ball r=3.7px",
+  "seconds": 25.0,
   "severity": "S1"
  },
  {
@@ -40,8 +40,8 @@
   "area": "Core",
   "test": "Reveal: after both answers the ball runs on, then a behind-the-plate recap shows trail, zone and a crossing marker on the tracked location (within 1.5 device pixels); the end point equals the tracked crossing",
   "result": "PASS",
-  "evidence": "hitter_eye: marker off by (-0.46, -0.56) px; low_home: marker off by (-0.54, -0.72) px",
-  "seconds": 8.6,
+  "evidence": "hitter_eye: marker off by (-0.52, -0.73) px; low_home: marker off by (-0.46, -0.56) px",
+  "seconds": 8.1,
   "severity": "S1"
  },
  {
@@ -50,7 +50,7 @@
   "test": "320 wide: for EVERY shipped pitch, both views and every allowed pause, the ball is inside the picture (3% margin) from release to the pause, and the recap frames zone, crossing and whole path",
   "result": "PASS",
   "evidence": "6460 checks on a 576x324 picture, none out of frame",
-  "seconds": 1.2,
+  "seconds": 1.1,
   "severity": "S1"
  },
  {
@@ -59,7 +59,7 @@
   "test": "390 wide: for EVERY shipped pitch, both views and every allowed pause, the ball is inside the picture (3% margin) from release to the pause, and the recap frames zone, crossing and whole path",
   "result": "PASS",
   "evidence": "6460 checks on a 716x403 picture, none out of frame",
-  "seconds": 1.4,
+  "seconds": 1.8,
   "severity": "S1"
  },
  {
@@ -68,7 +68,7 @@
   "test": "Guards: a pause over 250 ms in the hitter's-eye view is used as 250 ms (setting untouched, trial logs 250), and a pitch that would leave the picture is shown from low-home and logged that way",
   "result": "PASS",
   "evidence": "250 ms cap used without rewriting the setting; fallback logged as sim:low_home",
-  "seconds": 7.9,
+  "seconds": 8.2,
   "severity": "S1"
  },
  {
@@ -76,8 +76,8 @@
   "area": "Timing",
   "test": "Timing: the question appears 0.8 s lead-in + offset after the pitch starts (within 80 ms, measured inside the page), for three offsets",
   "result": "PASS",
-  "evidence": "0.100: 0.911s (expected 0.900); 0.200: 1.012s (expected 1.000); 0.300: 1.055s (expected 1.100)",
-  "seconds": 10.4,
+  "evidence": "0.100: 0.908s (expected 0.900); 0.200: 1.002s (expected 1.000); 0.300: 1.060s (expected 1.100)",
+  "seconds": 10.3,
   "severity": "S2"
  },
  {
@@ -86,7 +86,7 @@
   "test": "A stalled picture (a frame gap over 250 ms) aborts the pitch with a message instead of jumping to the pause",
   "result": "PASS",
   "evidence": "",
-  "seconds": 3.2,
+  "seconds": 3.1,
   "severity": "S1"
  },
  {
@@ -95,7 +95,7 @@
   "test": "Answers: log carries camera sim:<view>, keys score, no key text in assessment; both views log their own name",
   "result": "PASS",
   "evidence": "logged hitter_eye, low_home; assessment keys blank",
-  "seconds": 11.8,
+  "seconds": 11.2,
   "severity": "S1"
  },
  {
@@ -131,7 +131,7 @@
   "test": "Same pitch, same offset, same view: identical pixels each time (the picture is deterministic)",
   "result": "PASS",
   "evidence": "hash 2376868274",
-  "seconds": 5.7,
+  "seconds": 5.8,
   "severity": "S2"
  },
  {
@@ -140,7 +140,7 @@
   "test": "Mixed queue: after a drawn pitch the page returns to normal video playback when the next item is a clip (video visible, canvas hidden)",
   "result": "PASS",
   "evidence": "sim shows canvas and hides video; clip path restores the video",
-  "seconds": 3.4,
+  "seconds": 3.3,
   "severity": "S2"
  },
  {
