@@ -109,3 +109,22 @@ def test_restore_drill_backup_opens_and_matches_then_serves_after_restore(conn, 
     cred2, player2 = identity.authenticate(c2, SECRET, tok)
     again = answers.ingest(c2, player2, cred2, [ans(f"restore-late-{i}", h, f"starterL{i % 4}") for i in range(5)])
     assert len(again["stored"]) == 5, "phone outbox replay after a restore must fill the gap"
+
+
+def test_restore_command_replaces_the_live_file_keeps_the_old_one_and_refuses_a_bad_backup(conn, org, tmp_path):
+    h = make_pack(conn, tmp_path, team=org["t1"])
+    tok = identity.claim_confirm(conn, SECRET, identity.create_claim(conn, SECRET, org["p1"]), "phone")["credential"]
+    cred, player = identity.authenticate(conn, SECRET, tok)
+    answers.ingest(conn, player, cred, [ans(f"cmdrest-{i}", h, f"starterL{i % 4}") for i in range(10)])
+    live = pathlib.Path(conn.execute("PRAGMA database_list").fetchone()["file"])
+    b = backup.backup(live, tmp_path / "bk")
+    answers.ingest(conn, player, cred, [ans(f"cmdrest-late-{i}", h, f"starterL{i % 4}") for i in range(3)])
+    conn.close()
+    out = backup.restore(b, live)
+    assert out["restored"]["answers"] == 10 and pathlib.Path(out["kept_old"]).exists()
+    assert backup.counts(live)["answers"] == 10 and backup.counts(out["kept_old"])["answers"] == 13
+    bad = tmp_path / "bad.db"
+    bad.write_bytes(b"not a database" * 100)
+    with pytest.raises(Exception):
+        backup.restore(bad, live)
+    assert backup.counts(live)["answers"] == 10                    # a refused restore touched nothing

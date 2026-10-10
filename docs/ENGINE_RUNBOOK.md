@@ -1,58 +1,67 @@
-# Engine runbook: deploy, install on phones, operate
+# Engine runbook: deploy, install, operate
 
-Status: the service, tests and browser QA run here. **The container image has not been built (no Docker daemon in the build environment), nothing is deployed, and nothing has run on a real iPhone or iPad.** Steps 1 to 3 are the first time those parts are exercised, so treat the first deploy as the test.
+Status in one paragraph. The service, the container image, and the browser flows are tested here (Chromium and WebKit, a real running container with a root-owned volume, a seeded organization, real clips). **Not done: no host account exists, nothing is deployed, and nothing has run on a real iPhone or iPad.** The first deploy is therefore the first test of the host; steps 2 and 7 below prove it before a hitter depends on it. Host choice and evidence: `docs/HOSTING_DECISION.md`.
 
-## 1. Deploy (any host with a container, HTTPS and a persistent disk)
-Needs: a persistent volume mounted at `/data`, HTTPS (iPhones refuse the app features without it), one instance only.
+## 1. Before you start
+- A Render account (workspace), a password manager, and an S3-compatible bucket for offsite backups (Backblaze B2, Cloudflare R2 or AWS S3; a private bucket with versioning).
+- Org approval for third-party hosting of hitter names and answers. Test profiles only (made-up names) need none.
+- Consent wording: edit `config/consent.json`. The shipped text is a **draft, not reviewed by anyone at the organization**. Change `version` whenever the text changes; every hitter is asked again.
 
-Environment variables:
-| Name | Value |
-|---|---|
-| `ENGINE_SECRET` | 24+ random characters. Keys every stored hash. Losing or changing it signs everyone out. Store it in the host's secret store and in a second safe place. |
-| `ENGINE_ADMIN_TOKEN` | Your first staff login. Used once, on first start, to create the Admin. |
-| `PUBLIC_URL` | The public https address, so claim links and QR codes are correct. |
-| `ENGINE_DATA` | `/data` (set in the Dockerfile). |
-| `TRUST_PROXY` | `1` behind the host's proxy (set in the Dockerfile). |
+## 2. Deploy on Render
+1. Push this repo to a GitHub repo Render can read. Render dashboard: New, Blueprint, choose the repo, file `deploy/render.yaml`.
+2. Fill the secrets it asks for:
+   - `ENGINE_SECRET`: 32+ random characters. Keys every stored hash. Save it in the password manager first. Changing it signs every hitter out.
+   - `ENGINE_ADMIN_TOKEN`: your first staff login (24+ characters). Becomes the first Admin on first start.
+   - `PUBLIC_URL`: the service address (`https://<name>.onrender.com`), so claim links and QR codes are right.
+   - Offsite (below): `OFFSITE_BUCKET`, `OFFSITE_ENDPOINT` (for B2 or R2), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
+3. After it is live, open the service Shell and run the host check:
+   `python -m gameplan.engine.diskcheck /data`
+   All five lines must say PASS. If any fails, stop and switch host (`deploy/fly.toml` is ready); do not put real data on it.
+4. Open `https://<name>.onrender.com/staff/login`, sign in with the admin token. Today page: the four jobs (starters, reconcile, backup, offsite) show a time within a few minutes.
+5. Check `https://<name>.onrender.com/healthz/deep` says `"ok": true`.
 
-Start command (already in the Dockerfile): `uvicorn gameplan.engine.app:create_app --factory --workers 1`. Do not raise the worker count; the scheduler, throttles and the single SQLite writer assume one process. `deploy/fly.toml` is a worked example.
+Deploys: `autoDeploy` is off. Press Deploy yourself, off-hours; there are a few seconds of downtime and phones resend what they queued.
 
-Check: open `https://<host>/staff/login`, sign in with the admin token, confirm `/config.json` answers.
+## 3. Test profiles
+In the service Shell (creates a demo organization with made-up hitters; prints one claim link per hitter and tokens once):
+`python -m gameplan.engine.seed --data /data --secret "$ENGINE_SECRET" --base-url "$PUBLIC_URL"`
+It refuses to run on a database that already has teams. Add real people later on the Roster page (CSV import matches on `org_id`, never on name). All levels work: Admin, Teams, add a team with its level and MLB team id; each level gets its own cadence on Settings.
 
-## 2. Set up the organization (Admin page and Roster page, no code)
-1. Admin: add teams (name, level, MLB team id, sport id).
-2. Admin: add coaches, each scoped to their teams. Each gets a one-time token; keep it out of chat logs.
-3. Roster: import the CSV (`name,bats,team,org_id`). Players match on `org_id`, never on name.
-4. Starters: confirm the opposing starter for each team's next game (the schedule only suggests), then build. A pack goes live only if every verification gate passes.
-5. Settings: set each level's cadence and pause or view options.
+## 4. Install on a phone (the main route)
+1. Roster, **Claim link** for the hitter; open it on his phone **in Safari**; confirm the name; tap yes.
+2. Read and agree to the consent text (nothing is served before this).
+3. Share, **Add to Home Screen**. Open the app from the icon; at the welcome screen use **Use pairing code** with the code shown in Safari. (iOS keeps home-screen storage separate from Safari; the code carries identity across.)
+4. Do a few answers. Roster: his phone count, "Agreed: yes" and last answer time should all move.
 
-Org approval and the privacy position (consent wording, who sees what) come before real names go in. Do not load org footage until that is settled.
+## 5. Org iPads shared by many hitters
+Personal phones are the primary route. A shared iPad works like this:
+1. On the iPad open the site once in Safari, Add to Home Screen, open it. It shows "Who are you?".
+2. A hitter opens the app on his own phone, Settings, **Use on a shared iPad**; the phone shows a code (valid 10 minutes, works once).
+3. He types the code on the iPad. His phone stays signed in; the iPad shows "Done".
+4. When finished he taps **Done**. If he walks away, the iPad flushes his answers and signs him out after 5 minutes without a touch. If he is offline then, his unsent answers wait on the iPad under his id and send the next time he signs in; no other hitter's sign-in sends them.
+5. A coach can issue the same code from the Roster page (**iPad code**) for a hitter with no phone handy.
+Limits: 3 live iPad sign-ins per hitter (the oldest is retired); an iPad sign-in untouched for 8 hours stops working. Rules to keep: he never types another hitter's code; never leave an iPad signed in overnight (the idle sign-out is a backstop, not permission).
 
-## 3. Install on a phone or iPad
-Per hitter, with the coach's Roster page open:
-1. Roster: **Claim link** for the hitter (shows a link and QR). One use, expires.
-2. On the hitter's device, open the link **in Safari**. Confirm the name shown is his.
-3. Share, **Add to Home Screen**. Open the app from the icon. iOS gives the home-screen app its own storage, so the app shows an **8-digit pairing code** screen the first time; enter the code displayed in Safari. (This is the known iOS storage gap.)
-4. Do 3 answers. On the Roster page the hitter shows a last-seen time and an answer count; both must move.
+## 6. Operate
+- **Backups**: nightly verified copy in `/data/backups` (14 kept) and, with the bucket set, copied offsite and size-checked. Set a lifecycle rule on the bucket for retention (for example 90 days); the code never deletes offsite files.
+- **Monitoring**: point any uptime monitor (UptimeRobot free tier, Better Stack) at `/healthz/deep`, alert on a non-200. It goes red when the database check fails, no good backup in 36 hours, or the offsite copy is configured but stale. It does not watch the content pipeline; check Today weekly.
+- **Restore** (service stopped; Render: suspend the service, open a shell on a one-off job with the disk, or restore into a fresh service):
+  `python -m gameplan.engine.backup --restore /data/backups/engine-<stamp>.db --into /data/engine.db`
+  The backup is checked first, the old file is kept as `engine.db.before-restore`, WAL leftovers are removed. Then start the service. Phones resend whatever the restore missed; duplicates are ignored. Drill this once a month on a copy; the automated drill is in `tests/engine/test_durability.py`.
+- **Secrets**: `ENGINE_SECRET` lives in the password manager and Render, nowhere else. Rotating it signs everyone out (they re-claim). Staff tokens: Admin page, add a new coach, revoke the old one. A leaked claim link works once and expires; a leaked staff token is revoked from Admin.
+- **Delete a hitter's data**: not yet a button. Ask for it in writing; today it is a manual SQL change plus a new backup. Decide the retention rule before real hitters join.
+- **Upgrade**: take a backup, press Deploy. Schema changes apply on start and never run backwards (an older build refuses a newer database).
 
-Wrong name or a lost phone: Roster, **Recovery code** (retires all other devices), or **Revoke** on one device. A hitter may have at most 2 active devices.
+## 7. Real-device checklist (before any hitter relies on it)
+1. iPhone: claim in Safari, agree, Add to Home Screen, pair, answer 10, see them on his player page.
+2. Airplane mode: answer 5, reopen online, all 5 arrive once.
+3. Force-close mid-answer; reopen; no duplicate, no loss.
+4. Repeat 1 to 3 on an iPad. Then the shared-iPad flow in section 5 with two different hitters back to back; confirm hitter 2 sees none of hitter 1.
+5. Leave the home-screen app unused for a week; reopen; confirm it still knows him. If not, record what iOS did; the pairing code is the fallback.
+6. Staff pages on a phone: roster, player page, leaderboard readable.
+7. Cut the signal mid-session on cellular, not Wi-Fi.
 
-## 4. Operate
-- Nightly: the scheduler takes a verified backup to `/data/backups` (14 kept) and runs reconcile. The Today page lists anything flagged (for example possible lost answers).
-- **Offsite copy is on you.** Backups on the same volume die with the volume. Copy `/data/backups/engine-*.db` off the host weekly at minimum (host volume snapshot, or `fly ssh sftp`).
-- Restore: stop the service, copy a backup over `/data/engine.db`, remove `engine.db-wal` and `engine.db-shm`, start. Phones replay unsent answers on their next open; duplicates are ignored.
-- Export: Leaderboard page, **Export answers (CSV)**.
-- Upgrades: redeploy the image. The schema migrates on start. Take a backup first.
+## 8. Proven here vs not
+Proven (automated in this repo): identity rules and throttles; wrong-person trap; idempotent ingest; server-side scoring; consent gate (nothing served or stored before agreement, versioned, per hitter); shared-iPad sign-in leaves the phone signed in, expires, and attributes answers to the right hitter; playlist rules; staff scoping, CSRF and cookie rules; path hardening; mutation checks on four protections; `kill -9` loses no acknowledged answer; 80 and 800 hitter load with no lost rows; backup, restore and the restore command; offsite push with size verification and a deep health check; the image builds, runs from a root-owned volume, survives a restart, and passes a real-browser claim, consent and answer run (`qa/container_e2e.py`); Chromium and WebKit browser suites.
 
-## 5. Real-device checklist (run before any hitter relies on it)
-1. Claim on iPhone Safari, add to Home Screen, pair, answer 10 items, see them on the player page.
-2. Airplane mode: answer 5, reopen online, confirm all 5 arrive once.
-3. Force-close the app mid-answer; reopen; no duplicate, no loss.
-4. Same on an iPad.
-5. One device, two hitters: the second hitter must open his own claim link; the app then refuses to send the first hitter's unsent answers under the second name. Confirm this once on a real device.
-6. Leave the app unused for a week; reopen; confirm it still knows him (if not, record how iOS behaved; the pairing code is the fallback).
-7. Staff pages on a phone: roster, hitter pocket map, leaderboard readable.
-
-## 6. Proven here vs not
-Proven (automated, in this repo): identity rules and throttles, wrong-person trap, idempotent ingest, server-side scoring, playlist rules, staff scoping, CSRF and cookie rules, path hardening, mutation checks on four protections, kill -9 with zero acknowledged answers lost, 80 and 800 hitter load with zero lost rows, backup restore drill, Chromium and WebKit browser flows.
-
-Not proven: the container build and any live deploy, iOS home-screen storage over time, behavior on real cellular networks, TLS and proxy header handling on the chosen host, Postgres migration, whether drawn pitches train recognition, org policy approval.
+Not proven: any live host; the offsite copy against a real bucket (tested with a stand-in); iOS home-screen storage over time; real cellular behavior; TLS and proxy headers on Render; org approval; consent wording; whether drawn pitches train recognition; deleting a hitter's data.
