@@ -1,39 +1,49 @@
-# Hosting decision
+# Hosting and durability decision (second pass)
 
-Pick: **Render** (one Docker web service, one persistent disk). Runner-up: Fly.io. Chosen on the evidence below; **not tested on any host** (no accounts here, and the build sandbox cannot reach fly.io or render.com), so the first deploy runs `diskcheck` on the real volume before anyone relies on it.
+Horizon: the whole 2027 season and likely longer. 50 to 80 hitters now, designed for about 400, every level, answers that must never be lost or attached to the wrong person.
 
-## What the engine needs from a host
-1. One instance with a **local block disk** that survives restarts and deploys. SQLite in WAL mode needs working file locks and fsync; network file shares are the known failure case.
-2. Docker (the image is built and tested: `Dockerfile`).
-3. HTTPS with a stable address. iPhones and iPads will not install or keep the app without it.
-4. Daily disk snapshots, plus our own offsite copy (`OFFSITE_*`), because a snapshot is a fallback, not a backup.
-5. No sleeping, no ephemeral disk, US region, and as little server administration as possible. One person runs this.
+## What was wrong with the first pass
+1. I chose in an afternoon from documentation snippets. I looked for incident history on the runner-up (Fly) but not on my pick (Render). Render's own record includes a March 2026 Ohio incident in which services failed with disk errors and were moved to new hosts ([trackers](https://pingoru.io/providers/render/outage-history); the authoritative record is status.render.com). A host with a disk incident is exactly the case the durability design has to survive, so "Render over Fly" is a weaker claim than I made.
+2. I treated "SQLite on one disk with nightly backups" as the design and only compared hosts that suit it. I never priced the two real alternatives: **continuous replication of the same database** (Litestream) and **the same Python service on a managed Postgres**.
+3. I dismissed Supabase partly because I could not run it in my environment. That is a fact about me, not about your needs.
+4. My runbook said phones "resend whatever a restore missed". The code did not do that: phones resent only unsent answers. After a restore, answers the server had acknowledged were simply gone. Fixed (below) and tested.
 
-## Ten options against those needs
-| Option | Verdict | Why (source) |
-|---|---|---|
-| Heroku | Out | Filesystem is ephemeral and is cleared at least daily; Heroku's own SQLite article says use Postgres ([Heroku Dev Center](https://devcenter.heroku.com/articles/sqlite3)). |
-| DigitalOcean App Platform | Out | No persistent local storage; files vanish on deploy; 4 GiB local limit ([DO docs](https://docs.digitalocean.com/products/app-platform/how-to/store-data/)). |
-| Google Cloud Run | Out | Persistent mount is Cloud Storage FUSE: no file locking, last write wins, not POSIX ([Cloud Run docs](https://docs.cloud.google.com/run/docs/tutorials/network-filesystems-fuse)). |
-| Azure Container Apps | Out | Persistent storage is an SMB/NFS file share. I found no Microsoft statement on SQLite locking there, and a report of "database is locked" on a similar Azure Files mount ([Microsoft Learn](https://learn.microsoft.com/da-dk/azure/container-apps/storage-mounts), [InfluxData forum](https://community.influxdata.com/t/database-is-locked-on-container-instance-installation/22754)). Unverified, so not worth the risk. |
-| Koyeb | Out for now | Volumes are in preview, 1 to 10 GB, only two regions, and the docs say "only suitable for testing" ([Koyeb docs](https://www.koyeb.com/docs/reference/volumes)). |
-| Northflank | Unclear | Persistent volumes exist; I found nothing on SQLite or replica behavior, and scheduled backups were "not currently supported" on the page I saw ([Northflank docs](https://northflank.com/docs/v1/application/databases-and-persistence/backup-and-clone-volumes)). |
-| Railway | Viable, second tier | Volumes with daily, weekly and monthly incremental backups, 3,000 IOPS ([Railway docs](https://docs.railway.com/volumes/backups)). Sources disagree on whether it holds a SOC 2 report, so an org security review would stall ([comparison](https://vibe-eval.com/comparisons/railway-vs-flyio-security/)). |
-| VPS (Hetzner, AWS Lightsail, DigitalOcean Droplet) | Viable, most work | Cheapest and most control; a real disk and snapshots (Lightsail: daily automatic snapshots, [AWS docs](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-configuring-automatic-snapshots.html)). You would own OS patching, firewall, TLS renewal and Docker upkeep. Wrong trade for one person. |
-| Fly.io | Viable, runner-up | Volumes at $0.15/GB, daily snapshots kept 5 days by default (1 to 60 settable), SOC 2 Type 2 report on request ([Fly pricing](https://fly.io/pricing.md), [snapshots](https://fly.io/docs/volumes/snapshots/), [compliance](https://fly.io/compliance.md)). Fly's own staff say volumes are not durable long-term storage and snapshots are not a primary backup. Third-party trackers list several 2026 incidents, including a 9-hour machine-start failure in one region ([isdown](https://isdown.app/status/fly-io/outage-history)). Operated mostly from a command-line tool. |
-| **Render** | **Pick** | Docker web service with a persistent disk; disk snapshots every 24 hours, kept at least 7 days; single instance, which is exactly our model; paid instances do not sleep ([Render disks](https://docs.render.com/disks)). SOC 2 Type II and ISO 27001; the report is available to Organization-tier workspaces ([Render](https://render-web.onrender.com/blog/render-soc2-compliance)). Operated from a dashboard. Price: Standard $25/month plus disk $0.25/GB ([Render cost guide](https://render.com/articles/how-much-does-cloud-application-hosting-cost-for-small-businesses)). |
+## Requirements (from you, made explicit)
+Durable: no acknowledged answer lost, or the loss is bounded and recoverable. Right person: identity cannot be confused. Lasts a year or more with one maintainer. Org-reviewable (SOC 2 or equivalent, data location, deletion). Portable: moving host or moving into an org tenant is a day, not a rewrite. Cost is not a constraint; effort and risk are.
 
-## Why Render beats Fly.io for this case
-Both meet the hard requirements. The difference is who does the work and how bad a bad day is. Render is dashboard-first, keeps snapshots longer by default (7 days against 5), and its model is one instance with one disk, which is our design. Fly's volume is tied to one physical host and is run from a command line, and its public incident record in 2026 is longer. Fly is cheaper and has a faster edge; neither matters for 80 hitters.
+## The options, as architectures
+| | A. Render + SQLite + Litestream (chosen) | B. Same service on managed Postgres | C. Supabase as the whole backend | D. VPS you run | E. Org-hosted (their cloud) |
+|---|---|---|---|---|---|
+| Code change | none; added a sidecar | port SQL (about 30 SQLite-specific spots in 8 files), rerun every suite | rewrite identity and scoring as TypeScript functions + RLS policies; Python pipeline still needs a host | none | none (container) |
+| Data loss on disk loss | about 1 second, plus phones resend (measured below) | near zero (managed) | near zero with PITR add-on | whatever you configure | whatever they configure |
+| Extra monthly cost | small (bucket) | database tier; Supabase PITR (7-day) is about $100/month on top of compute per a third-party guide ([BackupDrill](https://backupdrill.com/guides/supabase-point-in-time-recovery)); Render Postgres includes PITR on paid plans, 3 days (Hobby workspace) or 7 days (Pro) ([Render docs](https://render.com/docs/postgresql-refresh)) | same Supabase costs plus a second host | cheapest | n/a |
+| Operations | one container, dashboard | container plus database | two systems | OS patching, TLS, Docker | their IT |
+| Scale ceiling | far above 400 hitters (800-hitter load test, zero lost rows) | higher, multiple app instances possible | high | host-limited | n/a |
+| Biggest risk | single instance: downtime on host trouble | porting bugs; connection limits and cold starts on some providers (Neon autosuspend; [Neon FAQ](https://neon.com/faqs/postgres-hosting-options-auto-pause-database)) | silent policy mistakes leak one hitter's data to another | you are the sysadmin | approval timeline |
 
-## What Render costs us
-- Every deploy has a few seconds of downtime (a disk cannot move between two live instances). Phones queue answers and resend. Deploy off-hours; `autoDeploy` is off in `deploy/render.yaml`.
-- Restoring a snapshot rolls the whole disk back and Render warns against it for databases. Our real backup is the nightly SQLite backup copied offsite; the snapshot is the second layer.
-- The SOC 2 report itself may need the Organization tier. Ask Render before the org security review.
+## Why A, now, with the exit defined
+The durability gap that made B or C attractive is closed by Litestream: it streams every database change to the bucket about once a second, supports point-in-time restore, and the 0.5 line is current and maintained ([Litestream](https://litestream.io/how-it-works/), [project](https://github.com/benbjohnson/litestream)). It is disaster recovery, not high availability: one replica destination, and a disk failure can lose roughly the last second. Pinned to 0.5.11 in the image with a checksum.
 
-## Proof I can and cannot give
-Cannot: deploy or time anything on Render or Fly from here.
-Can, and did: the image is identical on every host, and `python -m gameplan.engine.diskcheck /data` checks the properties the host must provide (locks, WAL, fsync speed, 4 concurrent writers, `kill -9` loses nothing). It passed here and inside the container on a mounted volume. **Run it on the Render shell the first time; if it fails, move to Fly or a VPS without changing code.**
+Measured here, not quoted:
+- **Lost-second test (4 trials).** Real engine ingest writing about 2,000 answers a second, Litestream syncing every second, then `kill -9` on the writer and Litestream, then the data folder deleted, then restore from the replica. Integrity check ok every time. Missing acknowledged answers: 1,881 to 1,983 per trial, which is the last second at that synthetic rate. At pilot rates (a few answers a minute) that is zero to a handful.
+- **Container disaster drill.** Through the real API, 3,780 acknowledged answers; container killed with SIGKILL; its disk wiped; a fresh container started on the empty disk restored automatically; 0 missing; the hitter's existing sign-in still worked; ingest after the restore accepted the phone's resend.
+- **Phones fill the gap.** The phone keeps its answers. Its heartbeat reports how many it sent; if the server holds fewer, the server asks it to resend everything and idempotent ingest stores only what is missing. Tested at API level and in Chromium and WebKit (E19).
+- **Three layers:** Litestream (seconds), nightly-style database backups now every 6 hours with 60 kept plus offsite push, and Render's daily disk snapshot as last resort. `/healthz/deep` goes red if Litestream stops syncing, reports errors, or either backup layer goes stale; point an uptime monitor at it.
 
-## Switching later
-Nothing in the code is Render-specific. Moving host means: copy `engine.db` from the latest backup, set the same `ENGINE_SECRET`, start the same image. Phones keep working because credentials are verified against the secret, not the host.
+Why not B today: it fixes a problem A no longer has, at the price of porting and re-proving the identity and sync code. Why not C: unchanged from `docs/ENGINE_DECISION.md`, the core of the problem is custom code and the Python pipeline needs its own host anyway.
+
+## When to move to Postgres (written down now so it is not decided in a crisis)
+Any one of: the org requires a managed database or will not allow a self-run one; you need more than one app instance (zero-downtime deploys, high availability); ingest p99 stays above 500 ms in the load test at your real size; more than one organization shares the service. Cost of the move: a few days plus every suite rerun. The SQL was kept portable on purpose.
+
+## Hosts compared (unchanged where the evidence was fine)
+Out for this design: Heroku (ephemeral disk), DigitalOcean App Platform (no persistent disk), Google Cloud Run (no file locking on its storage mount), Azure Container Apps (SMB share; SQLite on it unverified), Koyeb (volumes "testing only"). Viable: Render, Fly.io, Railway, a VPS, an org tenant. Render stays the pick for a dashboard-run, one-instance service with SOC 2 Type II and ISO 27001; Fly is a one-file switch (`deploy/fly.toml`); so is any host that runs a container with a disk, because the replica lives in your bucket, not on the host.
+
+## What is still not proven
+- The S3 leg of Litestream (the drills used a folder replica; same code path for change capture, different transport).
+- Restore time at season size. Rough size: about 580 bytes per answer, so a season is 0.25 GB at 80 hitters and about 1.3 GB at 400; restore is network-bound, likely minutes.
+- Render itself (nothing has been deployed there), including whether its disk behaves under `diskcheck`.
+- iOS home-screen storage over weeks. WebKit's seven-day cap applies to Safari tabs; home-screen apps count their own days of use, but a WebKit bug report describes a re-login after seven days on iOS 15.3 ([WebKit bug](https://bugs.webkit.org/show_bug.cgi?id=237350), [coverage](https://searchengineland.com/what-safaris-7-day-cap-on-script-writeable-storage-means-for-pwa-developers-332519)). The design assumes it can happen: the server is the source of truth, pairing and recovery codes exist, and a phone whose storage vanished loses only answers it had not sent.
+- Litestream long-term maintenance beyond the current release line.
+
+## Before Opening Day 2027
+A four-week pilot on real devices; one full restore drill on the real Render service and real bucket; a decision on Render versus an org tenant once IT is asked; the consent wording and a written retention rule.

@@ -25,6 +25,8 @@ services:
         sync: false
       - key: OFFSITE_ENDPOINT
         sync: false
+      - key: AWS_REGION
+        sync: false
       - key: AWS_ACCESS_KEY_ID
         sync: false
       - key: AWS_SECRET_ACCESS_KEY

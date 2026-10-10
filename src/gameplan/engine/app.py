@@ -172,7 +172,9 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
                 problems.append("no good backup in 14 hours")
             if offsite.configured() and not fresh("offsite", 14):
                 problems.append("no good offsite copy in 14 hours")
-        body = dict(ok=not problems, problems=problems, offsite_configured=offsite.configured(), time=db.now())
+        from . import replication
+        problems += replication.check()
+        body = dict(ok=not problems, problems=problems, offsite_configured=offsite.configured(), replication=replication.enabled(), time=db.now())
         return JSONResponse(body, 200 if not problems else 503)
 
     @app.get("/config.json")
