@@ -61,6 +61,7 @@ TEMPLATES = {
     "player": """{% extends "base" %}{% block body %}<h1>{{ p.name }}</h1><p class="mut">{{ p.team or 'no team' }}{% if p.level %} ({{ p.level }}){% endif %}, bats {{ p.bats }}{% if p.org_id %}, {{ p.org_id }}{% endif %}</p>
 <h2>Phones</h2>{% if creds %}<table><tr><th>Device</th><th>Set up</th><th>Last seen</th><th>Status</th><th></th></tr>{% for k in creds %}<tr><td>{{ k.label }} <small>({{ k.via }})</small></td><td>{{ k.created_at[:16] }}</td><td>{{ (k.last_seen_at or '')[:16] }}</td><td class="{{ 'bad' if k.revoked_at else 'good' }}">{{ ('revoked: ' ~ k.revoked_reason) if k.revoked_at else 'active' }}</td>
 <td>{% if not k.revoked_at %}<form class="inline" method="post" action="/staff/credential/{{ k.id }}/revoke"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove</button></form>{% endif %}</td></tr>{% endfor %}</table>{% else %}<p class="mut">No phone set up.</p>{% endif %}
+{% if staff and staff['role']=='admin' %}<h2>Delete this hitter's data</h2><form method="post" action="/staff/player/{{ p.id }}/delete" class="card row"><input type="hidden" name="csrf" value="{{ csrf }}"><input name="confirm" placeholder="Type his full name to confirm" required><button class="bad">Delete everything</button></form><p class="mut">Removes his answers, devices and agreements permanently. Backups taken before today still hold them until they age out.</p>{% endif %}
 {% if not views %}<p class="mut">No answers yet.</p>{% endif %}
 {% for v in views %}<h2>{{ v.mode_label }}, {{ v.camera }}</h2><p>Strike or ball: <b>{{ v.sb }}</b> &nbsp; Edge pitches (within 3 in of the zone edge): <b>{{ v.edge }}</b> &nbsp; Which pitch: <b>{{ v.pt }}</b> &nbsp; <small>{{ v.rt }}</small></p>
 <p class="mut">Where he recognizes strike or ball, as the batter sees it (in = toward his body). Cells under {{ min_cell }} answers are not shown.</p>
@@ -326,6 +327,21 @@ def register(app, ctx) -> None:
             r = identity.new_guest_code(c, ctx.secret, pid, None, st["id"])
             name = c.execute("SELECT name FROM players WHERE id=?", (pid,)).fetchone()["name"]
             return render(request, c, "secret", "Shared iPad code", heading=f"Shared iPad code for {name}", blurb="The hitter enters this on the shared iPad's 'Who are you?' screen. His own phone stays signed in.", code=f"{r['pairing_code'][:4]} {r['pairing_code'][4:]}", note=f"Works once, for {r['pairing_minutes']} minutes.")
+        finally:
+            c.close()
+
+    @app.post("/staff/player/{pid}/delete")
+    async def delete_player(pid: int, request: Request):
+        c = db.connect(ctx.db_path)
+        try:
+            st, f, _ = await post(request, c)
+            if st["role"] != "admin":
+                raise identity.EngineError("Admins only.", 403)
+            row = c.execute("SELECT name FROM players WHERE id=?", (pid,)).fetchone()
+            if row is None or (f.get("confirm") or "").strip() != row["name"]:
+                raise identity.EngineError("The name you typed does not match. Nothing was deleted.", 400)
+            n = identity.delete_player_data(c, pid, st["id"])
+            return back("/staff/roster", f"Deleted {n['answers']} answers and everything else for that hitter.")
         finally:
             c.close()
 

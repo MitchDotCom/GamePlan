@@ -243,3 +243,27 @@ def test_staff_pages_escape_hostile_names(env):
     for path in ("/staff/roster", f"/staff/player/{env['p1']}"):
         t = cl.get(path).text
         assert "<script>alert(1)</script>" not in t and "&lt;script&gt;" in t
+
+
+def test_deleting_a_hitters_data_is_admin_only_needs_his_name_and_touches_nobody_else(env):
+    c = env["c"]
+    for pid in (env["p1"], env["p2"]):
+        tok = identity.claim_confirm(c, SECRET, identity.create_claim(c, SECRET, pid), "phone")["credential"]
+        cred, player = identity.authenticate(c, SECRET, tok)
+        from gameplan.engine import answers as A
+        A.ingest(c, player, cred, [ans(f"del{pid}-{i:03d}", env["pack"], f"starterL{i % 4}") for i in range(5)])
+    coach = login(env, env["coach"])
+    r = post(coach, f"/staff/player/{env['p1']}/delete", csrf=csrf(coach), confirm="Jordan Smith")
+    assert r.status_code == 403
+    admin = login(env, ADMIN)
+    wrong = post(admin, f"/staff/player/{env['p1']}/delete", csrf=csrf(admin), confirm="jordan smith")
+    assert wrong.status_code == 400 and c.execute("SELECT COUNT(*) n FROM answers WHERE player_id=?", (env["p1"],)).fetchone()["n"] == 5
+    ok = post(admin, f"/staff/player/{env['p1']}/delete", csrf=csrf(admin), confirm="Jordan Smith")
+    assert ok.status_code == 303
+    for t in ("answers", "credentials", "assignments", "codes", "claim_tokens", "heartbeats", "consents", "playlists"):
+        assert c.execute(f"SELECT COUNT(*) n FROM {t} WHERE player_id=?", (env["p1"],)).fetchone()["n"] == 0, t
+    row = c.execute("SELECT name, org_id, active FROM players WHERE id=?", (env["p1"],)).fetchone()
+    assert row["name"].startswith("Deleted hitter") and row["org_id"] is None and row["active"] == 0
+    assert c.execute("SELECT COUNT(*) n FROM answers WHERE player_id=?", (env["p2"],)).fetchone()["n"] == 5
+    log = c.execute("SELECT detail_json FROM audit_log WHERE action='player.data_deleted'").fetchone()["detail_json"]
+    assert "Jordan" not in log and '"answers": 5' in log

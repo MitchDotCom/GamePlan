@@ -291,6 +291,21 @@ def sign_out(c, credential_id: int) -> None:
         db.audit(c, "player", None, "signed_out", dict(credential_id=credential_id))
 
 
+def delete_player_data(c, player_id: int, staff_id: int | None) -> dict:
+    """A hitter asks for his data to go. Everything tied to him is removed (answers, corrections, heartbeats, devices, codes, consents, playlists); the player row stays only as an
+    anonymous placeholder so the audit trail keeps its references. Admin action; the audit entry records counts, not the name."""
+    with db.tx(c):
+        if c.execute("SELECT 1 FROM players WHERE id=?", (player_id,)).fetchone() is None:
+            raise EngineError("No such player.", 404)
+        n = {}
+        n["voids"] = c.execute("DELETE FROM voids WHERE answer_id IN (SELECT id FROM answers WHERE player_id=?)", (player_id,)).rowcount
+        for t in ("answers", "heartbeats", "playlists", "consents", "codes", "claim_tokens", "credentials", "assignments"):
+            n[t] = c.execute(f"DELETE FROM {t} WHERE player_id=?", (player_id,)).rowcount
+        c.execute("UPDATE players SET name=?, org_id=NULL, mlbam_id=NULL, active=0 WHERE id=?", (f"Deleted hitter {player_id}", player_id))
+        db.audit(c, "staff", staff_id, "player.data_deleted", dict(player_id=player_id, removed=n))
+    return n
+
+
 # ---------------------------------------------------------------- staff
 def create_staff(c, secret: str, name: str, role: str, team_ids: list[int] | None = None, actor: int | None = None, token: str | None = None) -> tuple:
     if role not in ("admin", "coach"):
