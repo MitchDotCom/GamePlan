@@ -6,7 +6,8 @@ requires-python = ">=3.10"
 dependencies = ["numpy", "scipy"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "httpx"]
+engine = ["fastapi", "uvicorn", "jinja2", "segno", "imageio-ffmpeg", "httpx"]
 desktop = ["pywebview"]
 
 [project.scripts]

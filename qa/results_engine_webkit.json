@@ -1,0 +1,11 @@
+[
+ {
+  "id": "E4",
+  "area": "Sync",
+  "test": "Offline first: answer with no signal, reload still offline (still signed in, playlist cached), come back online: every answer arrives once, banner clears",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 7.6,
+  "severity": "S1"
+ }
+]

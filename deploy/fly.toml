@@ -1,0 +1,22 @@
+# Example for Fly.io (any host with a container, HTTPS and a persistent volume works the same way).
+# Secrets: fly secrets set ENGINE_SECRET=... ENGINE_ADMIN_TOKEN=... PUBLIC_URL=https://<app>.fly.dev
+app = "recognition-engine"
+primary_region = "lax"
+
+[build]
+  dockerfile = "../Dockerfile"
+
+[mounts]
+  source = "engine_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

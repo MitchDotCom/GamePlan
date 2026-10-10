@@ -102,6 +102,18 @@ class Server:
         self.srv.should_exit = True
         self.th.join(5)
 
+    def up(self):
+        """Start (or restart) the server on the same port with the same database: the phone sees a dead network, not a simulated one."""
+        self.srv = uvicorn.Server(uvicorn.Config(self.app, host="127.0.0.1", port=self.port, log_level="error", lifespan="off"))
+        self.th = threading.Thread(target=self.srv.run, daemon=True)
+        self.th.start()
+        for _ in range(100):
+            try:
+                socket.create_connection(("127.0.0.1", self.port), 0.2).close()
+                return
+            except OSError:
+                time.sleep(0.05)
+
 
 class Browser:
     def __init__(self, pw):
@@ -199,7 +211,7 @@ def main():
             p2.wait_for_selector("#gPair", timeout=15000)
             p2.fill("#gCode", code[:4] + " " + code[4:])
             p2.click("#gPair")
-            p2.wait_for_function("window.__engine.me() && !document.body.classList.contains('gate')", timeout=15000)
+            p2.wait_for_function("window.__engine && window.__engine.me() && !document.body.classList.contains('gate')", timeout=15000)
             assert "Demo Hitter Four" in p2.inner_text("#whoTxt")
             p1.evaluate("window.__engine.api('/api/me').catch(e => e)")
             p1.wait_for_selector("#gPair", timeout=15000)           # the old credential was retired: the browser is asked who it is
@@ -232,7 +244,7 @@ def main():
             p.click("#gYes")
             p.wait_for_selector(".codebox")
             p.click("#gGo")
-            p.wait_for_function("window.__engine.me() && window.__engine.me().name==='Demo Switch Hitter' && !document.body.classList.contains('gate')", timeout=15000)
+            p.wait_for_function("window.__engine && window.__engine.me() && window.__engine.me().name==='Demo Switch Hitter' && !document.body.classList.contains('gate')", timeout=15000)
             p.evaluate("window.__engine.flush(true)")
             p.wait_for_timeout(1500)
             rows = S.rows("SELECT p.name, COUNT(*) n FROM answers a JOIN players p ON p.id=a.player_id GROUP BY p.name")
@@ -250,11 +262,11 @@ def main():
             claim(p, S.claim_link("Demo Hitter Four"))
             p.evaluate("navigator.serviceWorker.ready.then(() => true)")
             p.reload()
-            p.wait_for_function("window.__engine.me() && window.__gonogo.queue()", timeout=15000)
+            p.wait_for_function("window.__engine && window.__engine.me() && window.__gonogo.queue()", timeout=15000)
             p.wait_for_function("navigator.serviceWorker.controller !== null", timeout=15000)
             start_pack(p, "Next starter")
             wait_q(p)
-            ctx.set_offline(True)
+            S.stop()                                   # a dead server is what no-signal looks like to the page; WebKit's simulated offline mode cannot reload a service-worker page
             p.click("#bstrike")
             p.wait_for_function("document.getElementById('hlab').textContent.startsWith('Question 2')")
             p.click("#opts button:nth-child(1)")
@@ -264,7 +276,7 @@ def main():
             p.wait_for_function("window.__engine && window.__engine.me() && window.__gonogo.queue()", timeout=15000)
             assert "Demo Hitter Four" in p.inner_text("#whoTxt") and "2 not sent" in p.inner_text("#pend"), (p.inner_text("#whoTxt"), p.inner_text("#pend"))
             assert p.evaluate("window.__gonogo.queue().packs.length") > 0
-            ctx.set_offline(False)
+            S.up()
             p.evaluate("window.__engine.flush(true)")
             p.wait_for_function("document.getElementById('pend').textContent.startsWith('0 ')", timeout=15000)
             rows = S.rows("SELECT id FROM answers")
@@ -318,7 +330,7 @@ def main():
             p2.wait_for_selector("#gRecover", timeout=15000)
             p2.fill("#gCode", S.recovery_code("Demo Hitter Four"))
             p2.click("#gRecover")
-            p2.wait_for_function("window.__engine.me() && !document.body.classList.contains('gate')", timeout=15000)
+            p2.wait_for_function("window.__engine && window.__engine.me() && !document.body.classList.contains('gate')", timeout=15000)
             who = p2.inner_text("#whoTxt")
             rows = S.rows("SELECT id FROM answers")
             creds = S.rows("SELECT revoked_reason r FROM credentials ORDER BY id")

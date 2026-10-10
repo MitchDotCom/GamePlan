@@ -1,0 +1,8 @@
+.git
+data
+reports
+research_notes
+tests
+qa
+__pycache__
+*.egg-info
