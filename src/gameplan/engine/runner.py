@@ -15,10 +15,11 @@ import traceback
 
 from .. import next_starter as NS
 from . import backup as BK
+from . import offsite as OFF
 from . import db, identity, jobs, reconcile
 
 log = logging.getLogger("engine.runner")
-INTERVALS = dict(starters=3 * 3600, reconcile=3600, backup=24 * 3600)
+INTERVALS = dict(starters=3 * 3600, reconcile=3600, backup=24 * 3600, offsite=24 * 3600)
 
 
 def _last_run(c, name: str):
@@ -78,7 +79,7 @@ def tick(db_path: pathlib.Path, backup_dir: pathlib.Path, now: str | None = None
             if name == "backup" and now[11:13] < "03" and last is not None:
                 continue
             fn = dict(starters=lambda: suggest_starters(c, resolver), reconcile=lambda: dict(findings=reconcile.findings(c)),
-                      backup=lambda: dict(file=str(BK.backup(db_path, backup_dir)), counts=BK.counts(db_path)))[name]
+                      backup=lambda: dict(file=str(BK.backup(db_path, backup_dir)), counts=BK.counts(db_path)), offsite=lambda: OFF.push(backup_dir))[name]
             _record(c, name, fn)
             ran.append(name)
     finally:

@@ -157,6 +157,24 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
         v = c.execute("SELECT MAX(version) v FROM schema_version").fetchone()["v"]
         return dict(ok=True, schema=v, time=db.now(), version=APP_VERSION)
 
+    @app.get("/healthz/deep")
+    def healthz_deep(c=Depends(get_conn)):
+        """For an uptime monitor: 200 only if the database is intact and the nightly backup (and offsite copy, if set up) are fresh. 503 names what is wrong, nothing else."""
+        from . import offsite
+        problems = []
+        if c.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+            problems.append("database check failed")
+        def fresh(name, hours):
+            r = c.execute("SELECT started_at FROM job_runs WHERE name=? AND ok=1 ORDER BY id DESC LIMIT 1", (name,)).fetchone()
+            return r is not None and r["started_at"] > db.plus(db.now(), hours=-hours)
+        if os.environ.get("ENGINE_SCHEDULER", "1") != "0":          # the first backup runs on the first scheduler tick after start, so a healthy service passes within a minute
+            if not fresh("backup", 36):
+                problems.append("no good backup in 36 hours")
+            if offsite.configured() and not fresh("offsite", 36):
+                problems.append("no good offsite copy in 36 hours")
+        body = dict(ok=not problems, problems=problems, offsite_configured=offsite.configured(), time=db.now())
+        return JSONResponse(body, 200 if not problems else 503)
+
     @app.get("/config.json")
     def config():
         return dict(engine=True, api="/api", content="/content/", app_version=APP_VERSION, min_app_version=MIN_APP_VERSION)
@@ -200,7 +218,7 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
         cons = None
         if consent_cfg:
             cons = dict(CONSENT.public(consent_cfg), accepted=CONSENT.accepted(c, player["id"], consent_cfg["version"]))
-        return dict(player=card, settings=st, consent=cons, server_time=db.now(), app_version=APP_VERSION, min_app_version=MIN_APP_VERSION)
+        return dict(player=card, settings=st, consent=cons, shared=bool(cred["shared"]), server_time=db.now(), app_version=APP_VERSION, min_app_version=MIN_APP_VERSION)
 
     @app.post("/api/consent")
     async def post_consent(request: Request, auth=Depends(player_auth), c=Depends(get_conn)):
@@ -214,6 +232,10 @@ def create_app(data_dir=None, secret: str | None = None, admin_token: str | None
     def signout(auth=Depends(player_auth), c=Depends(get_conn)):
         identity.sign_out(c, auth[0]["id"])
         return dict(ok=True)
+
+    @app.post("/api/guest-code")
+    def guest_code(auth=Depends(player_auth), c=Depends(get_conn)):
+        return identity.new_guest_code(c, ctx.secret, auth[1]["id"], auth[0]["id"])
 
     @app.post("/api/pairing-code")
     def pairing_code(auth=Depends(player_auth), c=Depends(get_conn)):

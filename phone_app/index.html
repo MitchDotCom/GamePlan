@@ -137,7 +137,7 @@ section{display:none}section.on{display:block}
 </section>
 
 <section id="t-set">
-  <div class="card eng" id="engineSet"><h2>You</h2><div class="note" id="meCard"></div><div class="row"><button id="pairShow">Set up the installed app</button><button id="refreshPl">Check for a new playlist</button></div><div class="note" id="pairOut"></div><div class="note" id="engInfo"></div></div>
+  <div class="card eng" id="engineSet"><h2>You</h2><div class="note" id="meCard"></div><div class="row"><button id="pairShow">Set up the installed app</button><button id="guestShow">Use on a shared iPad</button><button id="refreshPl">Check for a new playlist</button></div><div class="note" id="pairOut"></div><div class="note" id="engInfo"></div></div>
   <div class="card legacy"><h2>Player</h2>
    <dl class="det"><dt>Name or ID</dt><dd><input type="text" id="player" autocomplete="off" size="14"></dd>
    <dt>Batting side today</dt><dd><select id="bats"><option value="R">Right</option><option value="L">Left</option></select></dd>
@@ -426,7 +426,7 @@ function gateOff(){document.body.classList.remove("gate")}
 const fmtCode=c=>String(c).replace(/(\d{4})(\d{4})/,"$1 $2");
 function gateWelcome(msg){
   gate("Welcome","Who are you?",`${msg?`<div class="card note">${esc(msg)}</div>`:""}
-   <div class="card"><h2>I have a code</h2><div class="note">A pairing code from your phone's browser, or a recovery code from a coach.</div>
+   <div class="card"><h2>I have a code</h2><div class="note">A pairing code from your phone, a shared-iPad code, or a recovery code from a coach.</div>
    <input type="text" id="gCode" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="0000 0000"><div class="row"><button class="pri" id="gPair">Use pairing code</button><button id="gRecover">Use recovery code</button></div><div class="note" id="gMsg"></div></div>
    <div class="card note">First time? Open the link your coach sent you, on this phone.</div>`);
   const go=async(kind)=>{const code=$("gCode").value;if(!code.trim())return;$("gMsg").textContent="Checking...";
@@ -445,7 +445,7 @@ async function claimFlow(token){
       const r=await api("/api/claim/confirm",{anon:true,body:{token,label:deviceLabel()}});await adoptCredential(r.credential,r.player);history.replaceState(null,"","/");
       gate("You are set up",r.player.name,`<div class="card"><div class="note">To use the installed app: tap Share, then Add to Home Screen. Open it and enter this code within ${r.pairing_minutes} minutes.</div><div class="codebox">${esc(fmtCode(r.pairing_code))}</div><div class="row"><button class="pri" id="gGo">Continue here</button></div></div>`);
       $("gGo").onclick=()=>enterApp()}catch(e){$("gMsg").textContent=e.offline?"No signal. Try again when you are online.":e.message}}}
-async function onSignedOut(){CRED=null;ME=null;await kvSet("cred",null);await kvSet("me",null);gateWelcome("You were signed out. Use a pairing or recovery code, or open a new link from your coach.")}
+async function onSignedOut(){SHARED=false;clearTimeout(idleTimer);CRED=null;ME=null;await kvSet("cred",null);await kvSet("me",null);gateWelcome("You were signed out. Use a pairing or recovery code, or open a new link from your coach.")}
 function gateConsent(c){
   gate("Before you start",c.title||"About your data",`<div class="card">${c.paragraphs.map(p=>`<p>${esc(p)}</p>`).join("")}<div class="row"><button class="pri" id="gAgree">${esc(c.button||"I agree")}</button></div><div class="note" id="gMsg"></div></div>`);
   $("gAgree").onclick=async()=>{$("gMsg").textContent="Saving...";try{await api("/api/consent",{body:{version:c.version}});await enterApp()}catch(e){if(e.signedOut)return;$("gMsg").textContent=e.message||"Could not save. Check your signal and try again."}}}
@@ -453,13 +453,24 @@ async function enterApp(){
   CRED=CRED||await kvGet("cred",null);if(!CRED)return gateWelcome();
   try{const me=await api("/api/me");ME=me.player;ESET=me.settings;await kvSet("me",ME);await kvSet("eset",ESET);
     if(me.min_app_version&&me.min_app_version!==APP_ENGINE)showUpdate();
-    if(me.consent&&!me.consent.accepted)return gateConsent(me.consent)}
+    await kvSet("shared",!!me.shared);if(me.consent&&!me.consent.accepted)return gateConsent(me.consent)}
   catch(e){if(e.signedOut)return;ME=await kvGet("me",null);ESET=await kvGet("eset",null);
     if(!ME){gate("Offline","No signal",`<div class="card"><div class="note">Connect once to load your account.</div><div class="row"><button class="pri" id="gRetry">Try again</button></div></div>`);$("gRetry").onclick=enterApp;return}}
-  gateOff();applyIdentity();await applySettings();await loadQueue();renderStats();updateChips();setNet();
+  gateOff();sharedSetup(await kvGet("shared",false));applyIdentity();await applySettings();await loadQueue();renderStats();updateChips();setNet();
   engineStartTimers();engineFlush(true);
   showTab("play")}
 function showUpdate(){const b=$("unsentBanner");b.style.display="";b.textContent="A new version is available. Close the app completely and open it again."}
+let SHARED=false,idleTimer=null;const IDLE_MS=window.__IDLE_MS_FOR_TEST||5*60000;
+function sharedSetup(on){SHARED=!!on;$("notme").textContent=SHARED?"Done":"Not you?";
+  const bump=()=>{if(!SHARED)return;clearTimeout(idleTimer);idleTimer=setTimeout(sharedIdleOut,IDLE_MS)};
+  if(!sharedSetup.wired){sharedSetup.wired=true;["pointerdown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,bump,{passive:true}));
+    document.addEventListener("visibilitychange",()=>{if(!SHARED)return;if(document.visibilityState==="hidden")sharedSetup.hiddenAt=Date.now();else if(sharedSetup.hiddenAt&&Date.now()-sharedSetup.hiddenAt>IDLE_MS)sharedIdleOut();else bump()})}
+  bump()}
+async function sharedIdleOut(){                   // a shared iPad must not stay open on one hitter: send what is unsent, sign out, show the welcome screen
+  if(!SHARED||!ME)return;SHARED=false;clearTimeout(idleTimer);
+  try{await engineFlush(true)}catch(e){}
+  try{await api("/api/signout",{body:{}})}catch(e){}
+  await onSignedOut()}
 function applyIdentity(){
   $("player").value=ME.name;const sw=ME.bats==="S";$("sideWrap").style.display=sw?"":"none";
   $("bats").value=sw?($("bats").value||"R"):ME.bats;if(sw){$("sideSel").value=$("bats").value}
@@ -513,11 +524,12 @@ async function engineInfo(){
   if(!ME)return;const t=await allTrials();const mine=t.filter(x=>x.pid===ME.id),others=t.filter(x=>x.pid!==ME.id&&x.pid!==undefined&&!x.synced).length;let n=0;try{n=(await navigator.storage.estimate()).usage||0}catch(e){}
   $("engInfo").textContent=`${mine.length} answers on this phone, ${mine.filter(x=>!x.synced).length} not sent. Storage used about ${(n/1e6).toFixed(1)} MB. Playlist date ${Q&&Q.generated?Q.generated:"not loaded"}.${others?` ${others} answers from another player are waiting on this phone and will not be sent under your name.`:""}`}
 $("refreshPl").onclick=async()=>{await loadQueue();say("dlmsg","Playlist refreshed.")};
+$("guestShow").onclick=async()=>{try{const r=await api("/api/guest-code",{body:{}});$("pairOut").innerHTML=`On the shared iPad, choose <b>Use code</b> and enter <b>${esc(fmtCode(r.pairing_code))}</b> within ${r.pairing_minutes} minutes. Your phone stays signed in. When you are done on the iPad, tap <b>Done</b>.`}catch(e){if(!e.signedOut)$("pairOut").textContent=e.offline?"You need signal to get a code.":e.message}};
 $("pairShow").onclick=async()=>{try{const r=await api("/api/pairing-code",{body:{}});$("pairOut").innerHTML=`Open the installed app and enter <b>${esc(fmtCode(r.pairing_code))}</b> within ${r.pairing_minutes} minutes. This phone's browser sign-in ends when you do.`}catch(e){$("pairOut").textContent=e.message}};
 $("notme").onclick=async()=>{
   await engineFlush(true);const un=(await allTrials()).filter(t=>t.pid===ME.id&&!t.synced).length;
   if(un&&!confirm(`${un} answers have not been sent yet and could not be sent right now. If you sign out, they stay on this phone but will only send when ${ME.name} signs in again. Sign out anyway?`))return;
-  if(!un&&!confirm(`Sign out ${ME.name} from this phone?`))return;
+  if(!un&&!SHARED&&!confirm(`Sign out ${ME.name} from this phone?`))return;
   try{await api("/api/signout",{body:{}})}catch(e){}
   await onSignedOut()};
 async function engineBoot(){

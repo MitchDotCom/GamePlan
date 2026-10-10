@@ -7,7 +7,7 @@ dependencies = ["numpy", "scipy"]
 
 [project.optional-dependencies]
 dev = ["pytest", "httpx"]
-engine = ["fastapi", "uvicorn", "jinja2", "segno", "imageio-ffmpeg", "httpx"]
+engine = ["fastapi", "uvicorn", "jinja2", "segno", "imageio-ffmpeg", "httpx", "boto3"]
 desktop = ["pywebview"]
 
 [project.scripts]

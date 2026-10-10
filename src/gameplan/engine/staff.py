@@ -52,7 +52,8 @@ TEMPLATES = {
 <table><tr><th>Hitter</th><th>Bats</th><th>Team</th><th>Phones</th><th>Agreed</th><th>Last answer</th><th class="n">7 days</th><th></th></tr>
 {% for p in players %}<tr><td><a href="/staff/player/{{ p.id }}">{{ p.name }}</a><br><small>{{ p.org_id or '' }}</small></td><td>{{ p.bats }}</td><td>{{ p.team or 'none' }}{% if p.level %} ({{ p.level }}){% endif %}</td><td>{{ p.creds }}</td><td>{{ p.consent }}</td><td>{{ (p.last or '')[:16] }}</td><td class="n">{{ p.n7 }}</td>
 <td><form class="inline" method="post" action="/staff/player/{{ p.id }}/claim"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Claim link</button></form>
-<form class="inline" method="post" action="/staff/player/{{ p.id }}/recovery"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Recovery code</button></form></td></tr>{% endfor %}</table>
+<form class="inline" method="post" action="/staff/player/{{ p.id }}/recovery"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Recovery code</button></form>
+<form class="inline" method="post" action="/staff/player/{{ p.id }}/guest"><input type="hidden" name="csrf" value="{{ csrf }}"><button>iPad code</button></form></td></tr>{% endfor %}</table>
 <h2>Add a hitter</h2><form method="post" action="/staff/roster/add" class="card row"><input type="hidden" name="csrf" value="{{ csrf }}"><input name="name" placeholder="Name" required><select name="bats"><option>R</option><option>L</option><option>S</option></select>
 <select name="team_id">{% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select><input name="org_id" placeholder="Org player id"><button class="pri">Add</button></form>
 <h2>Import a roster (CSV)</h2><form method="post" action="/staff/roster/import" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><p class="mut">Columns: name, bats, team, org_id (players are matched on org_id, never on name), mlbam_id, throws.</p><textarea name="csv" rows="6" cols="80" placeholder="name,bats,team,org_id"></textarea><p><button class="pri">Import</button></p></form>{% endblock %}""",
@@ -313,6 +314,18 @@ def register(app, ctx) -> None:
             r = identity.create_recovery(c, ctx.secret, pid, st["id"])
             name = c.execute("SELECT name FROM players WHERE id=?", (pid,)).fetchone()["name"]
             return render(request, c, "secret", "Recovery code", heading=f"Recovery code for {name}", blurb="Give this to the hitter. He enters it on the 'Who are you?' screen. Using it signs out every other phone he had.", code=f"{r['code'][:4]} {r['code'][4:]}", note=f"Works once, for {r['hours']} hours.")
+        finally:
+            c.close()
+
+    @app.post("/staff/player/{pid}/guest")
+    async def make_guest(pid: int, request: Request):
+        c = db.connect(ctx.db_path)
+        try:
+            st, _, _ = await post(request, c)
+            player_ok(c, st, pid)
+            r = identity.new_guest_code(c, ctx.secret, pid, None, st["id"])
+            name = c.execute("SELECT name FROM players WHERE id=?", (pid,)).fetchone()["name"]
+            return render(request, c, "secret", "Shared iPad code", heading=f"Shared iPad code for {name}", blurb="The hitter enters this on the shared iPad's 'Who are you?' screen. His own phone stays signed in.", code=f"{r['pairing_code'][:4]} {r['pairing_code'][4:]}", note=f"Works once, for {r['pairing_minutes']} minutes.")
         finally:
             c.close()
 

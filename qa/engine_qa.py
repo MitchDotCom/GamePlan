@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 import shutil
 import socket
 import sqlite3
@@ -507,6 +508,62 @@ def main():
             S.stop()
             assert len(rows) == 1 and rows[0]["version"]
             return f"gate shown, agreement recorded for version {rows[0]['version']}"
+
+        @check("E17", "Shared iPad", "Shared iPad: a hitter's phone issues a code, he signs in on the iPad, answers land under his name, Done signs him out, and his phone stayed signed in throughout", "S1")
+        def _():
+            S = Server(tpl)
+            ctxp, ph = B.page()
+            claim(ph, S.claim_link("Demo Hitter Four"))
+            ph.click("#guestShow") if ph.is_visible("#guestShow") else ph.evaluate("document.getElementById('guestShow').click()")
+            ph.wait_for_function("/\\d{4} \\d{4}/.test(document.getElementById('pairOut').textContent)", timeout=10000)
+            code = re.search(r"(\d{4} \d{4})", ph.inner_text("#pairOut")).group(1)
+            ctxi, ip = B.page()
+            ip.goto(S.base + "/")
+            ip.wait_for_selector("#gPair", timeout=15000)
+            ip.fill("#gCode", code)
+            ip.click("#gPair")
+            ip.wait_for_function("window.__engine && window.__engine.me() && window.__engine.me().name==='Demo Hitter Four' && !document.body.classList.contains('gate') && window.__gonogo.queue()", timeout=15000)
+            assert ip.inner_text("#notme") == "Done"
+            start_pack(ip, "Next starter")
+            wait_q(ip)
+            ip.click("#bstrike")
+            ip.wait_for_function("document.getElementById('hlab').textContent.startsWith('Question 2')")
+            ip.click("#opts button:nth-child(1)")
+            finish_pitch(ip)
+            ip.evaluate("window.__engine.flush(true)")
+            ip.wait_for_function("document.getElementById('pend').textContent.startsWith('0 ')", timeout=15000)
+            ip.click("#notme")                                   # Done: nothing unsent, so no question asked
+            ip.wait_for_selector("#gPair", timeout=10000)
+            assert "Demo Hitter Four" not in ip.inner_text("body")
+            n = S.rows("SELECT COUNT(*) n FROM answers a JOIN players p ON p.id=a.player_id WHERE p.name='Demo Hitter Four'")[0]["n"]
+            shared = S.rows("SELECT shared, revoked_reason FROM credentials WHERE shared=1")
+            phone_ok = ph.evaluate("window.__engine.api('/api/me').then(m => m.player.name)")
+            ctxi.close(); ctxp.close()
+            S.stop()
+            assert n == 2 and len(shared) == 1 and shared[0]["revoked_reason"] == "signed_out" and phone_ok == "Demo Hitter Four", (n, shared, phone_ok)
+            return "2 answers under his name from the iPad; iPad credential retired on Done; phone still signed in"
+
+        @check("E18", "Shared iPad", "Shared iPad left alone: after the idle time it flushes, signs the hitter out and shows the welcome screen", "S1")
+        def _():
+            S = Server(tpl)
+            ctxp, ph = B.page()
+            claim(ph, S.claim_link("Demo Hitter Four"))
+            ph.evaluate("document.getElementById('guestShow').click()")
+            ph.wait_for_function("/\\d{4} \\d{4}/.test(document.getElementById('pairOut').textContent)", timeout=10000)
+            code = re.search(r"(\d{4} \d{4})", ph.inner_text("#pairOut")).group(1)
+            ctxi, ip = B.page()
+            ip.add_init_script("window.__IDLE_MS_FOR_TEST = 1500")
+            ip.goto(S.base + "/")
+            ip.wait_for_selector("#gPair", timeout=15000)
+            ip.fill("#gCode", code)
+            ip.click("#gPair")
+            ip.wait_for_function("window.__engine && window.__engine.me() && !document.body.classList.contains('gate')", timeout=15000)
+            ip.wait_for_selector("#gPair", timeout=20000)         # nobody touches it: it signs out by itself
+            live = S.rows("SELECT COUNT(*) n FROM credentials WHERE shared=1 AND revoked_at IS NULL")[0]["n"]
+            ctxi.close(); ctxp.close()
+            S.stop()
+            assert live == 0, live
+            return "signed out on its own; server credential retired"
 
         @check("E15", "Console", "No uncaught script errors or console errors across the whole run", "S1")
         def _():

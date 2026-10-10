@@ -13,6 +13,9 @@ import sqlite3
 from . import db, security
 
 MAX_CREDENTIALS = 2
+MAX_SHARED = 3                 # sign-ins on shared iPads are disposable: past this the oldest is retired
+SHARED_IDLE_HOURS = 8          # a shared sign-in nobody has touched for this long stops working
+GUEST_MINUTES = 10
 CLAIM_DAYS = 7
 PAIR_MINUTES = 10
 RECOVER_HOURS = 24
@@ -103,7 +106,8 @@ def import_roster(c, rows: list[dict], actor: int | None = None) -> dict:
 
 # ---------------------------------------------------------------- claim, pairing, recovery
 def _active_credentials(c, player_id: int) -> int:
-    return c.execute("SELECT COUNT(*) n FROM credentials WHERE player_id=? AND revoked_at IS NULL", (player_id,)).fetchone()["n"]
+    """His own phones: shared-iPad sign-ins do not use up a phone slot."""
+    return c.execute("SELECT COUNT(*) n FROM credentials WHERE player_id=? AND revoked_at IS NULL AND shared=0", (player_id,)).fetchone()["n"]
 
 
 def create_claim(c, secret: str, player_id: int, staff_id: int | None = None) -> str:
@@ -140,20 +144,21 @@ def claim_preview(c, secret: str, token: str) -> dict:
     return player_card(c, row["player_id"])
 
 
-def _new_credential(c, secret: str, player_id: int, label: str, via: str) -> tuple:
+def _new_credential(c, secret: str, player_id: int, label: str, via: str, shared: int = 0) -> tuple:
     tok = security.new_token(32)
-    cur = c.execute("INSERT INTO credentials(player_id, token_hash, label, created_at, last_seen_at, via) VALUES (?,?,?,?,?,?)",
-                    (player_id, security.keyed_hash(secret, tok), (label or "")[:60], db.now(), db.now(), via))
+    cur = c.execute("INSERT INTO credentials(player_id, token_hash, label, created_at, last_seen_at, via, shared) VALUES (?,?,?,?,?,?,?)",
+                    (player_id, security.keyed_hash(secret, tok), (label or "")[:60], db.now(), db.now(), via, shared))
     return cur.lastrowid, tok
 
 
-def _new_pair_code(c, secret: str, player_id: int, cred_id: int) -> str:
-    c.execute("UPDATE codes SET revoked_at=? WHERE kind='pair' AND player_id=? AND used_at IS NULL AND revoked_at IS NULL", (db.now(), player_id))
+def _new_pair_code(c, secret: str, player_id: int, cred_id: int | None, keep_issuer: int = 0, staff_id: int | None = None) -> str:
+    """keep_issuer=0: the home-screen app pairing code (redeeming it retires the browser credential that issued it). keep_issuer=1: a shared-iPad code (the issuer stays signed in)."""
+    c.execute("UPDATE codes SET revoked_at=? WHERE kind='pair' AND player_id=? AND keep_issuer=? AND used_at IS NULL AND revoked_at IS NULL", (db.now(), player_id, keep_issuer))
     for _ in range(20):
         code = security.new_code(8)
         try:
-            c.execute("INSERT INTO codes(kind, player_id, code_hash, from_credential_id, created_at, expires_at) VALUES ('pair',?,?,?,?,?)",
-                      (player_id, security.keyed_hash(secret, code), cred_id, db.now(), db.plus(db.now(), minutes=PAIR_MINUTES)))
+            c.execute("INSERT INTO codes(kind, player_id, code_hash, from_credential_id, created_by, created_at, expires_at, keep_issuer) VALUES ('pair',?,?,?,?,?,?,?)",
+                      (player_id, security.keyed_hash(secret, code), cred_id, staff_id, db.now(), db.plus(db.now(), minutes=GUEST_MINUTES if keep_issuer else PAIR_MINUTES), keep_issuer))
             return code
         except sqlite3.IntegrityError:
             continue
@@ -184,6 +189,14 @@ def new_pairing_code(c, secret: str, player_id: int, credential_id: int) -> dict
     return dict(pairing_code=code, pairing_minutes=PAIR_MINUTES)
 
 
+def new_guest_code(c, secret: str, player_id: int, credential_id: int | None, staff_id: int | None = None) -> dict:
+    """A code to sign in on a shared iPad. His phone (or a coach) issues it; redeeming it leaves the phone signed in."""
+    with db.tx(c):
+        code = _new_pair_code(c, secret, player_id, credential_id, 1, staff_id)
+        db.audit(c, "staff" if staff_id else "player", staff_id or player_id, "guest_code_issued", dict(player_id=player_id, credential_id=credential_id))
+    return dict(pairing_code=code, pairing_minutes=GUEST_MINUTES)
+
+
 def _redeem(c, secret: str, kind: str, code: str):
     row = c.execute("SELECT * FROM codes WHERE kind=? AND code_hash=?", (kind, security.keyed_hash(secret, security.clean_code(code)))).fetchone()
     if row is None or row["used_at"] or row["revoked_at"] or row["expires_at"] < db.now():
@@ -198,6 +211,14 @@ def pair(c, secret: str, code: str, label: str = "") -> dict:
         if row is None:
             raise EngineError(BAD, 404, "invalid")
         pid = row["player_id"]
+        if row["keep_issuer"]:
+            old = c.execute("SELECT id FROM credentials WHERE player_id=? AND shared=1 AND revoked_at IS NULL ORDER BY id DESC", (pid,)).fetchall()
+            for r in old[MAX_SHARED - 1:]:
+                c.execute("UPDATE credentials SET revoked_at=?, revoked_reason='shared_replaced' WHERE id=?", (db.now(), r["id"]))
+            cred_id, tok = _new_credential(c, secret, pid, label or "Shared iPad", "guest", 1)
+            c.execute("UPDATE codes SET used_at=? WHERE id=?", (db.now(), row["id"]))
+            db.audit(c, "player", pid, "guest_signin", dict(credential_id=cred_id))
+            return dict(credential=tok, player=player_card(c, pid), shared=True)
         if row["from_credential_id"]:
             c.execute("UPDATE credentials SET revoked_at=?, revoked_reason='replaced_by_pairing' WHERE id=? AND revoked_at IS NULL", (db.now(), row["from_credential_id"]))
         if _active_credentials(c, pid) >= MAX_CREDENTIALS:
@@ -245,6 +266,9 @@ def authenticate(c, secret: str, bearer: str | None):
         return None
     cred = c.execute("SELECT * FROM credentials WHERE token_hash=? AND revoked_at IS NULL", (security.keyed_hash(secret, bearer),)).fetchone()
     if cred is None:
+        return None
+    if cred["shared"] and (cred["last_seen_at"] or "") < db.plus(db.now(), hours=-SHARED_IDLE_HOURS):
+        c.execute("UPDATE credentials SET revoked_at=?, revoked_reason='shared_idle' WHERE id=? AND revoked_at IS NULL", (db.now(), cred["id"]))
         return None
     player = c.execute("SELECT * FROM players WHERE id=? AND active=1", (cred["player_id"],)).fetchone()
     if player is None:

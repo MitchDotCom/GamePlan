@@ -191,7 +191,7 @@ def test_scheduler_runs_each_job_once_per_interval_records_failures_and_only_sug
         return dict(status="confirmed", team_id=team, game_pk=1, date="2026-10-30", pitcher_id=7, pitcher_name="Probable P", season=2026, checked_at="x")
     dbp = env["app"].state.ctx.db_path
     ran = runner.tick(dbp, tmp_path / "bk", now="2026-10-10T05:00:00.000000Z", resolver=resolver)
-    assert set(ran) == {"starters", "reconcile", "backup"}
+    assert set(ran) == {"starters", "reconcile", "backup", "offsite"}
     assert runner.tick(dbp, tmp_path / "bk", now="2026-10-10T05:10:00.000000Z", resolver=resolver) == []
     assert (14, 516) not in calls and {(516, 14), (2310, 11)} <= set(calls)
     st = c.execute("SELECT status, source FROM starters").fetchall()

@@ -10,7 +10,7 @@ import json
 import pathlib
 import sqlite3
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
@@ -24,11 +24,11 @@ CREATE INDEX IF NOT EXISTS ix_assign_player ON assignments(player_id, start_date
 CREATE TABLE IF NOT EXISTS claim_tokens (
   id INTEGER PRIMARY KEY, player_id INTEGER NOT NULL REFERENCES players(id), token_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, used_at TEXT, revoked_at TEXT, created_by INTEGER);
 CREATE TABLE IF NOT EXISTS credentials (
-  id INTEGER PRIMARY KEY, player_id INTEGER NOT NULL REFERENCES players(id), token_hash TEXT NOT NULL UNIQUE, label TEXT, created_at TEXT NOT NULL, last_seen_at TEXT, revoked_at TEXT, revoked_reason TEXT, via TEXT NOT NULL);
+  id INTEGER PRIMARY KEY, player_id INTEGER NOT NULL REFERENCES players(id), token_hash TEXT NOT NULL UNIQUE, label TEXT, created_at TEXT NOT NULL, last_seen_at TEXT, revoked_at TEXT, revoked_reason TEXT, via TEXT NOT NULL, shared INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS ix_cred_player ON credentials(player_id);
 CREATE TABLE IF NOT EXISTS codes (
   id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('pair','recover')), player_id INTEGER NOT NULL REFERENCES players(id), code_hash TEXT NOT NULL UNIQUE,
-  from_credential_id INTEGER, created_by INTEGER, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, used_at TEXT, revoked_at TEXT);
+  from_credential_id INTEGER, created_by INTEGER, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, used_at TEXT, revoked_at TEXT, keep_issuer INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS staff (
   id INTEGER PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('admin','coach')), token_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, revoked_at TEXT);
 CREATE TABLE IF NOT EXISTS staff_teams (staff_id INTEGER NOT NULL REFERENCES staff(id), team_id INTEGER NOT NULL REFERENCES teams(id), PRIMARY KEY (staff_id, team_id));
@@ -85,8 +85,15 @@ def connect(path: str | pathlib.Path) -> sqlite3.Connection:
     return c
 
 
+def _add_column(c, table: str, column: str, ddl: str) -> None:
+    if column not in [r["name"] for r in c.execute(f"PRAGMA table_info({table})")]:
+        c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
 def migrate(c: sqlite3.Connection) -> None:
     c.executescript(SCHEMA)
+    _add_column(c, "credentials", "shared", "INTEGER NOT NULL DEFAULT 0")          # v3: shared-iPad sign-ins
+    _add_column(c, "codes", "keep_issuer", "INTEGER NOT NULL DEFAULT 0")
     row = c.execute("SELECT MAX(version) v FROM schema_version").fetchone()
     if row["v"] is None or row["v"] < SCHEMA_VERSION:          # v2 added the consents table, which executescript above has just created
         c.execute("INSERT INTO schema_version(version) VALUES (?)", (SCHEMA_VERSION,))

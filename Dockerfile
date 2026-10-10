@@ -4,7 +4,7 @@ FROM ${BASE}
 ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app/src ENGINE_DATA=/data TRUST_PROXY=1
 WORKDIR /app
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir numpy scipy fastapi==0.115.0 "uvicorn==0.30.6" jinja2==3.1.6 segno==1.6.1 imageio-ffmpeg==0.6.0 httpx==0.27.2
+RUN pip install --no-cache-dir numpy scipy fastapi==0.115.0 "uvicorn==0.30.6" jinja2==3.1.6 segno==1.6.1 imageio-ffmpeg==0.6.0 httpx==0.27.2 boto3
 COPY src ./src
 COPY phone_app ./phone_app
 COPY config ./config
