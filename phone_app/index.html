@@ -475,10 +475,11 @@ function applyPlaylist(){
   keys={};renderQueue();fillPitchSelect();engineInfo();renderHeroIdle();
   if(Q.notes.length)say("now",Q.notes.join(" "))}
 // ---- the outbox
-let flushing=false,backoff=0,nextTry=0,lastHb=0;
+let flushing=false,flushAgain=false,backoff=0,nextTry=0,lastHb=0;
 const toWire=t=>({id:t.id,task:t.task,mode:t.mode,call:t.call,pack:t.pack,clip:t.clip,options:t.options,rt_ms:t.rt_ms,pause_ms:t.pause_ms,camera:t.camera,view:t.view,q_order:t.q_order,clip_trial:t.clip_trial,session:t.session,correct:t.correct,ts:t.ts,app:t.app});
 async function engineFlush(force){
-  if(!CFG.engine||!CRED||!ME||flushing)return;
+  if(!CFG.engine||!CRED||!ME)return;
+  if(flushing){if(force)flushAgain=true;return}          // an answer saved during a send must not wait for the 30 s timer: send again as soon as this one ends
   if(!force&&Date.now()<nextTry)return;
   flushing=true;
   try{
@@ -490,7 +491,7 @@ async function engineFlush(force){
     backoff=0;nextTry=0;setNet(true);
     if(Date.now()-lastHb>300000||un.length){lastHb=Date.now();await sendHeartbeat().catch(()=>{})}
   }catch(e){if(!e.signedOut){backoff=Math.min(backoff?backoff*2:5000,300000);nextTry=Date.now()+backoff;if(e.offline)setNet(false)}}
-  finally{flushing=false;updateChips()}}
+  finally{flushing=false;updateChips();if(flushAgain){flushAgain=false;if(!backoff)engineFlush(true)}}}
 async function sendHeartbeat(){
   const all=(await allTrials()).filter(t=>t.pid===ME.id),un=all.filter(t=>!t.synced);let persisted=false;try{persisted=navigator.storage&&navigator.storage.persisted?await navigator.storage.persisted():false}catch(e){}
   await api("/api/heartbeat",{body:{stored:all.length,sent:all.filter(t=>t.synced===1).length,unsent:un.length,oldest_unsent_ts:un.length?un.map(t=>t.ts).sort()[0]:"",app:APP_ENGINE,persisted,detail:JSON.stringify({rejected:all.filter(t=>t.synced===2).length})}})}

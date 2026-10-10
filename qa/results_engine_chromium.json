@@ -5,7 +5,7 @@
   "test": "Claim link: shows the right person, one tap confirms, a pairing code appears, the app opens signed in as him with his playlist; his answers reach the server under his id",
   "result": "PASS",
   "evidence": "2 answers stored under Demo Hitter Four with server keys, level and pack hash",
-  "seconds": 4.2,
+  "seconds": 4.9,
   "severity": "S1"
  },
  {
@@ -14,7 +14,7 @@
   "test": "The installed-app gap: a fresh app (empty storage) signs in with the pairing code; the browser's credential is retired and signs out cleanly at its next contact",
   "result": "PASS",
   "evidence": "",
-  "seconds": 1.3,
+  "seconds": 1.8,
   "severity": "S1"
  },
  {
@@ -23,7 +23,7 @@
   "test": "The wrong-person trap: one phone, two hitters. Hitter A's unsent answers are NEVER sent under hitter B's name",
   "result": "PASS",
   "evidence": "A's 2 answers stayed on the phone, unsent, attributed to A; B's flush stored nothing of A's",
-  "seconds": 6.0,
+  "seconds": 7.4,
   "severity": "S1"
  },
  {
@@ -32,7 +32,7 @@
   "test": "Offline first: answer with no signal, reload still offline (still signed in, playlist cached), come back online: every answer arrives once, banner clears",
   "result": "PASS",
   "evidence": "",
-  "seconds": 5.7,
+  "seconds": 5.8,
   "severity": "S1"
  },
  {
@@ -41,18 +41,17 @@
   "test": "A lost response: the server stores the answers but the reply never reaches the phone; the retry stores nothing twice and the phone ends up with everything marked sent",
   "result": "PASS",
   "evidence": "2 replies dropped; rows on server 2, none duplicated",
-  "seconds": 5.8,
+  "seconds": 6.7,
   "severity": "S1"
  },
  {
   "id": "E6",
   "area": "Recovery",
   "test": "Wiped storage: the phone forgets everything; a coach's recovery code signs him back in; answers already sent are on the server and none are doubled",
-  "result": "FAIL",
-  "evidence": "TimeoutError: Page.wait_for_function: Timeout 10000ms exceeded.",
-  "seconds": 15.0,
-  "severity": "S1",
-  "trace": "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_frame.py\", line 941, in wait_for_function\n    await self._channel.send(\"waitForFunction\", self._timeout, params)\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py\", line 76, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py\", line 632, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 10000ms exceeded.\n"
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 5.1,
+  "severity": "S1"
  },
  {
   "id": "E7",
@@ -60,18 +59,17 @@
   "test": "A revoked credential: the next contact signs the phone out with a clear message and the unsent answers stay on the phone",
   "result": "PASS",
   "evidence": "",
-  "seconds": 5.4,
+  "seconds": 5.3,
   "severity": "S1"
  },
  {
   "id": "E8",
   "area": "Surfacing",
   "test": "Coach settings reach the phone and cannot be changed on it: Visalia gets 200 ms and the low-behind-home view; drawn pitches log that camera; a practice note says these are not his opponent",
-  "result": "FAIL",
-  "evidence": "TimeoutError: Page.wait_for_function: Timeout 10000ms exceeded.",
-  "seconds": 12.8,
-  "severity": "S1",
-  "trace": "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_frame.py\", line 941, in wait_for_function\n    await self._channel.send(\"waitForFunction\", self._timeout, params)\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py\", line 76, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/dist-packages/playwright/_impl/_connection.py\", line 632, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 10000ms exceeded.\n"
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 2.9,
+  "severity": "S1"
  },
  {
   "id": "E9",
@@ -79,7 +77,7 @@
   "test": "Server-side truth: a phone that lies about the score, the key or the pack it was shown cannot change what is stored",
   "result": "PASS",
   "evidence": "",
-  "seconds": 1.0,
+  "seconds": 0.8,
   "severity": "S1"
  },
  {
@@ -97,7 +95,7 @@
   "test": "Switch hitter: side selector shown, both sides' packs exist, choosing a side filters the queue",
   "result": "PASS",
   "evidence": "",
-  "seconds": 1.0,
+  "seconds": 1.1,
   "severity": "S2"
  },
  {
@@ -115,7 +113,7 @@
   "test": "Wrong codes show the server's message and the throttle stops guessing",
   "result": "PASS",
   "evidence": "throttled after 19 more guesses",
-  "seconds": 0.9,
+  "seconds": 1.1,
   "severity": "S2"
  },
  {
@@ -142,7 +140,7 @@
   "test": "820x1180: gate screens and the signed-in app have no sideways scroll, buttons are at least 44 px, and the Strike/Ball buttons are on screen",
   "result": "PASS",
   "evidence": "",
-  "seconds": 3.5,
+  "seconds": 3.7,
   "severity": "S2"
  },
  {
