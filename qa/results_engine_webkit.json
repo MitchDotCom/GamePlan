@@ -1,11 +1,155 @@
 [
  {
+  "id": "E1",
+  "area": "Identity",
+  "test": "Claim link: shows the right person, one tap confirms, a pairing code appears, the app opens signed in as him with his playlist; his answers reach the server under his id",
+  "result": "PASS",
+  "evidence": "2 answers stored under Demo Hitter Four with server keys, level and pack hash",
+  "seconds": 6.3,
+  "severity": "S1"
+ },
+ {
+  "id": "E2",
+  "area": "Identity",
+  "test": "The installed-app gap: a fresh app (empty storage) signs in with the pairing code; the browser's credential is retired and signs out cleanly at its next contact",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 3.1,
+  "severity": "S1"
+ },
+ {
+  "id": "E3",
+  "area": "Identity",
+  "test": "The wrong-person trap: one phone, two hitters. Hitter A's unsent answers are NEVER sent under hitter B's name",
+  "result": "PASS",
+  "evidence": "A's 2 answers stayed on the phone, unsent, attributed to A; B's flush stored nothing of A's",
+  "seconds": 8.0,
+  "severity": "S1"
+ },
+ {
   "id": "E4",
   "area": "Sync",
   "test": "Offline first: answer with no signal, reload still offline (still signed in, playlist cached), come back online: every answer arrives once, banner clears",
   "result": "PASS",
   "evidence": "",
-  "seconds": 7.6,
+  "seconds": 5.7,
+  "severity": "S1"
+ },
+ {
+  "id": "E5",
+  "area": "Sync",
+  "test": "A lost response: the server stores the answers but the reply never reaches the phone; the retry stores nothing twice and the phone ends up with everything marked sent",
+  "result": "PASS",
+  "evidence": "2 replies dropped; rows on server 2, none duplicated",
+  "seconds": 7.1,
+  "severity": "S1"
+ },
+ {
+  "id": "E6",
+  "area": "Recovery",
+  "test": "Wiped storage: the phone forgets everything; a coach's recovery code signs him back in; answers already sent are on the server and none are doubled",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 7.0,
+  "severity": "S1"
+ },
+ {
+  "id": "E7",
+  "area": "Identity",
+  "test": "A revoked credential: the next contact signs the phone out with a clear message and the unsent answers stay on the phone",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 6.3,
+  "severity": "S1"
+ },
+ {
+  "id": "E8",
+  "area": "Surfacing",
+  "test": "Coach settings reach the phone and cannot be changed on it: Visalia gets 200 ms and the low-behind-home view; drawn pitches log that camera; a practice note says these are not his opponent",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 3.7,
+  "severity": "S1"
+ },
+ {
+  "id": "E9",
+  "area": "Surfacing",
+  "test": "Server-side truth: a phone that lies about the score, the key or the pack it was shown cannot change what is stored",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 1.8,
+  "severity": "S1"
+ },
+ {
+  "id": "E10",
+  "area": "Surfacing",
+  "test": "Assessment: no answers on the phone, scored by the server, offered once",
+  "result": "PASS",
+  "evidence": "scored on the server; a started form resumes with the 5 items left",
+  "seconds": 4.5,
+  "severity": "S1"
+ },
+ {
+  "id": "E11",
+  "area": "Surfacing",
+  "test": "Switch hitter: side selector shown, both sides' packs exist, choosing a side filters the queue",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 1.5,
+  "severity": "S2"
+ },
+ {
+  "id": "E12",
+  "area": "Identity",
+  "test": "A claim link works once; a used, wrong or expired link looks the same and says so plainly",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 2.3,
+  "severity": "S1"
+ },
+ {
+  "id": "E13",
+  "area": "Identity",
+  "test": "Wrong codes show the server's message and the throttle stops guessing",
+  "result": "PASS",
+  "evidence": "throttled after 19 more guesses",
+  "seconds": 1.4,
+  "severity": "S2"
+ },
+ {
+  "id": "E14-320",
+  "area": "Layout",
+  "test": "320x568: gate screens and the signed-in app have no sideways scroll, buttons are at least 44 px, and the Strike/Ball buttons are on screen",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 2.7,
+  "severity": "S2"
+ },
+ {
+  "id": "E14-390",
+  "area": "Layout",
+  "test": "390x844: gate screens and the signed-in app have no sideways scroll, buttons are at least 44 px, and the Strike/Ball buttons are on screen",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 3.9,
+  "severity": "S2"
+ },
+ {
+  "id": "E14-820",
+  "area": "Layout",
+  "test": "820x1180: gate screens and the signed-in app have no sideways scroll, buttons are at least 44 px, and the Strike/Ball buttons are on screen",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 5.2,
+  "severity": "S2"
+ },
+ {
+  "id": "E15",
+  "area": "Console",
+  "test": "No uncaught script errors or console errors across the whole run",
+  "result": "PASS",
+  "evidence": "",
+  "seconds": 0.0,
   "severity": "S1"
  }
 ]
